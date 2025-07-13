@@ -1,4 +1,4 @@
-from .hl1 import NormalTransistorP, NormalTransistorN
+from ..HL1.normal_transistor import NormalTransistorP, NormalTransistorN
 from PySpice.Spice.Netlist import SubCircuitFactory
 
 
