@@ -20,6 +20,14 @@ from pyckt.topology.HL2.voltage_bias import (
     VoltageBiasN5,
     VoltageBiasN6,
 )
+from pyckt.topology.HL2.current_bias import (
+    CurrentBiasP1,
+    CurrentBiasP2,
+    CurrentBiasP3,
+    CurrentBiasN1,
+    CurrentBiasN2,
+    CurrentBiasN3,
+)
 from PySpice.Spice.Netlist import Circuit
 
 
@@ -153,6 +161,58 @@ class TestVoltageBiasSynthesis(unittest.TestCase):
         )
         self.assertIn("VoltageBiasN6", [s.name for s in circuit.subcircuits])
         self.assertEqual(x.subcircuit_name, "VoltageBiasN6")
+
+
+class TestCurrentBiasSynthesis(unittest.TestCase):
+    def test_current_bias_p1(self):
+        circuit = Circuit("CurrentBiasP1 Test")
+        circuit.subcircuit(CurrentBiasP1())
+        x = circuit.X("cbias", "CurrentBiasP1", "in", "out", "source")
+        self.assertIn("CurrentBiasP1", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "CurrentBiasP1")
+
+    def test_current_bias_p2(self):
+        circuit = Circuit("CurrentBiasP2 Test")
+        circuit.subcircuit(CurrentBiasP2())
+        x = circuit.X(
+            "cbias", "CurrentBiasP2", "out", "source", "inOutput", "inSource", "inner"
+        )
+        self.assertIn("CurrentBiasP2", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "CurrentBiasP2")
+
+    def test_current_bias_p3(self):
+        circuit = Circuit("CurrentBiasP3 Test")
+        circuit.subcircuit(CurrentBiasP3())
+        x = circuit.X(
+            "cbias", "CurrentBiasP3", "out", "source", "inOutput", "inSource", "inner"
+        )
+        self.assertIn("CurrentBiasP3", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "CurrentBiasP3")
+
+    def test_current_bias_n1(self):
+        circuit = Circuit("CurrentBiasN1 Test")
+        circuit.subcircuit(CurrentBiasN1())
+        x = circuit.X("cbias", "CurrentBiasN1", "in", "out", "source")
+        self.assertIn("CurrentBiasN1", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "CurrentBiasN1")
+
+    def test_current_bias_n2(self):
+        circuit = Circuit("CurrentBiasN2 Test")
+        circuit.subcircuit(CurrentBiasN2())
+        x = circuit.X(
+            "cbias", "CurrentBiasN2", "out", "source", "inOutput", "inSource", "inner"
+        )
+        self.assertIn("CurrentBiasN2", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "CurrentBiasN2")
+
+    def test_current_bias_n3(self):
+        circuit = Circuit("CurrentBiasN3 Test")
+        circuit.subcircuit(CurrentBiasN3())
+        x = circuit.X(
+            "cbias", "CurrentBiasN3", "out", "source", "inOutput", "inSource", "inner"
+        )
+        self.assertIn("CurrentBiasN3", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "CurrentBiasN3")
 
 
 if __name__ == "__main__":
