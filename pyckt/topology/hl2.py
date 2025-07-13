@@ -21,10 +21,3 @@ class DifferentialPairN(SubCircuitFactory):
         super().__init__()
         self.X("M1", "NormalTransistorN", "output1", "input1", "source")
         self.X("M2", "NormalTransistorN", "output2", "input2", "source")
-
-
-class TopologyGenerator:
-    """Class for generating analog circuit topologies."""
-
-    def generate(self):
-        pass
