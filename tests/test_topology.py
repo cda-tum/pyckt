@@ -28,6 +28,16 @@ from pyckt.topology.HL2.current_bias import (
     CurrentBiasN2,
     CurrentBiasN3,
 )
+from pyckt.topology.HL2.analog_inverter import (
+    AnalogInverter1,
+    AnalogInverter2,
+    AnalogInverter3,
+    AnalogInverter4,
+    AnalogInverter5,
+    AnalogInverter6,
+    AnalogInverter7,
+    AnalogInverter8,
+)
 from PySpice.Spice.Netlist import Circuit
 
 
@@ -213,6 +223,148 @@ class TestCurrentBiasSynthesis(unittest.TestCase):
         )
         self.assertIn("CurrentBiasN3", [s.name for s in circuit.subcircuits])
         self.assertEqual(x.subcircuit_name, "CurrentBiasN3")
+
+
+class TestAnalogInverterSynthesis(unittest.TestCase):
+    def test_analog_inverter_1(self):
+        circuit = Circuit("AnalogInverter1 Test")
+        circuit.subcircuit(AnalogInverter1())
+        x = circuit.X(
+            "ainv",
+            "AnalogInverter1",
+            "inCurrentBiasNmos",
+            "inCurrentBiasPmos",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        )
+        self.assertIn("AnalogInverter1", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "AnalogInverter1")
+
+    def test_analog_inverter_2(self):
+        circuit = Circuit("AnalogInverter2 Test")
+        circuit.subcircuit(AnalogInverter2())
+        x = circuit.X(
+            "ainv",
+            "AnalogInverter2",
+            "inCurrentBiasPmos",
+            "inOutputCurrentBiasNmos",
+            "inSourceCurrentBiasNmos",
+            "innerCurrentBiasNmos",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        )
+        self.assertIn("AnalogInverter2", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "AnalogInverter2")
+
+    def test_analog_inverter_3(self):
+        circuit = Circuit("AnalogInverter3 Test")
+        circuit.subcircuit(AnalogInverter3())
+        x = circuit.X(
+            "ainv",
+            "AnalogInverter3",
+            "inCurrentBiasPmos",
+            "inOutputCurrentBiasNmos",
+            "inSourceCurrentBiasNmos",
+            "innerCurrentBiasNmos",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        )
+        self.assertIn("AnalogInverter3", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "AnalogInverter3")
+
+    def test_analog_inverter_4(self):
+        circuit = Circuit("AnalogInverter4 Test")
+        circuit.subcircuit(AnalogInverter4())
+        x = circuit.X(
+            "ainv",
+            "AnalogInverter4",
+            "inCurrentBiasNmos",
+            "inOutputCurrentBiasPmos",
+            "inSourceCurrentBiasPmos",
+            "innerCurrentBiasPmos",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        )
+        self.assertIn("AnalogInverter4", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "AnalogInverter4")
+
+    def test_analog_inverter_5(self):
+        circuit = Circuit("AnalogInverter5 Test")
+        circuit.subcircuit(AnalogInverter5())
+        x = circuit.X(
+            "ainv",
+            "AnalogInverter5",
+            "inOutputCurrentBiasNmos",
+            "inOutputCurrentBiasPmos",
+            "inSourceCurrentBiasNmos",
+            "inSourceCurrentBiasPmos",
+            "innerCurrentBiasNmos",
+            "innerCurrentBiasPmos",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        )
+        self.assertIn("AnalogInverter5", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "AnalogInverter5")
+
+    def test_analog_inverter_6(self):
+        circuit = Circuit("AnalogInverter6 Test")
+        circuit.subcircuit(AnalogInverter6())
+        x = circuit.X(
+            "ainv",
+            "AnalogInverter6",
+            "inOutputCurrentBiasNmos",
+            "inOutputCurrentBiasPmos",
+            "inSourceCurrentBiasNmos",
+            "inSourceCurrentBiasPmos",
+            "innerCurrentBiasNmos",
+            "innerCurrentBiasPmos",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        )
+        self.assertIn("AnalogInverter6", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "AnalogInverter6")
+
+    def test_analog_inverter_7(self):
+        circuit = Circuit("AnalogInverter7 Test")
+        circuit.subcircuit(AnalogInverter7())
+        x = circuit.X(
+            "ainv",
+            "AnalogInverter7",
+            "inCurrentBiasNmos",
+            "inOutputCurrentBiasPmos",
+            "inSourceCurrentBiasPmos",
+            "innerCurrentBiasPmos",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        )
+        self.assertIn("AnalogInverter7", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "AnalogInverter7")
+
+    def test_analog_inverter_8(self):
+        circuit = Circuit("AnalogInverter8 Test")
+        circuit.subcircuit(AnalogInverter8())
+        x = circuit.X(
+            "ainv",
+            "AnalogInverter8",
+            "inOutputCurrentBiasNmos",
+            "inOutputCurrentBiasPmos",
+            "inSourceCurrentBiasNmos",
+            "inSourceCurrentBiasPmos",
+            "innerCurrentBiasNmos",
+            "innerCurrentBiasPmos",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        )
+        self.assertIn("AnalogInverter8", [s.name for s in circuit.subcircuits])
+        self.assertEqual(x.subcircuit_name, "AnalogInverter8")
 
 
 if __name__ == "__main__":
