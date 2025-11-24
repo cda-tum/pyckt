@@ -1,273 +1,282 @@
-from PySpice.Spice.Netlist import SubCircuitFactory
-from pyckt.topology.HL2.current_bias import (
-    CurrentBiasN1,
-    CurrentBiasN2,
-    CurrentBiasN3,
-    CurrentBiasP1,
-    CurrentBiasP2,
-    CurrentBiasP3,
-)
-
-
-class AnalogInverter1(SubCircuitFactory):
-    NAME = "AnalogInverter1"
-    NODES = (
-        "inCurrentBiasNmos",
-        "inCurrentBiasPmos",
-        "output",
-        "sourceCurrentBiasNmos",
-        "sourceCurrentBiasPmos",
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.X(
-            "Nmos",
-            "CurrentBiasN1",
+subcircuits_inv = [
+    {
+        "name": "AnalogInverter[?, 1]",
+        "ports": [
             "inCurrentBiasNmos",
-            "output",
-            "sourceCurrentBiasNmos",
-        )
-        self.X(
-            "Pmos",
-            "CurrentBiasP1",
             "inCurrentBiasPmos",
             "output",
-            "sourceCurrentBiasPmos",
-        )
-
-
-class AnalogInverter2(SubCircuitFactory):
-    NAME = "AnalogInverter2"
-    NODES = (
-        "inCurrentBiasPmos",
-        "inOutputCurrentBiasNmos",
-        "inSourceCurrentBiasNmos",
-        "innerCurrentBiasNmos",
-        "output",
-        "sourceCurrentBiasNmos",
-        "sourceCurrentBiasPmos",
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.X(
-            "Nmos",
-            "CurrentBiasN2",
-            "output",
             "sourceCurrentBiasNmos",
-            "inOutputCurrentBiasNmos",
-            "inSourceCurrentBiasNmos",
-            "innerCurrentBiasNmos",
-        )
-        self.X(
-            "Pmos",
-            "CurrentBiasP1",
+            "sourceCurrentBiasPmos",
+        ],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "CurrentBias[n, 1]",
+                "connections": {
+                    "in": "inCurrentBiasNmos",
+                    "out": "output",
+                    "source": "sourceCurrentBiasNmos",
+                },
+            },
+            {
+                "name": "m2",
+                "type": "CurrentBias[p, 1]",
+                "connections": {
+                    "in": "inCurrentBiasPmos",
+                    "out": "output",
+                    "source": "sourceCurrentBiasPmos",
+                },
+            },
+        ],
+    },
+    {
+        "name": "AnalogInverter[?, 2]",
+        "ports": [
             "inCurrentBiasPmos",
-            "output",
-            "sourceCurrentBiasPmos",
-        )
-
-
-class AnalogInverter3(SubCircuitFactory):
-    NAME = "AnalogInverter3"
-    NODES = (
-        "inCurrentBiasPmos",
-        "inOutputCurrentBiasNmos",
-        "inSourceCurrentBiasNmos",
-        "innerCurrentBiasNmos",
-        "output",
-        "sourceCurrentBiasNmos",
-        "sourceCurrentBiasPmos",
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.X(
-            "Nmos",
-            "CurrentBiasN3",
-            "output",
-            "sourceCurrentBiasNmos",
             "inOutputCurrentBiasNmos",
             "inSourceCurrentBiasNmos",
             "innerCurrentBiasNmos",
-        )
-        self.X(
-            "Pmos",
-            "CurrentBiasP1",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        ],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "CurrentBias[n, 2]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasNmos",
+                    "inOutput": "inOutputCurrentBiasNmos",
+                    "inSource": "inSourceCurrentBiasNmos",
+                    "inner": "innerCurrentBiasNmos",
+                },
+            },
+            {
+                "name": "m2",
+                "type": "CurrentBias[p, 1]",
+                "connections": {
+                    "in": "inCurrentBiasPmos",
+                    "out": "output",
+                    "source": "sourceCurrentBiasPmos",
+                },
+            },
+        ],
+    },
+    {
+        "name": "AnalogInverter[?, 3]",
+        "ports": [
             "inCurrentBiasPmos",
+            "inOutputCurrentBiasNmos",
+            "inSourceCurrentBiasNmos",
+            "innerCurrentBiasNmos",
             "output",
+            "sourceCurrentBiasNmos",
             "sourceCurrentBiasPmos",
-        )
-
-
-class AnalogInverter4(SubCircuitFactory):
-    NAME = "AnalogInverter4"
-    NODES = (
-        "inCurrentBiasNmos",
-        "inOutputCurrentBiasPmos",
-        "inSourceCurrentBiasPmos",
-        "innerCurrentBiasPmos",
-        "output",
-        "sourceCurrentBiasNmos",
-        "sourceCurrentBiasPmos",
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.X(
-            "Nmos",
-            "CurrentBiasN1",
+        ],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "CurrentBias[n, 3]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasNmos",
+                    "inOutput": "inOutputCurrentBiasNmos",
+                    "inSource": "inSourceCurrentBiasNmos",
+                    "inner": "innerCurrentBiasNmos",
+                },
+            },
+            {
+                "name": "m2",
+                "type": "CurrentBias[p, 1]",
+                "connections": {
+                    "in": "inCurrentBiasPmos",
+                    "out": "output",
+                    "source": "sourceCurrentBiasPmos",
+                },
+            },
+        ],
+    },
+    {
+        "name": "AnalogInverter[?, 4]",
+        "ports": [
             "inCurrentBiasNmos",
-            "output",
-            "sourceCurrentBiasNmos",
-        )
-        self.X(
-            "Pmos",
-            "CurrentBiasP2",
-            "output",
-            "sourceCurrentBiasPmos",
             "inOutputCurrentBiasPmos",
             "inSourceCurrentBiasPmos",
             "innerCurrentBiasPmos",
-        )
-
-
-class AnalogInverter5(SubCircuitFactory):
-    NAME = "AnalogInverter5"
-    NODES = (
-        "inOutputCurrentBiasNmos",
-        "inOutputCurrentBiasPmos",
-        "inSourceCurrentBiasNmos",
-        "inSourceCurrentBiasPmos",
-        "innerCurrentBiasNmos",
-        "innerCurrentBiasPmos",
-        "output",
-        "sourceCurrentBiasNmos",
-        "sourceCurrentBiasPmos",
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.X(
-            "Nmos",
-            "CurrentBiasN2",
             "output",
             "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        ],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "CurrentBias[n, 1]",
+                "connections": {
+                    "in": "inCurrentBiasNmos",
+                    "out": "output",
+                    "source": "sourceCurrentBiasNmos",
+                },
+            },
+            {
+                "name": "m2",
+                "type": "CurrentBias[p, 2]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasPmos",
+                    "inOutput": "inOutputCurrentBiasPmos",
+                    "inSource": "inSourceCurrentBiasPmos",
+                    "inner": "innerCurrentBiasPmos",
+                },
+            },
+        ],
+    },
+    {
+        "name": "AnalogInverter[?, 5]",
+        "ports": [
             "inOutputCurrentBiasNmos",
-            "inSourceCurrentBiasNmos",
-            "innerCurrentBiasNmos",
-        )
-        self.X(
-            "Pmos",
-            "CurrentBiasP2",
-            "output",
-            "sourceCurrentBiasPmos",
             "inOutputCurrentBiasPmos",
+            "inSourceCurrentBiasNmos",
             "inSourceCurrentBiasPmos",
+            "innerCurrentBiasNmos",
             "innerCurrentBiasPmos",
-        )
-
-
-class AnalogInverter6(SubCircuitFactory):
-    NAME = "AnalogInverter6"
-    NODES = (
-        "inOutputCurrentBiasNmos",
-        "inOutputCurrentBiasPmos",
-        "inSourceCurrentBiasNmos",
-        "inSourceCurrentBiasPmos",
-        "innerCurrentBiasNmos",
-        "innerCurrentBiasPmos",
-        "output",
-        "sourceCurrentBiasNmos",
-        "sourceCurrentBiasPmos",
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.X(
-            "Nmos",
-            "CurrentBiasN3",
             "output",
             "sourceCurrentBiasNmos",
-            "inOutputCurrentBiasNmos",
-            "inSourceCurrentBiasNmos",
-            "innerCurrentBiasNmos",
-        )
-        self.X(
-            "Pmos",
-            "CurrentBiasP3",
-            "output",
             "sourceCurrentBiasPmos",
+        ],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "CurrentBias[n, 2]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasNmos",
+                    "inOutput": "inOutputCurrentBiasNmos",
+                    "inSource": "inSourceCurrentBiasNmos",
+                    "inner": "innerCurrentBiasNmos",
+                },
+            },
+            {
+                "name": "m2",
+                "type": "CurrentBias[p, 2]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasPmos",
+                    "inOutput": "inOutputCurrentBiasPmos",
+                    "inSource": "inSourceCurrentBiasPmos",
+                    "inner": "innerCurrentBiasPmos",
+                },
+            },
+        ],
+    },
+    {
+        "name": "AnalogInverter[?, 6]",
+        "ports": [
+            "inOutputCurrentBiasNmos",
             "inOutputCurrentBiasPmos",
+            "inSourceCurrentBiasNmos",
             "inSourceCurrentBiasPmos",
+            "innerCurrentBiasNmos",
             "innerCurrentBiasPmos",
-        )
-
-
-class AnalogInverter7(SubCircuitFactory):
-    NAME = "AnalogInverter7"
-    NODES = (
-        "inCurrentBiasNmos",
-        "inOutputCurrentBiasPmos",
-        "inSourceCurrentBiasPmos",
-        "innerCurrentBiasPmos",
-        "output",
-        "sourceCurrentBiasNmos",
-        "sourceCurrentBiasPmos",
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.X(
-            "Nmos",
-            "CurrentBiasN1",
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        ],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "CurrentBias[n, 3]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasNmos",
+                    "inOutput": "inOutputCurrentBiasNmos",
+                    "inSource": "inSourceCurrentBiasNmos",
+                    "inner": "innerCurrentBiasNmos",
+                },
+            },
+            {
+                "name": "m2",
+                "type": "CurrentBias[p, 3]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasPmos",
+                    "inOutput": "inOutputCurrentBiasPmos",
+                    "inSource": "inSourceCurrentBiasPmos",
+                    "inner": "innerCurrentBiasPmos",
+                },
+            },
+        ],
+    },
+    {
+        "name": "AnalogInverter[?, 7]",
+        "ports": [
             "inCurrentBiasNmos",
-            "output",
-            "sourceCurrentBiasNmos",
-        )
-        self.X(
-            "Pmos",
-            "CurrentBiasP2",
-            "output",
-            "sourceCurrentBiasPmos",
             "inOutputCurrentBiasPmos",
             "inSourceCurrentBiasPmos",
             "innerCurrentBiasPmos",
-        )
-
-
-class AnalogInverter8(SubCircuitFactory):
-    NAME = "AnalogInverter8"
-    NODES = (
-        "inOutputCurrentBiasNmos",
-        "inOutputCurrentBiasPmos",
-        "inSourceCurrentBiasNmos",
-        "inSourceCurrentBiasPmos",
-        "innerCurrentBiasNmos",
-        "innerCurrentBiasPmos",
-        "output",
-        "sourceCurrentBiasNmos",
-        "sourceCurrentBiasPmos",
-    )
-
-    def __init__(self):
-        super().__init__()
-        self.X(
-            "Nmos",
-            "CurrentBiasN3",
             "output",
             "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        ],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "CurrentBias[n, 1]",
+                "connections": {
+                    "in": "inCurrentBiasNmos",
+                    "out": "output",
+                    "source": "sourceCurrentBiasNmos",
+                },
+            },
+            {
+                "name": "m2",
+                "type": "CurrentBias[p, 2]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasPmos",
+                    "inOutput": "inOutputCurrentBiasPmos",
+                    "inSource": "inSourceCurrentBiasPmos",
+                    "inner": "innerCurrentBiasPmos",
+                },
+            },
+        ],
+    },
+    {
+        "name": "AnalogInverter[?, 8]",
+        "ports": [
             "inOutputCurrentBiasNmos",
-            "inSourceCurrentBiasNmos",
-            "innerCurrentBiasNmos",
-        )
-        self.X(
-            "Pmos",
-            "CurrentBiasP3",
-            "output",
-            "sourceCurrentBiasPmos",
             "inOutputCurrentBiasPmos",
+            "inSourceCurrentBiasNmos",
             "inSourceCurrentBiasPmos",
+            "innerCurrentBiasNmos",
             "innerCurrentBiasPmos",
-        )
+            "output",
+            "sourceCurrentBiasNmos",
+            "sourceCurrentBiasPmos",
+        ],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "CurrentBias[n, 3]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasNmos",
+                    "inOutput": "inOutputCurrentBiasNmos",
+                    "inSource": "inSourceCurrentBiasNmos",
+                    "inner": "innerCurrentBiasNmos",
+                },
+            },
+            {
+                "name": "m2",
+                "type": "CurrentBias[p, 3]",
+                "connections": {
+                    "out": "output",
+                    "source": "sourceCurrentBiasPmos",
+                    "inOutput": "inOutputCurrentBiasPmos",
+                    "inSource": "inSourceCurrentBiasPmos",
+                    "inner": "innerCurrentBiasPmos",
+                },
+            },
+        ],
+    },
+]

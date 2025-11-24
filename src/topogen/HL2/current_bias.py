@@ -1,61 +1,100 @@
-from PySpice.Spice.Netlist import SubCircuitFactory
-from pyckt.topology.HL1.normal_transistor import NormalTransistorP, NormalTransistorN
-from pyckt.topology.HL1.diode_transistor import DiodeTransistorP, DiodeTransistorN
+subcircuits_pmos_cb = [
+    {
+        "name": "CurrentBias[p, 1]",
+        "type": "PMOS",
+        "connections": {"drain": "in", "gate": "out", "source": "source"},
+        "ports": ["in", "out", "source"],
+    },
+    {
+        "name": "CurrentBias[p, 2]",
+        "ports": ["out", "source", "inOutput", "inSource", "inner"],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "PMOS",
+                "connections": {"drain": "out", "gate": "inOutput", "source": "inner"},
+            },
+            {
+                "name": "m2",
+                "type": "PMOS",
+                "connections": {
+                    "drain": "inner",
+                    "gate": "inSource",
+                    "source": "source",
+                },
+            },
+        ],
+    },
+    {
+        "name": "CurrentBias[p, 3]",
+        "ports": ["out", "source", "inOutput", "inSource", "inner"],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "PMOS",
+                "connections": {"drain": "out", "gate": "inOutput", "source": "inner"},
+            },
+            {
+                "name": "m2",
+                "type": "DIODE_PMOS",
+                "connections": {
+                    "drain": "inner",
+                    "gate": "inSource",
+                    "source": "source",
+                },
+            },
+        ],
+    },
+]
 
 
-class CurrentBiasP1(SubCircuitFactory):
-    NAME = "CurrentBiasP1"
-    NODES = ("in", "out", "source")
+subcircuits_nmos_cb = [
+    {
+        "name": "CurrentBias[n, 1]",
+        "type": "NMOS",
+        "connections": {"drain": "out", "gate": "in", "source": "source"},
+        "ports": ["in", "out", "source"],
+    },
+    {
+        "name": "CurrentBias[n, 2]",
+        "ports": ["out", "source", "inOutput", "inSource", "inner"],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "NMOS",
+                "connections": {"drain": "out", "gate": "inOutput", "source": "inner"},
+            },
+            {
+                "name": "m2",
+                "type": "NMOS",
+                "connections": {
+                    "drain": "inner",
+                    "gate": "inSource",
+                    "source": "source",
+                },
+            },
+        ],
+    },
+    {
+        "name": "CurrentBias[n, 3]",
+        "ports": ["out", "source", "inOutput", "inSource", "inner"],
+        "instances": [
+            {
+                "name": "m1",
+                "type": "NMOS",
+                "connections": {"drain": "out", "gate": "inOutput", "source": "inner"},
+            },
+            {
+                "name": "m2",
+                "type": "DIODE_NMOS",
+                "connections": {
+                    "drain": "inner",
+                    "gate": "inSource",
+                    "source": "source",
+                },
+            },
+        ],
+    },
+]
 
-    def __init__(self):
-        super().__init__()
-        self.X("M1", "NormalTransistorP", "out", "in", "source")
-
-
-class CurrentBiasP2(SubCircuitFactory):
-    NAME = "CurrentBiasP2"
-    NODES = ("out", "source", "inOutput", "inSource", "inner")
-
-    def __init__(self):
-        super().__init__()
-        self.X("M1", "NormalTransistorP", "out", "inOutput", "inner")
-        self.X("M2", "NormalTransistorP", "inner", "inSource", "source")
-
-
-class CurrentBiasP3(SubCircuitFactory):
-    NAME = "CurrentBiasP3"
-    NODES = ("out", "source", "inOutput", "inSource", "inner")
-
-    def __init__(self):
-        super().__init__()
-        self.X("M1", "NormalTransistorP", "out", "inOutput", "inner")
-        self.X("M2", "DiodeTransistorP", "inner", "inSource", "source")
-
-
-class CurrentBiasN1(SubCircuitFactory):
-    NAME = "CurrentBiasN1"
-    NODES = ("in", "out", "source")
-
-    def __init__(self):
-        super().__init__()
-        self.X("M1", "NormalTransistorN", "out", "in", "source")
-
-
-class CurrentBiasN2(SubCircuitFactory):
-    NAME = "CurrentBiasN2"
-    NODES = ("out", "source", "inOutput", "inSource", "inner")
-
-    def __init__(self):
-        super().__init__()
-        self.X("M1", "NormalTransistorN", "out", "inOutput", "inner")
-        self.X("M2", "NormalTransistorN", "inner", "inSource", "source")
-
-
-class CurrentBiasN3(SubCircuitFactory):
-    NAME = "CurrentBiasN3"
-    NODES = ("out", "source", "inOutput", "inSource", "inner")
-
-    def __init__(self):
-        super().__init__()
-        self.X("M1", "NormalTransistorN", "out", "inOutput", "inner")
-        self.X("M2", "DiodeTransistorN", "inner", "inSource", "source")
+subcircuits_cb = subcircuits_pmos_cb + subcircuits_nmos_cb
