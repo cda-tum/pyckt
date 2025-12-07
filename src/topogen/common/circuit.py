@@ -2,6 +2,7 @@ import json
 from collections import defaultdict
 
 import random
+import os
 
 
 class Circuit:
@@ -18,7 +19,6 @@ class Circuit:
         self.instance_id = self.id
 
     def add_instance(self, instance=None):
-        # instance.instance_id = len(self.instances)
         self.instances.append(instance)
 
     def add_connection_xxx(self, port, instance_id, instance_port):
@@ -290,3 +290,14 @@ class DiffPair(Circuit):
         super().__init__(*args, **kwargs)
 
 
+def save_graphviz_figure(circuit: Circuit, filename: str):
+    with open(filename, "w") as fw:
+
+        fw.write("digraph g { \n")
+        fw.write("""fontname="Helvetica,Arial,sans-serif" \n""")
+        fw.write("""node [fontname="Helvetica,Arial,sans-serif"] \n""")
+        fw.write("""edge [fontname="Helvetica,Arial,sans-serif"] \n""")
+
+        fw.write(circuit.graphviz())
+        fw.write("} \n")
+    os.system(f"dot -Tpng {filename} > {filename.replace('.dot', '.png')}")
