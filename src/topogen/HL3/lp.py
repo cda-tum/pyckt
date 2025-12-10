@@ -6,12 +6,21 @@ from src.topogen.common.circuit import (
     TransistorStack,
     LoadPart,
     save_graphviz_figure,
+    convert_dot_to_png,
     createTransistorStack,
     connectInstanceTerminal,
 )
 
+from pathlib import Path
 import json
-import os
+
+# fmt: off
+
+GALLERY_DOT_DIR = Path(__file__).parent.parent.parent.parent / "gallery" / "HL3" / "lp" / "dots"
+GALLERY_DOT_DIR.mkdir(parents=True, exist_ok=True)
+
+GALLERY_IMAGE_DIR = Path(__file__).parent.parent.parent.parent / "gallery" / "HL3" / "lp" / "images"
+GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = setup_logger(log_level="DEBUG", log_file=None)
 
@@ -624,34 +633,17 @@ create_methods = [
 ]
 
 if __name__ == "__main__":
-    # print(createTwoTransistorsLoadPartsLoadPartsPmosVoltageBiases()[0].connections)
-    # data = createTwoTransistorsLoadPartsLoadPartsPmosVoltageBiases()
-    # json_data = json.dumps(data[0].to_dict())
-    # print(data[0].graphviz())
 
-    # print(createFourTransistorsLoadPartsLoadPartsPmosVoltageBiases()[0].connections)
-    # data = createFourTransistorsLoadPartsLoadPartsPmosVoltageBiases()
-    # json_data = json.dumps(data[0].to_dict())
-
-    # with open("loadpart.txt", "w") as fw:
-
-    #     fw.write("digraph g { \n")
-    #     fw.write("""fontname="Helvetica,Arial,sans-serif" \n""")
-    #     fw.write("""node [fontname="Helvetica,Arial,sans-serif"] \n""")
-    #     fw.write("""edge [fontname="Helvetica,Arial,sans-serif"] \n""")
-
-    #     fw.write(data[0].graphviz())
-    #     fw.write("} \n")
     lp_mng = LoadPartManager()
-    for idx, method in enumerate(create_methods):
-        # print_json(method())
-        # print(idx + 1)
-        print_json_v2(getattr(lp_mng, method)())
-        for idx2, circuit in enumerate(getattr(lp_mng, method)()):
+    for case_id, method in enumerate(create_methods):
+        for circuit_id, circuit in enumerate(getattr(lp_mng, method)()):
             if circuit != None:
                 save_graphviz_figure(
-                    circuit, filename=f"gallery/HL3/lp-{idx}-{idx2}.dot"
+                    circuit, filename=GALLERY_DOT_DIR/ f"lp_{case_id}_{circuit_id}.dot"
                 )
-
-    # json_data = json.dumps(createLoadPartsNmosFourTransistorMixed()[0].to_dict())
-    # print(createLoadPartsNmosFourTransistorMixed()[0].graphviz())
+                convert_dot_to_png(
+                    GALLERY_DOT_DIR/ f"lp_{case_id}_{circuit_id}.dot", GALLERY_IMAGE_DIR/ f"lp_{case_id}_{circuit_id}.png"
+                )
+            else:
+                logger.warning(f"circuit is None for {method} - {case_id}-{circuit_id}")
+                exit(1)
