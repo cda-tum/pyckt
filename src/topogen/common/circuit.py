@@ -281,6 +281,15 @@ class LoadPart(Circuit):
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
 
+    @property
+    def ts1(self) -> Circuit:
+        return self.instances[0]
+
+    @property
+    def ts2(self) -> Circuit:
+        return self.instances[1]
+
+
 
 class DiffPair(Circuit):
     def __init__(self, *args, **kwargs):
