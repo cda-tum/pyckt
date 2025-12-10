@@ -3,78 +3,48 @@ from collections import defaultdict
 
 import random
 import os
-from typing import List
+from typing import List, Union, Callable, Tuple
 from pathlib import Path
 
 
 class Circuit:
-    def __init__(self, name, id, techtype):
-        self.name = name
-        self.id = id
-        self.techtype = techtype
+    def __init__(self, name: str, id: int, techtype: str):
+
+        # circuit name in abbreviation (e.g., nt, dt, inv, ts, dp, l, lp, vb, cb)
+        self.name: str = name
+
+        # unique id for each circuit instance in isolation.
+        self.id: int = id
+
+        self.techtype: str = techtype
         self.instances: list[Circuit] = []
-        self.ports = []
-        self.connections = defaultdict(list)
+        self.ports: list[str] = []
+        self.connections: dict[str, list[dict]] = defaultdict(list)
 
-        # randomly generated name
+        # randomly generated name (not used for now)
         self.label = str(random.randint(100, 999))
-        self.instance_id = self.id
 
-    def add_instance(self, instance=None):
+        # instance id within parent circuit
+        self.instance_id: int = -1
+
+    def add_instance(self, instance: Union[Callable, None] = None) -> None:
+        # automatically assign instance id as the current index in the instances list
         instance.instance_id = len(self.instances)
         self.instances.append(instance)
 
-    def add_connection_xxx(self, port, instance_id, instance_port):
+    def add_connection_xxx(self, port: str, instance_id: int, instance_port: str):
         assert port in self.ports, print(self.ports)
-        top_level_port = port
-
-        # __instance_name, __instance_id = instance_name.split(".")
-        __instance_name, __instance_id = (
+        _name, _id, _instance_id = (
             self.instances[instance_id].name,
             self.instances[instance_id].id,
+            self.instances[instance_id].instance_id,
         )
-        # found = False
-        # for inst in self.instances:
-        #     if inst.name == __instance_name and inst.instance_id == int(__instance_id):
-        #         found = True
-        #         break
-
-        # assert found == True
         inst = self.instances[instance_id]
-
         assert instance_port in inst.ports, print(inst.ports)
-        __instance_port = instance_port  # inst.get_port(instance_port)
-        self.connections[top_level_port].append(
+        self.connections[port].append(
             {
-                "child": [__instance_name, __instance_id],
-                "port": __instance_port,
-            }
-        )
-
-    def add_connection(self, port, instance_name, instance_port):
-        assert port in self.ports, print(self.ports)
-        top_level_port = port
-
-        # get instance
-        __instance_name, __instance_id = instance_name.split(".")
-        # print(f"{__instance_name=}, {__instance_id=}")
-        found = False
-        for inst in self.instances:
-            # print(inst.name, inst.id)
-            # print(f"{inst.name=}, {inst.id=}")
-            if inst.name == __instance_name and inst.instance_id == int(__instance_id):
-                found = True
-                # print("found....")
-                break
-
-        assert found == True
-
-        assert instance_port in inst.ports, print(inst.ports)
-        __instance_port = instance_port  # inst.get_port(instance_port)
-        self.connections[top_level_port].append(
-            {
-                "child": [__instance_name, __instance_id],
-                "port": __instance_port,
+                "child": [_name, _id, _instance_id],
+                "port": instance_port,
             }
         )
 
@@ -93,6 +63,7 @@ class Circuit:
             "__class__": self.__class__.__name__,
             "name": self.name,
             "id": self.id,
+            "instance_id": self.instance_id,
             "techtype": self.techtype,
             "ports": self.ports,
             "connections": self.connections,
