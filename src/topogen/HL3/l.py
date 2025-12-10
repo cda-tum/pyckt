@@ -29,8 +29,8 @@ def connectInstanceTerminalsOfLoadPart1WithoutGCC(load: Load, loadPart: LoadPart
         if len(loadPart.ts1.instances[0].instances) + len(loadPart.ts2.instances[0].instances) > 2:
             connectInstanceTerminal(load, loadPart, "outoutput1_load1", "outoutput1")
             connectInstanceTerminal(load, loadPart, "outoutput2_load1", "outoutput2")
-            connectInstanceTerminal(load, loadPart, "outsource1_load1", "outsource1")
-            connectInstanceTerminal(load, loadPart, "outsource2_load1", "outsource2")
+            connectInstanceTerminalInOrder((load, "outsource1_load1"), (loadPart, "outsource1"))
+            connectInstanceTerminalInOrder((load, "outsource2_load1"), (loadPart, "outsource2"))
     else:
         if len(loadPart.ts1.instances[0].instances) + len(loadPart.ts2.instances[0].instances) == 2:
             connectInstanceTerminal(load, loadPart, "inner_load1", "inner")
@@ -352,84 +352,36 @@ def createSimpleMixedLoadNmos():
 def createSimpleTwoLoadPartsFoldedGCCMixedLoadPmos():
     pmosGCCLoadParts = (LoadPartManager().createLoadPartsPmosFourTransistorCurrentBiases())
     nmosSecondLoadParts = LoadPartManager().createLoadPartsNmosMixed()
-
-    i = 0
-    for lp in pmosGCCLoadParts:
-        i += 1
-        lp.id = i
-    
-    for lp in nmosSecondLoadParts:
-        i += 1
-        lp.id = i
     return createTwoLoadPartLoadsWithGCC(pmosGCCLoadParts, nmosSecondLoadParts)
 
 # case 4
 def createSimpleTwoLoadPartsFoldedGCCMixedLoadNmos():
     nmosGCCLoadParts = LoadPartManager().createLoadPartsNmosFourTransistorCurrentBiases()
     pmosSecondLoadParts = LoadPartManager().createLoadPartsPmosMixed()
-    i = 0
-    for lp in nmosGCCLoadParts:
-        i += 1
-        lp.id = i
-    for lp in pmosSecondLoadParts:
-        i += 1
-        lp.id = i
     return createTwoLoadPartLoadsWithGCC(nmosGCCLoadParts, pmosSecondLoadParts)
 
 # case 5
 def createLoadsTwoLoadPartsCascodeGCCMixedPmos():
     pmosGCCLoadParts = LoadPartManager().createLoadPartsPmosTwoTransistorCurrentBiasesDifferentSources()
     nmosSecondLoadParts = LoadPartManager().createLoadPartsNmosMixed()
-    i = 0
-    for lp in pmosGCCLoadParts:
-        i += 1
-        lp.id = i
-    i=20
-    for lp in nmosSecondLoadParts:
-        i += 1
-        lp.id = i
-
     return createTwoLoadPartLoadsWithGCC(pmosGCCLoadParts, nmosSecondLoadParts)
 
 # case 6
 def createLoadsTwoLoadPartsCascodeGCCMixedNmos():
     nmosGCCLoadParts = LoadPartManager().createLoadPartsNmosTwoTransistorCurrentBiasesDifferentSources()
     pmosSecondLoadParts = LoadPartManager().createLoadPartsPmosMixed()
-    i = 0
-    for lp in nmosGCCLoadParts:
-        i += 1
-        lp.id = i
-    i=20
-    for lp in pmosSecondLoadParts:
-        i += 1
-        lp.id = i
-
     return createTwoLoadPartLoadsWithGCC(nmosGCCLoadParts, pmosSecondLoadParts)
 
 # case 7
 def createLoadsTwoLoadPartsMixedCurrentBiasesPmos():
     nmosCurrentBiasLoadParts = LoadPartManager().createLoadPartsNmosCurrentBiases()
     pmosMixedLoadParts = LoadPartManager().createLoadPartsPmosMixed()
-    i = 0
-    for lp in nmosCurrentBiasLoadParts:
-        i += 1
-        lp.id = i
-    i=20
-    for lp in pmosMixedLoadParts:
-        i += 1
-        lp.id = i
-
-
     return createTwoLoadPartLoadsWithoutGCC(pmosMixedLoadParts, nmosCurrentBiasLoadParts)
 
 # case 8
 def createLoadsTwoLoadPartsMixedCurrentBiasesNmos():
     pmosCurrentBiasLoadParts = LoadPartManager().createLoadPartsPmosCurrentBiases()
     nmosMixedLoadParts = LoadPartManager().createLoadPartsNmosMixed()
-
-    assignInstanceIds(pmosCurrentBiasLoadParts, start_idx=10)
-    assignInstanceIds(nmosMixedLoadParts, start_idx=20)
-
     return createTwoLoadPartLoadsWithoutGCC(nmosMixedLoadParts, pmosCurrentBiasLoadParts)
 
 # case 9
@@ -504,17 +456,15 @@ methods: list[list[Callable]] = [
     createLoadsNmosFourForSymmetricalOpAmpNonInvertingStage,
 ]
 if __name__ == "__main__":
-    for idx1, method in enumerate(methods):
-        print(f"Method {idx1}: {method.__name__}, len = {len(method())}")
-        for idx2, load in enumerate(method()):
-            # print(load)
-            if load == None:
-                continue
+    for case_id, create_method in enumerate(methods, start=1):
+        circuits = create_method()
+        print(f"case {case_id}: {create_method.__name__}, len = {len(circuits)}")
+        for circuit_id, load in enumerate(circuits, start=1):
             save_graphviz_figure(
                 load,
-                GALLERY_DOT_DIR / f"l_{idx1}_{idx2}.dot",
+                GALLERY_DOT_DIR / f"l_{case_id}_{circuit_id}.dot",
             )
             convert_dot_to_png(
-                GALLERY_DOT_DIR / f"l_{idx1}_{idx2}.dot",
-                GALLERY_IMAGE_DIR / f"l_{idx1}_{idx2}.png",
+                GALLERY_DOT_DIR / f"l_{case_id}_{circuit_id}.dot",
+                GALLERY_IMAGE_DIR / f"l_{case_id}_{circuit_id}.png",
             )
