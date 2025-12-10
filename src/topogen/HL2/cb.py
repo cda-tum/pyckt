@@ -42,9 +42,9 @@ cb_p_3.add_connection_xxx(port="source", instance_id=1, instance_port="source")
 cb_n_1 = CurrentBias(techtype="n", id=1)
 cb_n_1.ports = ["in", "out", "source"]
 cb_n_1.add_instance(NormalTransistor(techtype="n"))
-cb_n_1.add_connection(port="in", instance_name="nt.1", instance_port="drain")
-cb_n_1.add_connection(port="out", instance_name="nt.1", instance_port="gate")
-cb_n_1.add_connection(port="source", instance_name="nt.1", instance_port="source")
+cb_n_1.add_connection_xxx(port="in", instance_id=0, instance_port="drain")
+cb_n_1.add_connection_xxx(port="out", instance_id=0, instance_port="gate")
+cb_n_1.add_connection_xxx(port="source", instance_id=0, instance_port="source")
 
 
 cb_n_2 = CurrentBias(techtype="n", id=2)
@@ -52,12 +52,12 @@ cb_n_2.ports = ["out", "source", "inoutput", "insource", "inner"]
 cb_n_2.add_instance(NormalTransistor(techtype="n"))
 cb_n_2.add_instance(NormalTransistor(techtype="n", id=2))
 
-cb_n_2.add_connection(port="out", instance_name="nt.1", instance_port="drain")
-cb_n_2.add_connection(port="inoutput", instance_name="nt.1", instance_port="gate")
-cb_n_2.add_connection(port="inner", instance_name="nt.1", instance_port="source")
-cb_n_2.add_connection(port="inner", instance_name="nt.2", instance_port="drain")
-cb_n_2.add_connection(port="insource", instance_name="nt.2", instance_port="gate")
-cb_n_2.add_connection(port="source", instance_name="nt.2", instance_port="source")
+cb_n_2.add_connection_xxx(port="out", instance_id=0, instance_port="drain")
+cb_n_2.add_connection_xxx(port="inoutput", instance_id=0, instance_port="gate")
+cb_n_2.add_connection_xxx(port="inner", instance_id=0, instance_port="source")
+cb_n_2.add_connection_xxx(port="inner", instance_id=1, instance_port="drain")
+cb_n_2.add_connection_xxx(port="insource", instance_id=1, instance_port="gate")
+cb_n_2.add_connection_xxx(port="source", instance_id=1, instance_port="source")
 
 
 cb_n_3 = CurrentBias(techtype="p", id=3)
@@ -65,12 +65,12 @@ cb_n_3.ports = ["out", "source", "inoutput", "insource", "inner"]
 cb_n_3.add_instance(NormalTransistor(techtype="p"))
 cb_n_3.add_instance(DiodeTransistor(techtype="p", id=1))
 
-cb_n_3.add_connection(port="out", instance_name="nt.1", instance_port="drain")
-cb_n_3.add_connection(port="inoutput", instance_name="nt.1", instance_port="gate")
-cb_n_3.add_connection(port="inner", instance_name="nt.1", instance_port="source")
-cb_n_3.add_connection(port="inner", instance_name="dt.1", instance_port="drain")
-cb_n_3.add_connection(port="insource", instance_name="dt.1", instance_port="gate")
-cb_n_3.add_connection(port="source", instance_name="dt.1", instance_port="source")
+cb_n_3.add_connection_xxx(port="out", instance_id=0, instance_port="drain")
+cb_n_3.add_connection_xxx(port="inoutput", instance_id=0, instance_port="gate")
+cb_n_3.add_connection_xxx(port="inner", instance_id=0, instance_port="source")
+cb_n_3.add_connection_xxx(port="inner", instance_id=1, instance_port="drain")
+cb_n_3.add_connection_xxx(port="insource", instance_id=1, instance_port="gate")
+cb_n_3.add_connection_xxx(port="source", instance_id=1, instance_port="source")
 
 
 class CurrentBiasManager:
