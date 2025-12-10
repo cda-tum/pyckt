@@ -81,16 +81,13 @@ def connectInstanceTerminalsOfFourTransistorLoadPart(out, ts1, ts2):
             if ts1.instances[0].name.startswith("vb") and ts2.instances[0].name.startswith("vb"): 
                 if num==1:
                     out, transistorStack =connectInstanceTerminal(out, transistorStack, "outoutput1", "outinput" )
-                    if "outsource" in transistorStack.ports:
-                        out, transistorStack = connectInstanceTerminal(out, transistorStack, "outsource1", "outsource" )
+                    out, transistorStack = connectInstanceTerminal(out, transistorStack, "outsource1", "outsource" )
                 else:
                     out, transistorStack=connectInstanceTerminal(out, transistorStack, "outoutput2", "outinput" )
-                    if "outsource" in transistorStack.ports:
-                        out, transistorStack=connectInstanceTerminal(out, transistorStack, "outsource2", "outsource" )
+                    out, transistorStack=connectInstanceTerminal(out, transistorStack, "outsource2", "outsource" )
             else:
                 out, transistorStack=connectInstanceTerminal(out, transistorStack, "inner_output", "outinput" )
-                if "outsource" in transistorStack.ports:
-                    out, transistorStack=connectInstanceTerminal(out, transistorStack, "inner_source", "outsource" )
+                out, transistorStack=connectInstanceTerminal(out, transistorStack, "inner_source", "outsource" )
             
             out, transistorStack=connectInstanceTerminal(out, transistorStack, "source", "source" )
         
