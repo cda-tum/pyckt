@@ -21,6 +21,7 @@ class Circuit:
         self.instance_id = self.id
 
     def add_instance(self, instance=None):
+        instance.instance_id = len(self.instances)
         self.instances.append(instance)
 
     def add_connection_xxx(self, port, instance_id, instance_port):
@@ -32,13 +33,14 @@ class Circuit:
             self.instances[instance_id].name,
             self.instances[instance_id].id,
         )
-        found = False
-        for inst in self.instances:
-            if inst.name == __instance_name and inst.instance_id == int(__instance_id):
-                found = True
-                break
+        # found = False
+        # for inst in self.instances:
+        #     if inst.name == __instance_name and inst.instance_id == int(__instance_id):
+        #         found = True
+        #         break
 
-        assert found == True
+        # assert found == True
+        inst = self.instances[instance_id]
 
         assert instance_port in inst.ports, print(inst.ports)
         __instance_port = instance_port  # inst.get_port(instance_port)
