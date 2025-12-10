@@ -324,6 +324,13 @@ def connectInstanceTerminal(
     return sc1, sc2
 
 
+def connectInstanceTerminalInOrder(
+    instance1: Tuple[Circuit, str], instance2: Tuple[Circuit, str]
+) -> Tuple[Circuit, Circuit]:
+    sc1, sc1_port_or_net = instance1
+    sc2, sc2_port = instance2
+    return connectInstanceTerminal(sc1, sc2, sc1_port_or_net, sc2_port)
+
 
 def assignInstanceIds(circuits: List[Circuit], start_idx=10):
     for circuit in circuits:
