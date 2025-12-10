@@ -4,7 +4,9 @@ from src.topogen.common.circuit import *
 
 
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Iterator
+from itertools import chain
+
 
 # fmt: off
 
@@ -284,28 +286,19 @@ def createTwoLoadPartLoadWithoutGCC(mixedLoadPart, currentBiasLoadPart):
     return l
 
 
-def createOneLoadPartLoads(loadParts):
-    out = []
+def createOneLoadPartLoads(loadParts) -> Iterator[Circuit]:
     for loadPart in loadParts:
-        load = createOneLoadPartLoad(loadPart)
-        out.append(load)
-    return out
+        yield createOneLoadPartLoad(loadPart)
 
-def createTwoLoadPartLoadsWithGCC(loadPartsGCC, secondLoadParts):
-    out = []
+def createTwoLoadPartLoadsWithGCC(loadPartsGCC, secondLoadParts)-> Iterator[Circuit]:
     for loadPartWithGCC in loadPartsGCC:
         for secondLoadPart in secondLoadParts:
-            load = createTwoLoadPartLoadWithGCC(loadPartWithGCC, secondLoadPart)
-            out.append(load)
-    return out
+            yield createTwoLoadPartLoadWithGCC(loadPartWithGCC, secondLoadPart)
 
-def createTwoLoadPartLoadsWithoutGCC(mixedLoadParts, currentBiasLoadParts):
-    out = []
+def createTwoLoadPartLoadsWithoutGCC(mixedLoadParts, currentBiasLoadParts)-> Iterator[Circuit]:
     for mixedLoadPart in mixedLoadParts:
         for currentBiasLoadPart in currentBiasLoadParts:
-            load = createTwoLoadPartLoadWithoutGCC(mixedLoadPart, currentBiasLoadPart)
-            out.append(load)
-    return out
+            yield createTwoLoadPartLoadWithoutGCC(mixedLoadPart, currentBiasLoadPart)
 
 
 def createSymmetricalLoadFourTransistorMixedLoadParts(pmosLoadPart, nmosLoadPart):
@@ -327,14 +320,11 @@ def createSymmetricalLoadFourTransistorMixedLoadParts(pmosLoadPart, nmosLoadPart
 
 
 
-def createSymmetricalLoadsFourTransistorMixedLoadParts(pmosLoadParts,nmosLoadParts ):
-    out = []
+def createSymmetricalLoadsFourTransistorMixedLoadParts(pmosLoadParts,nmosLoadParts ) -> Iterator[Circuit]:
     for i in range(len(pmosLoadParts)):
         pmosLoadPart = pmosLoadParts[i]
         nmosLoadPart = nmosLoadParts[i]
-        symmetricalLoadPart = createSymmetricalLoadFourTransistorMixedLoadParts(pmosLoadPart, nmosLoadPart)
-        out.append(symmetricalLoadPart)
-    return out
+        yield createSymmetricalLoadFourTransistorMixedLoadParts(pmosLoadPart, nmosLoadPart)
 
 # case 1
 def createSimpleMixedLoadPmos()->list[Circuit]:
@@ -391,7 +381,7 @@ def createLoadsPmosForFullyDifferentialNonInvertingStage():
                     LoadPartManager().createLoadPartsNmosCurrentBiases())
     twoLoadPartLoadsOnlyCurrentBiasesCascodeNmosGCC = createTwoLoadPartLoadsWithGCC(LoadPartManager().createLoadPartsNmosTwoTransistorCurrentBiasesDifferentSources(),
             LoadPartManager().createLoadPartsPmosCurrentBiases())
-    return oneLoadPartLoadsCurrentBiasesPmos + twoLoadPartLoadsOnlyCurrentBiasesFoldedPmosGCC + twoLoadPartLoadsOnlyCurrentBiasesCascodeNmosGCC
+    return chain(oneLoadPartLoadsCurrentBiasesPmos, twoLoadPartLoadsOnlyCurrentBiasesFoldedPmosGCC, twoLoadPartLoadsOnlyCurrentBiasesCascodeNmosGCC)
 
 # case 10
 def createLoadsNmosForFullyDifferentialNonInvertingStage():
@@ -400,7 +390,7 @@ def createLoadsNmosForFullyDifferentialNonInvertingStage():
             LoadPartManager().createLoadPartsPmosCurrentBiases())
     twoLoadPartLoadsOnlyCurrentBiasesCascodePmosGCC = createTwoLoadPartLoadsWithGCC(LoadPartManager().createLoadPartsPmosTwoTransistorCurrentBiasesDifferentSources(),
             LoadPartManager().createLoadPartsNmosCurrentBiases())
-    return oneLoadPartLoadsCurrentBiasesNmos + twoLoadPartLoadsOnlyCurrentBiasesFoldedNmosGCC + twoLoadPartLoadsOnlyCurrentBiasesCascodePmosGCC
+    return chain(oneLoadPartLoadsCurrentBiasesNmos , twoLoadPartLoadsOnlyCurrentBiasesFoldedNmosGCC , twoLoadPartLoadsOnlyCurrentBiasesCascodePmosGCC)
 
 # case 11
 def createLoadsForComplementaryNonInvertingStage():
@@ -414,7 +404,7 @@ def createLoadsForComplementaryNonInvertingStage():
     LoadPartManager().createLoadPartsPmosMixed())
 
     # TODO: filter out loads that have more than/less than 8 components
-    return loads + twoLoadPartLoadsMixedFoldedPmosGCC + twoLoadPartLoadsMixedFoldedNmosGCC
+    return chain(loads , twoLoadPartLoadsMixedFoldedPmosGCC , twoLoadPartLoadsMixedFoldedNmosGCC)
 
 # case 12
 def createLoadsPmosTwoForSymmetricalOpAmpNonInvertingStage():
@@ -457,7 +447,7 @@ methods: list[list[Callable]] = [
 ]
 if __name__ == "__main__":
     for case_id, create_method in enumerate(methods, start=1):
-        circuits = create_method()
+        circuits = list(create_method())
         print(f"case {case_id}: {create_method.__name__}, len = {len(circuits)}")
         for circuit_id, load in enumerate(circuits, start=1):
             save_graphviz_figure(
