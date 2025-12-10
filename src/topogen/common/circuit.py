@@ -290,6 +290,13 @@ class LoadPart(Circuit):
         return self.instances[1]
 
 
+class Load(Circuit):
+    def __init__(self, *args, **kwargs):
+        kwargs["name"] = "l"
+        if "id" not in kwargs:
+            kwargs["id"] = 1
+        super().__init__(*args, **kwargs)
+
 
 class DiffPair(Circuit):
     def __init__(self, *args, **kwargs):
