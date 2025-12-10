@@ -3,6 +3,8 @@ from collections import defaultdict
 
 import random
 import os
+from typing import List
+from pathlib import Path
 
 
 class Circuit:
@@ -306,7 +308,7 @@ class DiffPair(Circuit):
         super().__init__(*args, **kwargs)
 
 
-def save_graphviz_figure(circuit: Circuit, filename: str):
+def save_graphviz_figure(circuit: Circuit, filename: Path):
     with open(filename, "w") as fw:
 
         fw.write("digraph g { \n")
@@ -316,4 +318,33 @@ def save_graphviz_figure(circuit: Circuit, filename: str):
 
         fw.write(circuit.graphviz())
         fw.write("} \n")
-    os.system(f"dot -Tpng {filename} > {filename.replace('.dot', '.png')}")
+
+
+def convert_dot_to_png(dot_filename: Path, png_filename: Path):
+    os.system(f"dot -Tpng {dot_filename} > {png_filename}")
+
+
+def createTransistorStack(id=1, instance: Circuit = None):
+    ts = TransistorStack(id=id, techtype="?")
+    ts.add_instance(instance)
+    ts.ports = instance.ports
+    # fmt: off
+    for port in ts.ports:
+        ts.add_connection_xxx(port=port, instance_id=0, instance_port=port)
+    return ts
+
+
+def connectInstanceTerminal(
+    sc1: Circuit, sc2: Circuit, sc1_port_or_net: str, sc2_port: str
+) -> tuple[Circuit, Circuit]:
+    sc1_port_key = sc1_port_or_net
+    sc1.connections[sc1_port_key].append(
+        {"child": [sc2.name, sc2.id], "port": sc2_port}
+    )
+    return sc1, sc2
+
+
+def assignInstanceIds(circuits: List[Circuit], start_idx=10):
+    for circuit in circuits:
+        circuit.id = start_idx
+        start_idx += 1
