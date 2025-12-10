@@ -70,110 +70,117 @@ class Circuit:
             "instances": [inst.to_dict() for inst in self.instances],
         }
 
-    def graphviz(self, prefix=""):
-        if prefix == "":
-            prefix = self.label + "#" + self.name + str(self.id)
-            techtype = self.techtype
-        else:
-            techtype = ""
+    def graphviz(self, prefix: Union[str, None] = None) -> str:
+        """Generate Graphviz representation of the circuit.
+
+        Args:
+            prefix (str): Prefix for naming nodes in the graph.
+            Returns:
+            str: Graphviz representation of the circuit.
+        """
+
+        # fmt: off
+        # if no prefix, we are at the top level circuit
+        if prefix is None:
+            prefix = f"top.([{self.instance_id}].{self.name}{self.id})" # e.g., top.0.inv1
+
+
+        def get_pmos_def(prefix):
+            content = f""" "{prefix}" [
+                rankdir="TB"
+                label = "{{ <S> S↲| <G> G| <D> D }}"
+                shape="record"
+            ]"""
+            return content
+        def get_nmos_def(prefix):
+            content = f""" "{prefix}" [
+                rankdir="TB"
+                label = "{{ <D> D| <G> G| <S> S⭢ }}"
+                shape="record"
+            ]"""
+            return content
+        
+        def get_diode_pmos_def(prefix):
+            content = f""" "{prefix}" [
+                rankdir="TB"
+                label = "{{ <S> S↲| <G> G*| <D> D* }}"
+                shape="record"
+            ]"""
+            return content
+        def get_diode_nmos_def(prefix):
+            content = f""" "{prefix}" [
+                rankdir="TB"
+                label = "{{ <D> D*| <G> G*| <S> S⭢ }}"
+                shape="record"
+            ]"""
+            return content
+
         if self.__class__.__name__ == "NormalTransistor":
             content = (
-                f""" subgraph "cluster_{prefix + "_" + self.name + "_" + str(self.id)}" """
+                f""" subgraph "cluster_{prefix}" """
                 + "{"
                 + "\n"
             )
-            content += f"""label="{self.name+ str(self.id )}" """
-
-            if self.techtype == "p":
-                # content += f""" "{prefix+ '.' + self.name+str(self.id)}" [
-                content += f""" "{prefix}" [
-
-                    rankdir="TB"
-                    label = "{{ <S> S↲| <G> G| <D> D }}"
-                    shape="record"
-                ]"""
-            else:
-                # content += f""" "{prefix+ '.' + self.name+str(self.id)}" [
-                content += f""" "{prefix}" [
-
-                    rankdir="TB"
-                    label = "{{ <D> D| <G> G| <S> S⭢ }}"
-                    shape="record"
-                ]"""
+            content += f"""label="{self.name+ str(self.instance_id )}" """
+            content += get_pmos_def(prefix) if self.techtype == "p" else get_nmos_def(prefix)
             content += "\n}"
-            # print("content: ", content)
             return content
 
         if self.__class__.__name__ == "DiodeTransistor":
             content = (
-                f""" subgraph "cluster_{prefix + "_" + self.name + "_" + str(self.id)}" """
+                f""" subgraph "cluster_{prefix}" """
                 + "{"
                 + "\n"
             )
-            content += f"""label="{self.name + str(self.id) }" """ + "\n"
-            if self.techtype == "p":
-                # content += f""" "{prefix+ '.' + self.name+str(self.id)}" [
-                content += f""" "{prefix}" [
-
-                    rankdir="TB"
-                    label = "{{ <S> S↲| <G> G*| <D> D* }}"
-                    shape="record"
-                ]"""
-            else:
-                # content += f""" "{prefix+ '.' + self.name+str(self.id)}" [
-                content += f""" "{prefix}" [
-
-                    rankdir="TB"
-                    label = "{{ <D> D*| <G> G*| <S> S⭢ }}"
-                    shape="record"
-                ]"""
-
+            content += f"""label="{self.name + str(self.instance_id) }" """ + "\n"
+            content += get_diode_pmos_def(prefix) if self.techtype == "p" else get_diode_nmos_def(prefix)
             content += "}"
-            # print("content: ", content)
-
             return content
 
+        _techtype = self.techtype if self.techtype != "" else "-"
         data = (
             f"""subgraph "cluster_{random.randint(10,99)}" """
             + "{\n "
             + """rankdir="TB" """
             + "\n"
-            + f"""label="[{techtype}] {prefix}" """
+            + f"""label="[{_techtype}]  ([{self.instance_id}].{self.name}{self.id})" """
             + "\n"
         )
         for inst in self.instances:
-            data += inst.graphviz(prefix=prefix + "." + inst.name + str(inst.id)) + "\n"
+            data += inst.graphviz(prefix=f"{prefix}.([{inst.instance_id}].{inst.name}{inst.id})") + "\n"
 
-        for conn, connval in self.connections.items():
-            # add port pass
-            # pass
+        # build terminals for current level
+        for current_level_terminal, _ in self.connections.items():
             data += (
-                f""" "{prefix}.{conn}" [shape=plaintext, width=0.1, label="{conn}", color="darkgoldenrod", style=filled, fontsize=10];    """
+                f""" "{prefix}.{current_level_terminal}" [shape=plaintext, width=0.1, label="{current_level_terminal}", color="darkgoldenrod", style=filled, fontsize=10];    """
                 + "\n"
             )
 
-        for conn, connval in self.connections.items():
-            A = f""" "{prefix}.{conn}" """
-            for cv in connval:
-                child = cv["child"]
-                child[-1] = str(child[-1])
-                _port = cv["port"]
+        # build connections based on connections dict
+        for (
+            current_level_terminal,
+            connected_child_terminals,
+        ) in self.connections.items():
+            A = f""" "{prefix}.{current_level_terminal}" """
+            for connection in connected_child_terminals:
+                child = connection["child"]  # e.g., ["nt", 1]
+                assert len(child) == 3
 
-                B = prefix + "." + "".join(child)
-                _custom_port = _port
+                child[-1] = str(child[-1])
+                child[-2] = str(child[-2])
+
+                _custom_port = connection["port"]  # e.g., "drain", "gate", "source"
+                B = f"{prefix}.([{child[-1]}].{''.join(child[:2])})"
 
                 if child[0] in ["dt", "nt"]:
-                    map1 = {"source": "S", "drain": "D", "gate": "G"}
-                    _custom_port = map1[_port]
-
-                if _custom_port in ["D", "S", "G"]:
+                    port_mapping = {"source": "S", "drain": "D", "gate": "G"}
+                    _custom_port = port_mapping[_custom_port]
                     B = f""" "{B}": """ + _custom_port
                 else:
                     B = f""" "{B}.{_custom_port}" """
 
                 data += A + "->" + B + " [arrowhead=none]; \n"
         data += "\n}"
-        # print("data: ", data)
         return data
 
     @staticmethod
@@ -312,9 +319,10 @@ def connectInstanceTerminal(
 ) -> tuple[Circuit, Circuit]:
     sc1_port_key = sc1_port_or_net
     sc1.connections[sc1_port_key].append(
-        {"child": [sc2.name, sc2.id], "port": sc2_port}
+        {"child": [sc2.name, sc2.id, sc2.instance_id], "port": sc2_port}
     )
     return sc1, sc2
+
 
 
 def assignInstanceIds(circuits: List[Circuit], start_idx=10):
