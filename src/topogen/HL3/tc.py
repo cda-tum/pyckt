@@ -124,6 +124,8 @@ class TransconductanceManager:
         differentialPairNmos = DiffPairManager().getDifferentialPairNmos()
         return iter([createComplementaryTransconductance(differentialPairPmos, differentialPairNmos)])
 
+    def getComplementaryTransconductance(self) -> Iterator[Circuit]:
+        return self.createComplementaryTransconductance()
 
 if __name__ == "__main__":
     mng = TransconductanceManager()
