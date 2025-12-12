@@ -45,15 +45,15 @@ def connectInstanceTerminalsOfFeedbackTransconductance(tc: Circuit, differential
 def connectInstanceTerminalsOfComplementaryTransconductance(tc: Circuit, differentialPairNmos: Circuit, differentialPairPmos: Circuit) -> Circuit:
     connect((tc, "input1"), (differentialPairNmos, "input1"))
     connect((tc, "input2"), (differentialPairNmos, "input2"))
-    connect((tc, "out1nmos"), (differentialPairNmos, "output1"))
-    connect((tc, "out2nmos"), (differentialPairNmos, "output2"))
+    connect((tc, "out1_nmos"), (differentialPairNmos, "output1"))
+    connect((tc, "out2_nmos"), (differentialPairNmos, "output2"))
     connect((tc, "source_nmos"), (differentialPairNmos, "source"))
 
 
     connect((tc, "input1"), (differentialPairPmos, "input1"))
     connect((tc, "input2"), (differentialPairPmos, "input2"))
-    connect((tc, "out1pmos"), (differentialPairPmos, "output1"))
-    connect((tc, "out2pmos"), (differentialPairPmos, "output2"))
+    connect((tc, "out1_pmos"), (differentialPairPmos, "output1"))
+    connect((tc, "out2_pmos"), (differentialPairPmos, "output2"))
     connect((tc, "source_pmos"), (differentialPairPmos, "source"))
     return tc
 
@@ -91,10 +91,10 @@ def createFeedbackTransconductance(differentialPair)-> Circuit:
 def createComplementaryTransconductance(differentialPairPmos, differentialPairNmos) -> Circuit:
     tc = Transconductance(id=1, techtype="?")
     tc.ports = [
-        "out1nmos",
-        "out2nmos",
-        "out1pmos",
-        "out2pmos",
+        "out1_nmos",
+        "out2_nmos",
+        "out1_pmos",
+        "out2_pmos",
         "input1",
         "input2",
         "source_pmos",
