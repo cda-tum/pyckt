@@ -51,6 +51,9 @@ class Circuit:
     def get_port(self, name):
         return self.ports.get(name)
 
+    def get_instance_by_name(self, name: str) -> List[Callable]:
+        return [inst for inst in self.instances if inst.name == name]
+
     # -----------------------------------------------------
     # JSON SERIALIZATION SUPPORT
     # -----------------------------------------------------
@@ -69,6 +72,41 @@ class Circuit:
             "connections": self.connections,
             "instances": [inst.to_dict() for inst in self.instances],
         }
+
+    @property
+    def tech(self) -> str:
+        """Count the total number of components in the circuit, including nested instances."""
+
+        # fmt: off
+        if self.__class__.__name__ == "NormalTransistor":
+            return self.techtype
+        elif self.__class__.__name__ == "DiodeTransistor":
+            return self.techtype
+        else:
+            _techlist = ""
+            for inst in self.instances:
+                _techlist += inst.tech
+            if "p" in _techlist and "n" not in _techlist:
+                return "p"
+            if "n" in _techlist and "p" not in _techlist:
+                return "n"
+            
+            raise NotImplementedError("unknown techtype.")  
+
+    @property
+    def component_count(self) -> int:
+        """Count the total number of components in the circuit, including nested instances."""
+
+        # fmt: off
+        if self.__class__.__name__ == "NormalTransistor":
+            return 1
+        elif self.__class__.__name__ == "DiodeTransistor":
+            return 1
+        else:
+            num_components = 0
+            for inst in self.instances:
+                num_components += inst.component_count
+            return num_components
 
     def graphviz(self, prefix: Union[str, None] = None) -> str:
         """Generate Graphviz representation of the circuit.
@@ -264,11 +302,11 @@ class LoadPart(Circuit):
         super().__init__(*args, **kwargs)
 
     @property
-    def ts1(self) -> Circuit:
+    def ts1(self) -> TransistorStack:
         return self.instances[0]
 
     @property
-    def ts2(self) -> Circuit:
+    def ts2(self) -> TransistorStack:
         return self.instances[1]
 
 
@@ -283,6 +321,30 @@ class Load(Circuit):
 class DiffPair(Circuit):
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "dp"
+        if "id" not in kwargs:
+            kwargs["id"] = 1
+        super().__init__(*args, **kwargs)
+
+
+class StageBias(Circuit):
+    def __init__(self, *args, **kwargs):
+        kwargs["name"] = "sb"
+        if "id" not in kwargs:
+            kwargs["id"] = 1
+        super().__init__(*args, **kwargs)
+
+
+class Transconductance(Circuit):
+    def __init__(self, *args, **kwargs):
+        kwargs["name"] = "tc"
+        if "id" not in kwargs:
+            kwargs["id"] = 1
+        super().__init__(*args, **kwargs)
+
+
+class NonInvertingStage(Circuit):
+    def __init__(self, *args, **kwargs):
+        kwargs["name"] = "non_inv"
         if "id" not in kwargs:
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
@@ -332,7 +394,18 @@ def connectInstanceTerminalInOrder(
     return connectInstanceTerminal(sc1, sc2, sc1_port_or_net, sc2_port)
 
 
+def connect(
+    instance1: Tuple[Circuit, str], instance2: Tuple[Circuit, str]
+) -> Tuple[Circuit, Circuit]:
+    return connectInstanceTerminalInOrder(instance1, instance2)
+
+
 def assignInstanceIds(circuits: List[Circuit], start_idx=10):
     for circuit in circuits:
         circuit.id = start_idx
         start_idx += 1
+
+
+def hasGCC(load: Load) -> bool:
+    assert load.name == "l"
+    return "inner_gcc" in load.ports
