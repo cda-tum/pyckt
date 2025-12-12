@@ -89,6 +89,13 @@ class StageBiasManager:
         return createTwoTransistorStageBiases(twoTransistorCurrentBiases)
     
 
+    def getOneTransistorStageBiasesPmos(self) ->Iterator[Circuit]:
+        oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
+        return createOneTransistorStageBiases(oneTransistorCurrentBiases)
+    def getTwoTransistorStageBiasesPmos(self) ->Iterator[Circuit]:
+        twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
+        return createTwoTransistorStageBiases(twoTransistorCurrentBiases)
+
 
 if __name__ == "__main__":
     mng = StageBiasManager()
