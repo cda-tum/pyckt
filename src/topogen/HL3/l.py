@@ -445,6 +445,54 @@ methods: list[list[Callable]] = [
     createLoadsNmosTwoForSymmetricalOpAmpNonInvertingStage,
     createLoadsNmosFourForSymmetricalOpAmpNonInvertingStage,
 ]
+
+
+class LoadManager:
+    @staticmethod
+    def createSimpleMixedLoadPmos():
+        return createSimpleMixedLoadPmos()
+
+    @staticmethod
+    def createSimpleMixedLoadNmos():
+        return createSimpleMixedLoadNmos()
+
+    @staticmethod
+    def createSimpleTwoLoadPartsFoldedGCCMixedLoadPmos():
+        return createSimpleTwoLoadPartsFoldedGCCMixedLoadPmos()
+
+    @staticmethod
+    def createSimpleTwoLoadPartsFoldedGCCMixedLoadNmos():
+        return createSimpleTwoLoadPartsFoldedGCCMixedLoadNmos()
+
+    @staticmethod
+    def createLoadsTwoLoadPartsCascodeGCCMixedPmos():
+        return createLoadsTwoLoadPartsCascodeGCCMixedPmos()
+
+    @staticmethod
+    def createLoadsTwoLoadPartsCascodeGCCMixedNmos():
+        return createLoadsTwoLoadPartsCascodeGCCMixedNmos()
+
+    @staticmethod
+    def createLoadsTwoLoadPartsMixedCurrentBiasesPmos():
+        return createLoadsTwoLoadPartsMixedCurrentBiasesPmos()
+
+    @staticmethod
+    def createLoadsTwoLoadPartsMixedCurrentBiasesNmos():
+        return createLoadsTwoLoadPartsMixedCurrentBiasesNmos()
+
+    @staticmethod
+    def createLoadsPmosForFullyDifferentialNonInvertingStage():
+        return createLoadsPmosForFullyDifferentialNonInvertingStage()
+
+    @staticmethod
+    def createLoadsNmosForFullyDifferentialNonInvertingStage():
+        return createLoadsNmosForFullyDifferentialNonInvertingStage()
+
+    @staticmethod
+    def createLoadsForComplementaryNonInvertingStage():
+        return createLoadsForComplementaryNonInvertingStage()
+
+
 if __name__ == "__main__":
     for case_id, create_method in enumerate(methods, start=1):
         circuits = list(create_method())
