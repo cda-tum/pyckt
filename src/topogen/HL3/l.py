@@ -28,64 +28,63 @@ def connectInstanceTerminalsOfLoadPart1WithoutGCC(load: Load, loadPart: LoadPart
     if loadPart.ts1.instances[0].name.startswith("vb") and loadPart.ts2.instances[
         0
     ].name.startswith("vb"):
-        if len(loadPart.ts1.instances[0].instances) + len(loadPart.ts2.instances[0].instances) > 2:
+        if loadPart.component_count > 2:
             connectInstanceTerminal(load, loadPart, "outoutput1_load1", "outoutput1")
             connectInstanceTerminal(load, loadPart, "outoutput2_load1", "outoutput2")
             connectInstanceTerminalInOrder((load, "outsource1_load1"), (loadPart, "outsource1"))
             connectInstanceTerminalInOrder((load, "outsource2_load1"), (loadPart, "outsource2"))
     else:
-        if len(loadPart.ts1.instances[0].instances) + len(loadPart.ts2.instances[0].instances) == 2:
+        if loadPart.component_count == 2:
             connectInstanceTerminal(load, loadPart, "inner_load1", "inner")
 
-        if len(loadPart.ts1.instances[0].instances) + len(loadPart.ts2.instances[0].instances) > 2:
-            connectInstanceTerminal(load, loadPart, "innersource_load1", "inner_source")
+        if loadPart.component_count > 2:
+            connectInstanceTerminal(load, loadPart, "inner_source_load1", "inner_source")
 
             if len(loadPart.ts1.instances) == 1 and loadPart.ts1.instances[
                 0
             ].name.startswith("dt"):
                 connectInstanceTerminal(
-                    load, loadPart, "inneroutput_load1", "inner_output"
+                    load, loadPart, "inner_output_load1", "inner_output"
                 )
 
-        if len(loadPart.ts1.instances[0].instances) + len(loadPart.ts2.instances[0].instances) > 3:
-            connectInstanceTerminal(load, loadPart, "inneroutput_load1", "inner_output")
-    if len(loadPart.ts1.instances[0].instances) + len(loadPart.ts2.instances[0].instances) > 2:
+        if loadPart.component_count > 3:
+            connectInstanceTerminal(load, loadPart, "inner_output_load1", "inner_output")
+    if loadPart.component_count > 2:
         connectInstanceTerminal(
             load, loadPart, "inner_transistorstack2_load1", "inner_transistorstack2"
         )
-    if len(loadPart.ts1.instances[0].instances) + len(loadPart.ts2.instances[0].instances) > 3:
+    if loadPart.component_count > 3:
         connectInstanceTerminal(
             load, loadPart, "inner_transistorstack1_load1", "inner_transistorstack1"
         )
     return load
 
-def addLoad1WithoutGCCNets(loadPart):
-    new_ports = []
-    # print (len(loadPart.instances[1].instances[0].instances))
-    # print (loadPart.instances[1].instances[0].name)
+def addLoad1WithoutGCCNets(loadPart: LoadPart):
+    # num_reviews: 1
 
+    new_ports = ["source_load1"]
     if loadPart.instances[0].instances[0].name.startswith("vb") and loadPart.instances[1].instances[0].name.startswith("vb"):
-        if len(loadPart.instances[0].instances[0].instances)  + len(loadPart.instances[1].instances[0].instances) > 2:
+        if loadPart.component_count > 2:
             new_ports += ["outoutput1_load1", "outoutput2_load1", "outsource1_load1", "outsource2_load1"]
     else:
-        if len(loadPart.instances[0].instances[0].instances)  + len(loadPart.instances[1].instances[0].instances) == 2:
+        if loadPart.component_count ==2:
             new_ports += ["inner_load1"]
         
-        if len(loadPart.instances[0].instances[0].instances)  + len(loadPart.instances[1].instances[0].instances) > 2:
-            new_ports += ["innersource_load1"]
+        if loadPart.component_count > 2:
+            new_ports += ["inner_source_load1"]
 
-            if len(loadPart.instances[0].instances[0].instances) ==  1 and loadPart.instances[0].instances[0].instances[0].name.startswith("dt"):
-                new_ports += ["inneroutput_load1"]
+            if loadPart.ts1.instances[0].component_count ==  1 and loadPart.ts1.instances[0].name.startswith("dt"):
+                new_ports += ["inner_output_load1"]
         
-        if len(loadPart.instances[0].instances[0].instances)  + len(loadPart.instances[1].instances[0].instances) > 3:
-            new_ports += ["inneroutput_load1"]
-    
+        if loadPart.component_count > 3:
+            new_ports += ["inner_output_load1"]
 
-    if len(loadPart.instances[0].instances[0].instances)  + len(loadPart.instances[1].instances[0].instances) == 2:
+    if loadPart.component_count > 2:
         new_ports += ["inner_transistorstack2_load1"]
-    if len(loadPart.instances[0].instances[0].instances)  + len(loadPart.instances[1].instances[0].instances) == 2:
+    if loadPart.component_count > 3:
         new_ports += ["inner_transistorstack1_load1"]
     return new_ports
+
 def createOneLoadPartLoad(loadPart):
     l = Load(id=1, techtype="p")
     l.ports = [
@@ -117,22 +116,25 @@ def createOneLoadPartLoad(loadPart):
     # return lp
     return l
 
-def addLoad2Nets(loadPart2):
+def addLoad2Nets(loadPart2: LoadPart):
     new_ports = []
     new_ports += ["source_load2"]
 
-    if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) == 2:
+    # if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) == 2:
+    if loadPart2.component_count == 2:
         new_ports += ["inner_load2"]
-    if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) > 2:
-        new_ports += ["innersource_load2", "inner_transistorstack2_load2"]
+    # if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) > 2:
+    if loadPart2.component_count > 2:
+        new_ports += ["inner_source_load2", "inner_transistorstack2_load2"]
 
-        if len(loadPart2.ts1.instances[0].instances) == 1 and loadPart2.ts1.instances[
+        if loadPart2.ts1.instances[0].component_count == 1 and loadPart2.ts1.instances[
             0
         ].name.startswith("dt"):
-            new_ports += ["inneroutput_load2"]
-    
-    if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) > 3:
-        new_ports += ["inneroutput_load2", "innersource_load2", "inner_transistorstack1_load2"]
+            new_ports += ["inner_output_load2"]
+        
+    # if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) > 3:
+    if loadPart2.component_count > 3:
+        new_ports += ["inner_output_load2", "inner_source_load2", "inner_transistorstack1_load2"]
     return new_ports
 
 def connectInstanceTerminalsOfLoadPart2(load: Load, loadPart2: LoadPart):
@@ -140,19 +142,20 @@ def connectInstanceTerminalsOfLoadPart2(load: Load, loadPart2: LoadPart):
     connectInstanceTerminal(load, loadPart2, "out2", "out2")
     connectInstanceTerminal(load, loadPart2, "source_load2", "source")
 
-    if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) == 2:
+    if loadPart2.component_count == 2:
         connectInstanceTerminal(load, loadPart2, "inner_load2", "inner")
-    if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) > 2:
-        connectInstanceTerminal(load, loadPart2, "innersource_load2", "inner_source")
+    if loadPart2.component_count > 2:
+        connectInstanceTerminal(load, loadPart2, "inner_source_load2", "inner_source")
         connectInstanceTerminal(load, loadPart2, "inner_transistorstack2_load2", "inner_transistorstack2")
 
-        if len(loadPart2.ts1.instances[0].instances) == 1 and loadPart2.ts1.instances[
+        if loadPart2.ts1.instances[0].component_count == 1 and loadPart2.ts1.instances[
             0
         ].name.startswith("dt"):
-            connectInstanceTerminal(load, loadPart2, "inneroutput_load2", "inner_output")
+            # connectInstanceTerminal(load, loadPart2, "inner_output_load2", "inner_output")
+            connect((load, "inner_output_load2"), (loadPart2, "inner_output"))
     
-    if len(loadPart2.ts1.instances[0].instances) + len(loadPart2.ts2.instances[0].instances) > 3:
-        connectInstanceTerminal(load, loadPart2, "inneroutput_load2", "inner_output")
+    if loadPart2.component_count > 3:
+        connectInstanceTerminal(load, loadPart2, "inner_output_load2", "inner_output")
         connectInstanceTerminal(load, loadPart2, "inner_transistorstack1_load2", "inner_transistorstack1")
     return load
 def createTwoLoadPartLoadWithGCC(loadPartWithGCC, secondLoadPart):
@@ -167,10 +170,10 @@ def createTwoLoadPartLoadWithGCC(loadPartWithGCC, secondLoadPart):
 
 
     # fmt: off
-    def addLoad1WithGCCNets(loadPart1):
+    def addLoad1WithGCCNets(loadPart1: LoadPart):
         new_ports = []
         new_ports += ["source_gcc1", "source_gcc2", "inner_gcc"]
-        if len(loadPart1.ts1.instances[0].instances) + len(loadPart1.ts2.instances[0].instances) > 2:
+        if loadPart1.component_count > 2:
             new_ports += ["source_load1", "inner_bias_gcc"]
         return new_ports
 
@@ -180,7 +183,7 @@ def createTwoLoadPartLoadWithGCC(loadPartWithGCC, secondLoadPart):
         connectInstanceTerminal(load, loadPartWithGCC, "out1", "out1")
         connectInstanceTerminal(load, loadPartWithGCC, "out2", "out2")
 
-        if len(loadPartWithGCC.ts1.instances[0].instances) + len(loadPartWithGCC.ts2.instances[0].instances) == 2:
+        if loadPartWithGCC.component_count == 2:
             connectInstanceTerminal(load, loadPartWithGCC, "source_gcc1", "source1")
             connectInstanceTerminal(load, loadPartWithGCC, "source_gcc2", "source2")
             connectInstanceTerminal(load, loadPartWithGCC, "inner_gcc", "inner")
@@ -213,29 +216,29 @@ def createTwoLoadPartLoadWithoutGCC(mixedLoadPart, currentBiasLoadPart):
 
 
     # fmt: off
-    def addLoad1WithoutGCCNets(loadPart1):
+    def addLoad1WithoutGCCNets(loadPart1: LoadPart):
         new_ports = []
         new_ports += ["source_load1"]
         if loadPart1.ts1.instances[0].name.startswith("vb") and loadPart1.ts2.instances[0].name.startswith("vb"):
-            if len(loadPart1.ts1.instances[0].instances)  + len(loadPart1.ts2.instances[0].instances) > 2:
+            if loadPart1.component_count > 2:
                 new_ports += ["outoutput1_load1", "outoutput2_load1", "outsource1_load1", "outsource2_load1"]
         else:
-            if len(loadPart1.ts1.instances[0].instances)  + len(loadPart1.ts2.instances[0].instances) == 2:
+            if loadPart1.component_count ==2 :
                 new_ports += ["inner_load1"]
             
-            if len(loadPart1.ts1.instances[0].instances)  + len(loadPart1.ts2.instances[0].instances) > 2:
-                new_ports += ["innersource_load1"]
+            if loadPart1.component_count > 2:
+                new_ports += ["inner_source_load1"]
 
-                if len(loadPart1.ts1.instances[0].instances) ==  1 and loadPart1.ts1.instances[0].instances[0].name.startswith("dt"):
-                    new_ports += ["inneroutput_load1"]
+                if loadPart1.ts1.instances[0].component_count ==  1 and loadPart1.ts1.instances[0].instances[0].name.startswith("dt"):
+                    new_ports += ["inner_output_load1"]
             
-            if len(loadPart1.ts1.instances[0].instances)  + len(loadPart1.ts2.instances[0].instances) > 3:
-                new_ports += ["inneroutput_load1"]
+            if loadPart1.component_count > 3:
+                new_ports += ["inner_output_load1"]
         
-        if len(loadPart1.ts1.instances[0].instances)  + len(loadPart1.ts2.instances[0].instances) == 2:
+        if loadPart1.component_count > 2:
             new_ports += ["inner_transistorstack2_load1"]
         
-        if len(loadPart1.ts1.instances[0].instances)  + len(loadPart1.ts2.instances[0].instances) > 3:
+        if loadPart1.component_count > 3:
             new_ports += ["inner_transistorstack1_load1"]
         return new_ports
 
@@ -247,31 +250,31 @@ def createTwoLoadPartLoadWithoutGCC(mixedLoadPart, currentBiasLoadPart):
         connectInstanceTerminal(load, loadPart1, "source_load1", "source")
 
         if loadPart1.ts1.instances[0].name.startswith("vb") and loadPart1.ts2.instances[0].name.startswith("vb"):
-            if len(loadPart1.ts1.instances[0].instances) + len(loadPart1.ts2.instances[0].instances) > 2:
+            if loadPart1.component_count > 2:
                 connectInstanceTerminal(load, loadPart1, "outoutput1_load1", "outoutput1")
                 connectInstanceTerminal(load, loadPart1, "outoutput2_load1", "outoutput2")
                 connectInstanceTerminal(load, loadPart1, "outsource1_load1", "outsource1")
                 connectInstanceTerminal(load, loadPart1, "outsource2_load1", "outsource2")
         else:
-            if len(loadPart1.ts1.instances[0].instances) + len(loadPart1.ts2.instances[0].instances) == 2:
+            if loadPart1.component_count ==2:
                 connectInstanceTerminal(load, loadPart1, "inner_load1", "inner")
             
-            if len(loadPart1.ts1.instances[0].instances) + len(loadPart1.ts2.instances[0].instances) > 2:
-                connectInstanceTerminal(load, loadPart1, "innersource_load1", "inner_source")
+            if loadPart1.component_count >2:
+                connectInstanceTerminal(load, loadPart1, "inner_source_load1", "inner_source")
 
-                if len(loadPart1.ts1.instances[0].instances) == 1 and loadPart1.ts1.instances[
+                if loadPart1.ts1.instances[0].component_count == 1 and loadPart1.ts1.instances[
                     0
                 ].name.startswith("dt"):
-                    connectInstanceTerminal(load, loadPart1, "inneroutput_load1", "inner_output")
+                    connectInstanceTerminal(load, loadPart1, "inner_output_load1", "inner_output")
             
-            if len(loadPart1.ts1.instances[0].instances) + len(loadPart1.ts2.instances[0].instances) > 3:
-                connectInstanceTerminal(load, loadPart1, "inneroutput_load1", "inner_output")
+            if loadPart1.component_count > 3:
+                connectInstanceTerminal(load, loadPart1, "inner_output_load1", "inner_output")
         
-        if len(loadPart1.ts1.instances[0].instances) + len(loadPart1.ts2.instances[0].instances) > 2:
+        if loadPart1.component_count > 2:
             connectInstanceTerminal(
                 load, loadPart1, "inner_transistorstack2_load1", "inner_transistorstack2"
             )
-        if len(loadPart1.ts1.instances[0].instances) + len(loadPart1.ts2.instances[0].instances) > 3:
+        if loadPart1.component_count > 3:
             connectInstanceTerminal(
                 load, loadPart1, "inner_transistorstack1_load1", "inner_transistorstack1"
             )
@@ -311,8 +314,8 @@ def createSymmetricalLoadFourTransistorMixedLoadParts(pmosLoadPart, nmosLoadPart
     l.add_instance(pmosLoadPart)
     l.add_instance(nmosLoadPart)
 
-    addLoad1WithoutGCCNets(pmosLoadPart)
-    addLoad2Nets(nmosLoadPart)
+    l.ports += addLoad1WithoutGCCNets(pmosLoadPart)
+    l.ports += addLoad2Nets(nmosLoadPart)
 
     l = connectInstanceTerminalsOfLoadPart1WithoutGCC(l, pmosLoadPart)
     l = connectInstanceTerminalsOfLoadPart2(l, nmosLoadPart)
@@ -396,15 +399,20 @@ def createLoadsNmosForFullyDifferentialNonInvertingStage():
 def createLoadsForComplementaryNonInvertingStage():
     pmosLoadParts = LoadPartManager().createLoadPartsPmosFourTransistorMixed()
     nmosLoadParts = LoadPartManager().createLoadPartsNmosFourTransistorMixed()
-    loads = createSymmetricalLoadsFourTransistorMixedLoadParts(pmosLoadParts, nmosLoadParts)
+    loads = list(createSymmetricalLoadsFourTransistorMixedLoadParts(pmosLoadParts, nmosLoadParts))
 
-    twoLoadPartLoadsMixedFoldedPmosGCC = createTwoLoadPartLoadsWithGCC(LoadPartManager().createLoadPartsPmosFourTransistorCurrentBiases(),
-    LoadPartManager().createLoadPartsNmosMixed())
-    twoLoadPartLoadsMixedFoldedNmosGCC = createTwoLoadPartLoadsWithGCC(LoadPartManager().createLoadPartsNmosFourTransistorCurrentBiases(),
-    LoadPartManager().createLoadPartsPmosMixed())
+    twoLoadPartLoadsMixedFoldedPmosGCC = list(createTwoLoadPartLoadsWithGCC(LoadPartManager().createLoadPartsPmosFourTransistorCurrentBiases(),
+    LoadPartManager().createLoadPartsNmosMixed()))
+    twoLoadPartLoadsMixedFoldedNmosGCC = list(createTwoLoadPartLoadsWithGCC(LoadPartManager().createLoadPartsNmosFourTransistorCurrentBiases(),
+    LoadPartManager().createLoadPartsPmosMixed()))
+
 
     # TODO: filter out loads that have more than/less than 8 components
-    return chain(loads , twoLoadPartLoadsMixedFoldedPmosGCC , twoLoadPartLoadsMixedFoldedNmosGCC)
+    for load in loads:
+        yield load
+    for load in twoLoadPartLoadsMixedFoldedPmosGCC + twoLoadPartLoadsMixedFoldedNmosGCC:
+        if load.component_count == 8:
+            yield load
 
 # case 12
 def createLoadsPmosTwoForSymmetricalOpAmpNonInvertingStage():
