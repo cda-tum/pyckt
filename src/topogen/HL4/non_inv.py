@@ -1,6 +1,11 @@
-from src.topogen.HL2 import *
-from src.topogen.HL3 import *
+# from src.topogen.HL2 import *
+# from src.topogen.HL3 import *
+from src.topogen.HL3.l import LoadManager
+from src.topogen.HL3.sb import StageBiasManager
+from src.topogen.HL3.tc import TransconductanceManager
 
+from src.topogen.HL4.non_inv_connections import *
+from src.topogen.HL4.non_inv_netdef import *
 from src.topogen.common.circuit import *
 
 
@@ -18,7 +23,6 @@ GALLERY_DOT_DIR = (
     Path(__file__).parent.parent.parent.parent / "gallery" / "HL4" / "non_inv" / "dots"
 )
 GALLERY_DOT_DIR.mkdir(parents=True, exist_ok=True)
-
 GALLERY_IMAGE_DIR = (
     Path(__file__).parent.parent.parent.parent
     / "gallery"
@@ -27,122 +31,6 @@ GALLERY_IMAGE_DIR = (
     / "images"
 )
 GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def connectInstanceTerminalsOfSimpleTransconductance(
-    nonInvertingStage: NonInvertingStage, transconductance
-) -> NonInvertingStage:
-    connect((nonInvertingStage, "in1"), (transconductance, "input1"))
-    connect((nonInvertingStage, "in2"), (transconductance, "input2"))
-    connect(
-        (nonInvertingStage, "source_transconductance"), (transconductance, "source")
-    )
-    if hasGCC(nonInvertingStage.get_instance_by_name("l")[0]):
-        connect(
-            (nonInvertingStage, "source_gcc1"),
-            (transconductance, "out1"),
-        )
-    # TODO: check GCCE warning here
-    connect((nonInvertingStage, "out1"), (transconductance, "out1"))
-    connect((nonInvertingStage, "out2"), (transconductance, "out2"))
-    return nonInvertingStage
-
-
-def connectInstanceTerminalsOfLoad(
-    nonInvertingStage: NonInvertingStage, load
-) -> NonInvertingStage:
-    connect((nonInvertingStage, "out1"), (load, "out1"))
-    connect((nonInvertingStage, "out2"), (load, "out2"))
-    # connect((nonInvertingStage, "source_pmos"), (load, "source"))
-    return nonInvertingStage
-
-
-def connectInstanceTerminalsOfStageBias(
-    nonInvertingStage: NonInvertingStage, stageBias
-) -> NonInvertingStage:
-    connect((nonInvertingStage, "source_transconductance"), (stageBias, "out"))
-    return nonInvertingStage
-
-
-# --------------------------------------------------------------
-# net configurations
-
-
-def addLoadPart1Nets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:
-    loadPart1: LoadPart = load.get_instance_by_name("lp")[0]
-    if loadPart1 is None:
-        logger.error("Load part1 (lp) instance not found in load.")
-        return load
-    if loadPart1.ts1.instances[0].name.startswith("vb") and loadPart1.ts2.instances[
-        0
-    ].name.startswith("vb"):
-        if loadPart1.component_count == 2:
-            stage.ports += [
-                "out_output1_load1",
-                "out_output2_load1",
-                "out_source1_load1",
-                "out_source2_load1",
-            ]
-    elif hasGCC(load):
-        stage.ports += [
-            "source_gcc1",
-            "source_gcc2",
-            "inner_gcc",
-        ]
-        if loadPart1.component_count > 2:
-            stage.ports += ["inner_bias_gcc"]
-    else:
-        if loadPart1.component_count == 2:
-            stage.ports += ["inner_load1"]
-        if loadPart1.component_count > 2:
-            stage.ports += ["inner_source_load1"]
-            if len(
-                loadPart1.ts1.instances[0].instances
-            ) == 1 and loadPart1.ts1.instances[0].instances[0].name.startswith("dt"):
-                stage.ports += ["inner_output_load1"]
-        if loadPart1.component_count > 3:
-            stage.ports += ["inner_output_load1"]
-
-    if hasGCC(load) == False:
-        if loadPart1.component_count > 2:
-            stage.ports += ["inner_transistorstack2_load1"]
-        if loadPart1.component_count > 3:
-            stage.ports += ["inner_transistorstack1_load1"]
-    return load
-
-
-def addLoadPart2Nets(stage: NonInvertingStage, load: Circuit) -> NonInvertingStage:
-    loadPart2: LoadPart = load.get_instance_by_name("lp")[1]
-    if loadPart2.component_count == 2:
-        stage.ports += ["inner_load2"]
-    if loadPart2.component_count > 2:
-        stage.ports += ["inner_source_load2", "inner_transistorstack2_load2"]
-        if len(loadPart2.ts1.instances[0].instances) == 1 and loadPart2.ts1.instances[
-            0
-        ].instances[0].name.startswith("dt"):
-            stage.ports += ["inner_output_load2"]
-    if loadPart2.component_count > 3:
-        stage.ports += ["inner_output_load2", "inner_transistorstack1_load2"]
-    return stage
-
-
-def addLoadNets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:
-    addLoadPart1Nets(stage, load)
-    if len(load.instances) == 2:
-        addLoadPart2Nets(stage, load)
-    return stage
-
-
-def addStageBiasNets(stage: Circuit, stageBias: Circuit):
-    if stageBias.component_count == 1:
-        stage.ports += ["input_stagebias"]
-    else:
-        stage.ports += ["in_output_stagebias", "in_source_stagebias"]
-        if stageBias.instance_id == -1:
-            stage.ports += ["inner_stagebias"]
-        else:
-            stage.ports += ["inner_stagebias1", "inner_stagebias2"]
-    return stage
 
 
 # --------------------------------------------------------------
@@ -173,143 +61,6 @@ def createSimpleTransconductanceNonInvertingStage(
     return stage
 
 
-def addStageBiasesNets(
-    stage: NonInvertingStage, stageBiasNmos: StageBias, stageBiasPmos: StageBias
-) -> NonInvertingStage:
-    if stageBiasPmos.component_count == 1:
-        stage.ports += ["input_stagebias_nmos", "input_stagebias_pmos"]
-    else:
-        stage.ports += [
-            "inner_stagebias_nmos",
-            "in_output_stagebias_nmos",
-            "in_source_stagebias_nmos",
-            "inner_stagebias_pmos",
-            "in_output_stagebias_pmos",
-            "in_source_stagebias_pmos",
-        ]
-    return stage
-
-
-def addComplementaryLoadNets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:
-    stage.ports += [
-        "inner_output_load_nmos",
-        "inner_source_load_nmos",
-        "inner_output_load_nmos",
-        "inner_source_load_pmos",
-        "inner_transistorstack1_load_nmos",
-        "inner_transistorstack2_load_nmos",
-        "inner_transistorstack1_load_pmos",
-        "inner_transistorstack2_load_pmos",
-    ]
-    return stage
-
-
-def connectInstanceTerminalsOfComplementaryTransconductance(
-    stage: NonInvertingStage, transconductance: Transconductance
-) -> NonInvertingStage:
-    # fmt: off
-    connect((stage, "in1"), (transconductance, "input1"))
-    connect((stage, "in2"), (transconductance, "input2"))
-    connect((stage, "source_transconductance_nmos"), (transconductance, "source_nmos"))
-    connect((stage, "source_transconductance_pmos"), (transconductance, "source_pmos"))
-
-    connect((stage, "inner_transistorstack1_load_pmos"), (transconductance, "out1_nmos"))
-    connect((stage, "inner_transistorstack2_load_pmos"), (transconductance, "out2_nmos"))
-
-    connect((stage, "inner_transistorstack1_load_nmos"), (transconductance, "out1_pmos"))
-    connect((stage, "inner_transistorstack2_load_nmos"), (transconductance, "out2_pmos"))
-    # fmt: on
-
-    return stage
-
-
-def connectInstanceTerminalsOfComplementaryLoad(
-    nonInvertingStage: NonInvertingStage, load: Load
-) -> NonInvertingStage:
-    # fmt: off
-    loadPart1 = load.instances[0]
-    loadPart2 = load.instances[1]
-
-    connect((nonInvertingStage, "out1"), (load, "out1"))
-    connect((nonInvertingStage, "out2"), (load, "out2"))
-
-    if loadPart1.tech == "n":
-        connect((nonInvertingStage, "source_nmos"), (load, "source_load1"))
-        connect((nonInvertingStage, "source_pmos"), (load, "source_load2"))
-
-        if hasGCC(load):
-            connect((nonInvertingStage, "inner_transistorstack1_load_nmos"), (load, "source_gcc1"))
-            connect((nonInvertingStage, "inner_transistorstack2_load_nmos"), (load, "source_gcc2"))
-            connect((nonInvertingStage, "inner_output_load_nmos"), (load, "inner_gcc"))
-            connect((nonInvertingStage, "inner_source_load_nmos"), (load, "inner_bias_gcc"))
-        else:
-            connect((nonInvertingStage, "inner_transistorstack1_load_nmos"), (load, "inner_transistorstack1_load1"))
-            connect((nonInvertingStage, "inner_transistorstack2_load_nmos"), (load, "inner_transistorstack2_load1"))
-            connect((nonInvertingStage, "inner_output_load_nmos"), (load, "inner_output_load1"))
-            connect((nonInvertingStage, "inner_source_load_nmos"), (load, "inner_source_load1"))
-        
-        connect((nonInvertingStage, "inner_transistorstack1_load_pmos"), (load, "inner_transistorstack1_load2"))
-        connect((nonInvertingStage, "inner_transistorstack2_load_pmos"), (load, "inner_transistorstack2_load2"))
-        connect((nonInvertingStage, "inner_output_load_pmos"), (load, "inner_output_load2"))
-        connect((nonInvertingStage, "inner_source_load_pmos"), (load, "inner_source_load2"))
-        return nonInvertingStage
-
-    else:
-        connect((nonInvertingStage, "source_pmos"), (load, "source_load1"))
-        connect((nonInvertingStage, "source_nmos"), (load, "source_load2"))
-
-        if hasGCC(load):
-            connect((nonInvertingStage, "inner_transistorstack1_load_pmos"), (load, "source_gcc1"))
-            connect((nonInvertingStage, "inner_transistorstack2_load_pmos"), (load, "source_gcc2"))
-            connect((nonInvertingStage, "inner_output_load_pmos"), (load, "inner_gcc"))
-            connect((nonInvertingStage, "inner_source_load_pmos"), (load, "inner_bias_gcc"))
-        else:
-            connect((nonInvertingStage, "inner_transistorstack1_load_pmos"), (load, "inner_transistorstack1_load1"))
-            connect((nonInvertingStage, "inner_transistorstack2_load_pmos"), (load, "inner_transistorstack2_load1"))
-            connect((nonInvertingStage, "inner_output_load_pmos"), (load, "inner_output_load1"))
-            connect((nonInvertingStage, "inner_source_load_pmos"), (load, "inner_source_load1"))
-
-        connect((nonInvertingStage, "inner_transistorstack1_load_pmos"), (load, "inner_transistorstack1_load2"))
-        connect((nonInvertingStage, "inner_transistorstack2_load_pmos"), (load, "inner_transistorstack2_load2"))
-        connect((nonInvertingStage, "inner_output_load_nmos"), (load, "inner_output_load2"))
-        connect((nonInvertingStage, "inner_source_load_nmos"), (load, "inner_source_load2"))
-        return nonInvertingStage
-    # fmt: on
-
-
-def connectInstanceTerminalsOfComplementaryStageBiases(
-    nonInvertingStage: NonInvertingStage,
-    stageBiasNmos: StageBias,
-    stageBiasPmos: StageBias,
-) -> NonInvertingStage:
-    connect((nonInvertingStage, "source_transconductance_nmos"), (stageBiasNmos, "out"))
-    connect((nonInvertingStage, "source_transconductance_pmos"), (stageBiasPmos, "out"))
-
-    connect((nonInvertingStage, "source_nmos"), (stageBiasNmos, "source"))
-    connect((nonInvertingStage, "source_pmos"), (stageBiasPmos, "source"))
-
-    if stageBiasNmos.component_count == 1:
-        connect((nonInvertingStage, "input_stagebias_nmos"), (stageBiasNmos, "in"))
-        connect((nonInvertingStage, "input_stagebias_pmos"), (stageBiasPmos, "in"))
-    else:
-        connect(
-            (nonInvertingStage, "insource_stagebias_nmos"), (stageBiasNmos, "insource")
-        )
-        connect(
-            (nonInvertingStage, "in_output_stagebias_nmos"), (stageBiasNmos, "inoutput")
-        )
-        connect((nonInvertingStage, "inner_stagebias_nmos"), (stageBiasNmos, "inner"))
-
-        connect(
-            (nonInvertingStage, "insource_stagebias_pmos"), (stageBiasPmos, "insource")
-        )
-        connect(
-            (nonInvertingStage, "in_output_stagebias_pmos"), (stageBiasPmos, "inoutput")
-        )
-        connect((nonInvertingStage, "inner_stagebias_pmos"), (stageBiasPmos, "inner"))
-    return nonInvertingStage
-
-
 def createComplementaryTransconductanceNonInvertingStage(
     transconductance: Transconductance,
     load: Load,
@@ -335,7 +86,7 @@ def createComplementaryTransconductanceNonInvertingStage(
     stage = addStageBiasesNets(stage, stageBiasNmos, stageBiasPmos)
     stage = addComplementaryLoadNets(stage, load)
 
-    stage = connectInstanceTerminalsOfComplementaryTransconductance(
+    stage = connectInstanceTerminalsOfComplementaryTransconductanceNonInv(
         stage, transconductance
     )
     stage = connectInstanceTerminalsOfComplementaryLoad(stage, load)
@@ -346,16 +97,49 @@ def createComplementaryTransconductanceNonInvertingStage(
     return stage
 
 
+def createFeedbackTransconductanceNonInvertingStage(
+    transconductance: Transconductance,
+    load: list[Load],
+    stageBias1: StageBias,
+    stageBias2: StageBias,
+) -> NonInvertingStage:
+    stage = NonInvertingStage(id=1, techtype=transconductance.tech)
+    stage.ports = [
+        "out1",
+        "out2",
+        "in1",
+        "in2",
+        "source_transconductance1",
+        "source_transconductance2",
+        "inner_transconductance",
+        "source_pmos",
+        "source_nmos",
+    ]
+    stage.add_instance(transconductance)
+    stage.add_instance(load)
+    stage.add_instance(stageBias1)
+    stage.add_instance(stageBias2)
+
+    stage = addStageBiasNets(stage, stageBias1)
+    stage = addLoadNets(stage, load)
+
+    stage = connectInstanceTerminalsOfFeedbackTransconductanceXXX(
+        stage, transconductance
+    )
+    stage = connectInstanceTerminalsOfLoad(stage, load)
+    stage = connectInstanceTerminalsOfStageBiases(stage, stageBias1, stageBias2)
+    return stage
+
+
+# --------------------------------------------------------------
 def createSimpleTransconductanceNonInvertingStages(
     transconductance: Transconductance, loads: list[Load], stageBiases: list[StageBias]
 ) -> Iterator[NonInvertingStage]:
-    for load in loads:
-        if load.component_count % 2 == 1:
+    for l in loads:
+        if l.component_count % 2 == 1:
             continue
-        for stageBias in stageBiases:
-            yield createSimpleTransconductanceNonInvertingStage(
-                transconductance, load, stageBias
-            )
+        for sb in stageBiases:
+            yield createSimpleTransconductanceNonInvertingStage(transconductance, l, sb)
 
 
 def createComplementaryTransconductanceNonInvertingStages(
@@ -364,80 +148,447 @@ def createComplementaryTransconductanceNonInvertingStages(
     stageBiasesNmos: list[StageBias],
     stageBiasesPmos: list[StageBias],
 ) -> Iterator[NonInvertingStage]:
+
+    transconductance = list(transconductance)[0]
+    stageBiasesPmos = list(stageBiasesPmos)
+    stageBiasesNmos = list(stageBiasesNmos)
     for load in loads:
         for i in range(len(stageBiasesPmos)):
-            stageBiasPmos = stageBiasesPmos[i]
-            stageBiasNmos = stageBiasesNmos[i]
+            sb_pmos = stageBiasesPmos[i]
+            sb_nmos = stageBiasesNmos[i]
             yield createComplementaryTransconductanceNonInvertingStage(
-                transconductance, load, stageBiasNmos, stageBiasPmos
+                transconductance, load, sb_nmos, sb_pmos
             )
 
             # TODO: translate the following C++ code
             # if(nonInvertingStage.everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType())
 
 
-# case 1
-def case_1() -> Iterator[Circuit]:
-    return createSimpleTransconductanceNonInvertingStages(
-        list(TransconductanceManager().createSimpleTransconductance())[0],
-        list(LoadManager().createSimpleMixedLoadNmos()),
-        list(StageBiasManager().getOneTransistorStageBiasesNmos()),
-    )
-
-
-def case_2() -> Iterator[Circuit]:
-    tc = list(TransconductanceManager().getComplementaryTransconductance())
-    assert len(tc) == 1
-    tc = tc[0]
-
-    return createComplementaryTransconductanceNonInvertingStages(
-        tc,
-        list(LoadManager().createLoadsForComplementaryNonInvertingStage()),
-        list(StageBiasManager().getOneTransistorStageBiasesNmos()),
-        list(StageBiasManager().getOneTransistorStageBiasesPmos()),
-    )
-
-
-def main():
-    methods: list[Callable[[], Iterator[Circuit]]] = [case_1, case_2]
-    for case_id, create_method in enumerate(methods, start=1):
-        circuits = list(create_method())
-        print(f"case {case_id}: {create_method.__name__}, len = {len(circuits)}")
-        for circuit_id, non_inv_stage in enumerate(circuits, start=1):
-            save_graphviz_figure(
-                non_inv_stage,
-                GALLERY_DOT_DIR / f"n_inv_{case_id}_{circuit_id}.dot",
+def createFeedbackTransconductanceNonInvertingStages(
+    transconductance: Transconductance, loads: list[Load], stageBiases: list[StageBias]
+) -> Iterator[NonInvertingStage]:
+    for load in loads:
+        for stageBias in stageBiases:
+            sb1 = deepcopy(stageBias)
+            sb2 = deepcopy(stageBias)
+            yield createFeedbackTransconductanceNonInvertingStage(
+                transconductance, load, sb1, sb2
             )
-            convert_dot_to_png(
-                GALLERY_DOT_DIR / f"n_inv_{case_id}_{circuit_id}.dot",
-                GALLERY_IMAGE_DIR / f"n_inv_{case_id}_{circuit_id}.png",
+            # TODO: add if(nonInvertingStage.everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType())
+
+
+# def test_2_10():
+#     tc = list(TransconductanceManager().getComplementaryTransconductance())
+#     assert len(tc) == 1
+#     tc = tc[0]
+
+#     load = list(LoadManager().createLoadsForComplementaryNonInvertingStage())[9]
+#     sb_nmos = list(StageBiasManager().getOneTransistorStageBiasesNmos())[0]
+#     sb_pmos = list(StageBiasManager().getOneTransistorStageBiasesPmos())[0]
+#     non_inv_stage = createComplementaryTransconductanceNonInvertingStage(
+#         tc, load, sb_nmos, sb_pmos
+#     )
+#     case_id = 1
+#     circuit_id = 10
+#     save_graphviz_figure(
+#         non_inv_stage,
+#         GALLERY_DOT_DIR / f"n_inv_{case_id}_{circuit_id}xxx.dot",
+#     )
+#     convert_dot_to_png(
+#         GALLERY_DOT_DIR / f"n_inv_{case_id}_{circuit_id}xxx.dot",
+#         GALLERY_IMAGE_DIR / f"n_inv_{case_id}_{circuit_id}xxx.png",
+#     )
+#     print("num components:", non_inv_stage.component_count)
+
+
+class NonInvertingStageManager:
+    def __init__(self):
+        self.feedbackNonInvertingStagesPmosTransconductance_ = None
+        self.feedbackNonInvertingStagesNmosTransconductance_ = None
+        pass
+
+    def createSimpleNonInvertingStages(
+        self, caseNumber: int
+    ) -> Iterator[NonInvertingStage]:
+        create_fn = createSimpleTransconductanceNonInvertingStages
+        tc_mn, l_mn, sb_mn = (
+            TransconductanceManager(),
+            LoadManager(),
+            StageBiasManager(),
+        )
+
+        def case_1():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createSimpleMixedLoadNmos(),
+                sb_mn.getOneTransistorStageBiasesPmos(),
             )
 
+        def case_2():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createSimpleMixedLoadPmos(),
+                sb_mn.getOneTransistorStageBiasesNmos(),
+            )
 
-def test_2_10():
-    tc = list(TransconductanceManager().getComplementaryTransconductance())
-    assert len(tc) == 1
-    tc = tc[0]
+        def case_3():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createSimpleMixedLoadNmos(),
+                sb_mn.getTwoTransistorStageBiasesPmos(),
+            )
 
-    load = list(LoadManager().createLoadsForComplementaryNonInvertingStage())[9]
-    sb_nmos = list(StageBiasManager().getOneTransistorStageBiasesNmos())[0]
-    sb_pmos = list(StageBiasManager().getOneTransistorStageBiasesPmos())[0]
-    non_inv_stage = createComplementaryTransconductanceNonInvertingStage(
-        tc, load, sb_nmos, sb_pmos
-    )
-    case_id = 1
-    circuit_id = 10
-    save_graphviz_figure(
-        non_inv_stage,
-        GALLERY_DOT_DIR / f"n_inv_{case_id}_{circuit_id}xxx.dot",
-    )
-    convert_dot_to_png(
-        GALLERY_DOT_DIR / f"n_inv_{case_id}_{circuit_id}xxx.dot",
-        GALLERY_IMAGE_DIR / f"n_inv_{case_id}_{circuit_id}xxx.png",
-    )
-    print("num components:", non_inv_stage.component_count)
+        def case_4():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createSimpleMixedLoadPmos(),
+                sb_mn.getTwoTransistorStageBiasesNmos(),
+            )
+
+        def case_5():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createSimpleTwoLoadPartsFoldedGCCMixedLoadNmos(),
+                sb_mn.getOneTransistorStageBiasesPmos(),
+            )
+
+        def case_6():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createSimpleTwoLoadPartsFoldedGCCMixedLoadPmos(),
+                sb_mn.getOneTransistorStageBiasesNmos(),
+            )
+
+        def case_7():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createSimpleTwoLoadPartsFoldedGCCMixedLoadNmos(),
+                sb_mn.getTwoTransistorStageBiasesPmos(),
+            )
+
+        def case_8():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createSimpleTwoLoadPartsFoldedGCCMixedLoadPmos(),
+                sb_mn.getTwoTransistorStageBiasesNmos(),
+            )
+
+        def case_9():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsTwoLoadPartsCascodeGCCMixedPmos(),
+                sb_mn.getOneTransistorStageBiasesPmos(),
+            )
+
+        def case_10():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsTwoLoadPartsCascodeGCCMixedNmos(),
+                sb_mn.getOneTransistorStageBiasesNmos(),
+            )
+
+        def case_11():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsTwoLoadPartsCascodeGCCMixedPmos(),
+                sb_mn.getTwoTransistorStageBiasesPmos(),
+            )
+
+        def case_12():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsTwoLoadPartsCascodeGCCMixedNmos(),
+                sb_mn.getTwoTransistorStageBiasesNmos(),
+            )
+
+        def case_13():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsTwoLoadPartsMixedCurrentBiasesPmos(),
+                sb_mn.getOneTransistorStageBiasesPmos(),
+            )
+
+        def case_14():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsTwoLoadPartsMixedCurrentBiasesNmos(),
+                sb_mn.getOneTransistorStageBiasesNmos(),
+            )
+
+        def case_15():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsTwoLoadPartsMixedCurrentBiasesPmos(),
+                sb_mn.getTwoTransistorStageBiasesPmos(),
+            )
+
+        def case_16():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsTwoLoadPartsMixedCurrentBiasesNmos(),
+                sb_mn.getTwoTransistorStageBiasesNmos(),
+            )
+
+        return eval(f"case_{caseNumber}")()
+
+    def createFullyDifferentialNonInvertingStages(
+        self,
+        caseNumber: int,
+    ) -> Iterator[NonInvertingStage]:
+        create_fn = createSimpleTransconductanceNonInvertingStages
+        tc_mn = TransconductanceManager()
+        l_mn = LoadManager()
+        sb_mn = StageBiasManager()
+
+        def case_1():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsNmosForFullyDifferentialNonInvertingStage(),
+                sb_mn.getOneTransistorStageBiasesPmos(),
+            )
+
+        def case_2():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsPmosForFullyDifferentialNonInvertingStage(),
+                sb_mn.getOneTransistorStageBiasesNmos(),
+            )
+
+        def case_3():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsNmosForFullyDifferentialNonInvertingStage(),
+                sb_mn.getTwoTransistorStageBiasesPmos(),
+            )
+
+        def case_4():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsPmosForFullyDifferentialNonInvertingStage(),
+                sb_mn.getTwoTransistorStageBiasesNmos(),
+            )
+
+        return eval(f"case_{caseNumber}")()
+
+    def createComplementaryNonInvertingStages(
+        self,
+        caseNumber: int,
+    ) -> Iterator[NonInvertingStage]:
+
+        create_fn = createComplementaryTransconductanceNonInvertingStages
+        tc_mn = TransconductanceManager()
+        l_mn = LoadManager()
+        sb_mn = StageBiasManager()
+
+        def case_1():
+            return create_fn(
+                tc_mn.getComplementaryTransconductance(),
+                l_mn.createLoadsForComplementaryNonInvertingStage(),
+                sb_mn.getOneTransistorStageBiasesNmos(),
+                sb_mn.getOneTransistorStageBiasesPmos(),
+            )
+
+        def case_2():
+            return create_fn(
+                tc_mn.getComplementaryTransconductance(),
+                l_mn.createLoadsForComplementaryNonInvertingStage(),
+                sb_mn.getTwoTransistorStageBiasesNmos(),
+                sb_mn.getTwoTransistorStageBiasesPmos(),
+            )
+
+        return eval(f"case_{caseNumber}")()
+
+    def createSymmetricalNonInvertingStages(
+        self, caseNumber: int
+    ) -> Iterator[NonInvertingStage]:
+        create_fn = createSimpleTransconductanceNonInvertingStages
+        tc_mn = TransconductanceManager()
+        l_mn = LoadManager()
+        sb_mn = StageBiasManager()
+
+        def case_1():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsNmosTwoForSymmetricalOpAmpNonInvertingStage(),
+                sb_mn.getOneTransistorStageBiasesPmos(),
+            )
+
+        def case_2():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsPmosTwoForSymmetricalOpAmpNonInvertingStage(),
+                sb_mn.getOneTransistorStageBiasesNmos(),
+            )
+
+        def case_3():
+
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsNmosTwoForSymmetricalOpAmpNonInvertingStage(),
+                sb_mn.getTwoTransistorStageBiasesPmos(),
+            )
+
+        def case_4():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsPmosTwoForSymmetricalOpAmpNonInvertingStage(),
+                sb_mn.getTwoTransistorStageBiasesNmos(),
+            )
+
+        def case_5():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsNmosFourForSymmetricalOpAmpNonInvertingStage(),
+                sb_mn.getOneTransistorStageBiasesPmos(),
+            )
+
+        def case_6():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsPmosFourForSymmetricalOpAmpNonInvertingStage(),
+                sb_mn.getOneTransistorStageBiasesNmos(),
+            )
+
+        def case_7():
+            return create_fn(
+                tc_mn.getSimpleTransconductancePmos(),
+                l_mn.createLoadsNmosFourForSymmetricalOpAmpNonInvertingStage(),
+                sb_mn.getTwoTransistorStageBiasesPmos(),
+            )
+
+        def case_8():
+            return create_fn(
+                tc_mn.getSimpleTransconductanceNmos(),
+                l_mn.createLoadsPmosFourForSymmetricalOpAmpNonInvertingStage(),
+                sb_mn.getTwoTransistorStageBiasesNmos(),
+            )
+
+        return eval(f"case_{caseNumber}")()
+
+    def initializeFeedbackNonInvertingStages(self) -> None:
+        transconductanceNmos = (
+            TransconductanceManager().getFeedbackTransconductanceNmos()
+        )
+        transconductancePmos = (
+            TransconductanceManager().getFeedbackTransconductancePmos()
+        )
+
+        loadsPmos = LoadManager().getLoadsPmosForFeedbackNonInvertingStage()
+        loadsNmos = LoadManager().getLoadsNmosForFeedbackNonInvertingStage()
+
+        stageBiasesNmos = StageBiasManager().getAllStageBiasesNmos()
+        stageBiasesPmos = StageBiasManager().getAllStageBiasesPmos()
+
+        self.feedbackNonInvertingStagesPmosTransconductance_ = (
+            createFeedbackTransconductanceNonInvertingStages(
+                transconductancePmos, loadsNmos, stageBiasesPmos
+            )
+        )
+        self.feedbackNonInvertingStagesNmosTransconductance_ = (
+            createFeedbackTransconductanceNonInvertingStages(
+                transconductanceNmos, loadsPmos, stageBiasesNmos
+            )
+        )
+
+    def getFeedbackNonInvertingStagesPmosTransconductance(self):
+        if self.feedbackNonInvertingStagesPmosTransconductance_ is None:
+            self.initializeFeedbackNonInvertingStages()
+
+        return self.feedbackNonInvertingStagesPmosTransconductance_
+
+    def getFeedbackNonInvertingStagesNmosTransconductance(self):
+        if self.feedbackNonInvertingStagesNmosTransconductance_ is None:
+            self.initializeFeedbackNonInvertingStages()
+
+        return self.feedbackNonInvertingStagesNmosTransconductance_
 
 
 if __name__ == "__main__":
-    main()
+    non_inv_manager = NonInvertingStageManager()
+    # fmt: off
+
+    # create simple non inverting stages
+    (GALLERY_DOT_DIR / "SimpleNonInvertingStages").mkdir(parents=True, exist_ok=True)
+    (GALLERY_IMAGE_DIR / "SimpleNonInvertingStages").mkdir(parents=True, exist_ok=True)
+
+    for case_id, create_method in enumerate(range(16), start=1):
+        circuits = list(non_inv_manager.createSimpleNonInvertingStages(case_id))
+        print(f"createSimpleNonInvertingStages, case: {case_id}, #num={len(circuits)}")
+        for circuit_id, non_inv_stage in enumerate(circuits, start=1):
+            save_graphviz_figure(
+                non_inv_stage,
+                GALLERY_DOT_DIR
+                / f"SimpleNonInvertingStages/n_inv_{case_id}_{circuit_id}.dot",
+            )
+            convert_dot_to_png(
+                GALLERY_DOT_DIR
+                / f"SimpleNonInvertingStages/n_inv_{case_id}_{circuit_id}.dot",
+                GALLERY_IMAGE_DIR
+                / f"SimpleNonInvertingStages/n_inv_{case_id}_{circuit_id}.png",
+            )
+
+    # create fully differential non inverting stages
+    (GALLERY_DOT_DIR / "FullyDifferentialNonInvertingStages").mkdir(parents=True, exist_ok=True)
+    (GALLERY_IMAGE_DIR / "FullyDifferentialNonInvertingStages").mkdir(parents=True, exist_ok=True)
+
+    for case_id, create_method in enumerate(range(4), start=1):
+        circuits = list(non_inv_manager.createFullyDifferentialNonInvertingStages(case_id))
+        print(f"createFullyDifferentialNonInvertingStages, case: {case_id}, #num={len(circuits)}")
+        for circuit_id, non_inv_stage in enumerate(circuits, start=1):
+            save_graphviz_figure(
+                non_inv_stage,
+                GALLERY_DOT_DIR
+                / f"FullyDifferentialNonInvertingStages/n_inv_{case_id}_{circuit_id}.dot",
+            )
+            convert_dot_to_png(
+                GALLERY_DOT_DIR
+                / f"FullyDifferentialNonInvertingStages/n_inv_{case_id}_{circuit_id}.dot",
+                GALLERY_IMAGE_DIR
+                / f"FullyDifferentialNonInvertingStages/n_inv_{case_id}_{circuit_id}.png",
+            )
+
+
+    (GALLERY_DOT_DIR / "ComplementaryNonInvertingStages").mkdir(parents=True, exist_ok=True)
+    (GALLERY_IMAGE_DIR / "ComplementaryNonInvertingStages").mkdir(parents=True, exist_ok=True)
+
+    for case_id, create_method in enumerate(range(2), start=1):
+        circuits = list(non_inv_manager.createComplementaryNonInvertingStages(case_id))
+        print(f"createComplementaryNonInvertingStages, case: {case_id}, #num={len(circuits)}")
+        for circuit_id, non_inv_stage in enumerate(circuits, start=1):
+            save_graphviz_figure(
+                non_inv_stage,
+                GALLERY_DOT_DIR
+                / f"ComplementaryNonInvertingStages/n_inv_{case_id}_{circuit_id}.dot",
+            )
+            convert_dot_to_png(
+                GALLERY_DOT_DIR
+                / f"ComplementaryNonInvertingStages/n_inv_{case_id}_{circuit_id}.dot",
+                GALLERY_IMAGE_DIR
+                / f"ComplementaryNonInvertingStages/n_inv_{case_id}_{circuit_id}.png",
+            )
+
+
+    (GALLERY_DOT_DIR / "FeedbackNonInvertingStages").mkdir(parents=True, exist_ok=True)
+    (GALLERY_IMAGE_DIR / "FeedbackNonInvertingStages").mkdir(parents=True, exist_ok=True)
+
+    for case_id, create_method in enumerate(range(2), start=1):
+        if case_id == 1:
+            circuits = list(non_inv_manager.getFeedbackNonInvertingStagesPmosTransconductance())
+        else:
+            circuits = list(non_inv_manager.getFeedbackNonInvertingStagesNmosTransconductance())
+
+        print(f"createFeedbackNonInvertingStages, case: {case_id}, #num={len(circuits)}")
+        for circuit_id, non_inv_stage in enumerate(circuits, start=1):
+            save_graphviz_figure(
+                non_inv_stage,
+                GALLERY_DOT_DIR
+                / f"FeedbackNonInvertingStages/n_inv_{case_id}_{circuit_id}.dot",
+            )
+            convert_dot_to_png(
+                GALLERY_DOT_DIR
+                / f"FeedbackNonInvertingStages/n_inv_{case_id}_{circuit_id}.dot",
+                GALLERY_IMAGE_DIR
+                / f"FeedbackNonInvertingStages/n_inv_{case_id}_{circuit_id}.png",
+            )
+
     # test_2_10()
