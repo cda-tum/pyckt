@@ -319,6 +319,14 @@ class Load(Circuit):
 
 
 class DiffPair(Circuit):
+    OUTPUT1 = "out1"
+    OUTPUT2 = "out2"
+
+    INPUT1 = "input1"
+    INPUT2 = "input2"
+
+    SOURCE = "source"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "dp"
         if "id" not in kwargs:
@@ -327,6 +335,14 @@ class DiffPair(Circuit):
 
 
 class StageBias(Circuit):
+    IN = "in"
+    SOURCE = "source"
+    OUT = "out"
+
+    INNER = "inner"
+    INOUTPUT = "in_output"
+    INSOURCE = "in_source"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "sb"
         if "id" not in kwargs:
@@ -335,6 +351,30 @@ class StageBias(Circuit):
 
 
 class Transconductance(Circuit):
+
+    INPUT1 = "input1"
+    INPUT2 = "input2"
+    INNER = "inner"
+
+    OUT1 = "out1"
+    OUT2 = "out2"
+
+    OUT1NMOS = "out1_nmos"
+    OUT2NMOS = "out2_nmos"
+    OUT1PMOS = "out1_pmos"
+    OUT2PMOS = "out2_pmos"
+
+    # // for "SimpleTransconductance"
+    SOURCE = "source"
+
+    # // used in "FeedbackTransconductance"
+    SOURCE_1 = "source_1"
+    SOURCE_2 = "source_2"
+
+    # // used in "ComplementaryTransconductance"
+    SOURCE_NMOS = "source_nmos"
+    SOURCE_PMOS = "source_pmos"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "tc"
         if "id" not in kwargs:
