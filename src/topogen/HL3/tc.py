@@ -107,7 +107,7 @@ def createComplementaryTransconductance(differentialPairPmos, differentialPairNm
 
 class TransconductanceManager:
     def __init__(self):
-        pass
+        self.initializeTransconductances()
     
     def createSimpleTransconductance(self) -> Iterator[Circuit]:
         differentialPairPmos = DiffPairManager().getDifferentialPairPmos()
@@ -126,6 +126,36 @@ class TransconductanceManager:
 
     def getComplementaryTransconductance(self) -> Iterator[Circuit]:
         return self.createComplementaryTransconductance()
+    
+    def getSimpleTransconductancePmos(self) -> Iterator[Transconductance]:
+        differentialPairPmos = DiffPairManager().getDifferentialPairPmos()
+        return createSimpleTransconductance(differentialPairPmos)
+
+    def getSimpleTransconductanceNmos(self) -> Iterator[Transconductance]:
+        differentialPairNmos = DiffPairManager().getDifferentialPairNmos()
+        return createSimpleTransconductance(differentialPairNmos)
+    
+    def initializeTransconductances(self):
+        differentialPairPmos = DiffPairManager().getDifferentialPairPmos()
+        differentialPairNmos = DiffPairManager().getDifferentialPairNmos()
+
+        # initial all
+        self.simpleTransconductancePmos_ = createSimpleTransconductance(differentialPairPmos)
+        self.simpleTransconductanceNmos_ = createSimpleTransconductance(differentialPairNmos)
+
+        self.feedbackTransconductancePmos_ = createFeedbackTransconductance(differentialPairPmos)
+        self.feedbackTransconductanceNmos_ = createFeedbackTransconductance(differentialPairNmos)
+
+        self.complementaryTransconductance_ = createComplementaryTransconductance(differentialPairPmos, differentialPairNmos)
+        
+
+    def getFeedbackTransconductanceNmos(self) -> Iterator[Transconductance]:
+        return self.feedbackTransconductanceNmos_
+    
+    def getFeedbackTransconductancePmos(self) -> Iterator[Transconductance]:
+        return self.feedbackTransconductancePmos_
+
+
 
 if __name__ == "__main__":
     mng = TransconductanceManager()

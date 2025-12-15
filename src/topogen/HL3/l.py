@@ -456,6 +456,9 @@ methods: list[list[Callable]] = [
 
 
 class LoadManager:
+    def __init__(self):
+        self.initializeLoadsVoltageBiasesLoadPart()
+
     @staticmethod
     def createSimpleMixedLoadPmos():
         return createSimpleMixedLoadPmos()
@@ -499,6 +502,53 @@ class LoadManager:
     @staticmethod
     def createLoadsForComplementaryNonInvertingStage():
         return createLoadsForComplementaryNonInvertingStage()
+
+    @staticmethod
+    def createLoadsNmosTwoForSymmetricalOpAmpNonInvertingStage():
+        return createLoadsNmosTwoForSymmetricalOpAmpNonInvertingStage()
+
+    @staticmethod
+    def createLoadsNmosFourForSymmetricalOpAmpNonInvertingStage():
+        return createLoadsNmosFourForSymmetricalOpAmpNonInvertingStage()
+
+    @staticmethod
+    def createLoadsPmosTwoForSymmetricalOpAmpNonInvertingStage():
+        return createLoadsPmosTwoForSymmetricalOpAmpNonInvertingStage()
+
+    @staticmethod
+    def createLoadsPmosFourForSymmetricalOpAmpNonInvertingStage():
+        return createLoadsPmosFourForSymmetricalOpAmpNonInvertingStage()
+
+    def initializeLoadsVoltageBiasesLoadPart(self):
+        pmosLoadParts = LoadPartManager().getLoadPartsPmosVoltageBiases()
+        nmosLoadParts = LoadPartManager().getLoadPartsNmosVoltageBiases()
+
+        self.oneLoadPartLoadsVoltageBiasesNmos_ = createOneLoadPartLoads(nmosLoadParts)
+        self.oneLoadPartLoadsVoltageBiasesPmos_ = createOneLoadPartLoads(pmosLoadParts)
+
+    # @staticmethod
+    def getLoadsPmosForFeedbackNonInvertingStage(self) -> Iterator[NonInvertingStage]:
+        out = []
+        for voltageBiasLoad in self.oneLoadPartLoadsVoltageBiasesPmos_:
+            if voltageBiasLoad.component_count == 2:
+                out.append(voltageBiasLoad)
+                yield voltageBiasLoad
+
+        # TODO: uncomment the following line
+        # assert len(out) == 1
+        # yield out[
+
+    def getLoadsNmosForFeedbackNonInvertingStage(self) -> Iterator[NonInvertingStage]:
+        out = []
+        for voltageBiasLoad in self.oneLoadPartLoadsVoltageBiasesNmos_:
+            if voltageBiasLoad.component_count == 2:
+                out.append(voltageBiasLoad)
+                yield voltageBiasLoad
+
+        # TODO: uncomment the following lines
+        # print(f"total out: ", len(out))
+        # assert len(out) == 1, print(len(out))
+        # yield out[1]
 
 
 if __name__ == "__main__":

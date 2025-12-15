@@ -75,6 +75,8 @@ def initializeStageBiasesNmos():
 
 class StageBiasManager:
     def __init__(self):
+        self.initializeStageBiasesPmos()
+        self.initializeStageBiasesNmos()
         pass
     def createStageBiasesPmos(self) ->Iterator[Circuit]:
         return initializeStageBiasesPmos()
@@ -95,6 +97,32 @@ class StageBiasManager:
     def getTwoTransistorStageBiasesPmos(self) ->Iterator[Circuit]:
         twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
         return createTwoTransistorStageBiases(twoTransistorCurrentBiases)
+
+    def initializeStageBiasesNmos(self)-> None:
+        oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesNmos()
+        twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesNmos()
+
+        self.oneTransistorBiasesNmos_ = createOneTransistorStageBiases(oneTransistorCurrentBiases)
+        self.twoTransistorBiasesNmos_ = createTwoTransistorStageBiases(twoTransistorCurrentBiases)
+
+    def initializeStageBiasesPmos(self)-> None:
+
+        oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
+        twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
+
+        self.oneTransistorBiasesPmos_ = createOneTransistorStageBiases(oneTransistorCurrentBiases)
+        self.twoTransistorBiasesPmos_ = createTwoTransistorStageBiases(twoTransistorCurrentBiases)
+
+
+    def getAllStageBiasesNmos(self):
+        assert self.oneTransistorBiasesNmos_ is not None
+        assert self.twoTransistorBiasesNmos_ is not None
+        return  list(self.oneTransistorBiasesNmos_) + list(self.twoTransistorBiasesNmos_)
+    
+    def getAllStageBiasesPmos(self):
+        assert self.oneTransistorBiasesPmos_ is not None
+        assert self.twoTransistorBiasesPmos_ is not None
+        return  list(self.oneTransistorBiasesPmos_) + list(self.twoTransistorBiasesPmos_)
 
 
 if __name__ == "__main__":
