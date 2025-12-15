@@ -309,6 +309,12 @@ class LoadPart(Circuit):
     def ts2(self) -> TransistorStack:
         return self.instances[1]
 
+    @property
+    def bothTransistorStacksAreVoltageBiases(self) -> bool:
+        return self.ts1.instances[0].name.startswith("vb") and self.ts2.instances[
+            0
+        ].name.startswith("vb")
+
 
 class Load(Circuit):
     def __init__(self, *args, **kwargs):
