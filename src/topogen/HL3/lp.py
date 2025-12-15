@@ -403,6 +403,10 @@ def createTwoTransistorLoadPartsCurrentBiases(oneTransistorCurrentBiases):
 
 class LoadPartManager:
 
+    def __init__(self):
+        self.initializeLoadPartsPmos()
+        self.initializeLoadPartsNmos()
+
     # case 1
     def createTwoTransistorsLoadPartsLoadPartsPmosVoltageBiases(self):
         oneTransistorVoltageBiases = (
@@ -596,6 +600,37 @@ class LoadPartManager:
         return createFourTransistorLoadPartsMixed(
             twoTransistorVoltageBiases, twoTransistorCurrentBiases
         )
+
+    def initializeLoadPartsPmos(self):
+        oneTransistorVoltageBiases = VoltageBiasManager().getOneTransistorVoltageBiasesPmos()
+        twoTransistorVoltageBiases = VoltageBiasManager().getTwoTransistorVoltageBiasesPmos()
+        # oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
+        # twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
+
+        self.twoTransistorsLoadPartsPmosVoltageBiases_ = createTwoTransistorLoadPartsVoltageBiases(oneTransistorVoltageBiases)
+        self.fourTransistorsLoadPartsPmosVoltageBiases_ = createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases)
+
+    def initializeLoadPartsNmos(self):
+        oneTransistorVoltageBiases = VoltageBiasManager().getOneTransistorVoltageBiasesNmos();
+        twoTransistorVoltageBiases = VoltageBiasManager().getTwoTransistorVoltageBiasesNmos();
+        # oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesNmos();
+        # twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesNmos();
+
+        self.twoTransistorsLoadPartsNmosVoltageBiases_ = createTwoTransistorLoadPartsVoltageBiases(oneTransistorVoltageBiases)
+        self.fourTransistorsLoadPartsNmosVoltageBiases_ = createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases)
+
+    def getLoadPartsPmosVoltageBiases(self):
+        assert self.twoTransistorsLoadPartsPmosVoltageBiases_ != None
+        assert self.fourTransistorsLoadPartsPmosVoltageBiases_ != None
+
+        return self.twoTransistorsLoadPartsPmosVoltageBiases_ + self.fourTransistorsLoadPartsPmosVoltageBiases_
+
+
+    def getLoadPartsNmosVoltageBiases(self):
+        assert self.twoTransistorsLoadPartsNmosVoltageBiases_ is not None
+        assert self.fourTransistorsLoadPartsNmosVoltageBiases_ is not None
+        return self.twoTransistorsLoadPartsNmosVoltageBiases_  + self.fourTransistorsLoadPartsNmosVoltageBiases_
+       
 
 
 def print_json(data):
