@@ -17,25 +17,25 @@ GALLERY_IMAGE_DIR = Path(__file__).parent.parent.parent.parent / "gallery" / "HL
 GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 def connectInstanceTerminalsOfOneTransistorStageBias(stageBias:Circuit, currentBias:Circuit) -> Circuit:
-    connect((stageBias, "in"), (currentBias, "in"))
-    connect((stageBias, "out"), (currentBias, "out"))
-    connect((stageBias, "source"), (currentBias, "source"))
+    connect((stageBias, StageBias.IN), (currentBias, "in"))
+    connect((stageBias, StageBias.OUT), (currentBias, "out"))
+    connect((stageBias, StageBias.SOURCE), (currentBias, "source"))
     return stageBias
 
 def connectInstanceTerminalsOfTwoTransistorStageBias(stageBias:Circuit, currentBias:Circuit) -> Circuit:
-    connect((stageBias, "inoutput"), (currentBias, "inoutput"))
-    connect((stageBias, "insource"), (currentBias, "insource"))
-    connect((stageBias, "inner"), (currentBias, "inner"))
-    connect((stageBias, "out"), (currentBias, "out"))
-    connect((stageBias, "source"), (currentBias, "source"))
+    connect((stageBias, StageBias.INOUTPUT), (currentBias, "inoutput"))
+    connect((stageBias, StageBias.INSOURCE), (currentBias, "insource"))
+    connect((stageBias, StageBias.INNER), (currentBias, "inner"))
+    connect((stageBias, StageBias.OUT), (currentBias, "out"))
+    connect((stageBias, StageBias.SOURCE), (currentBias, "source"))
     return stageBias
 
 def createOneTransistorStageBias(currentBias) -> Circuit:
     sb = StageBias(id=1, techtype="?")
     sb.ports = [
-        "out",
-        "in",
-        "source",
+        StageBias.OUT,
+        StageBias.IN,
+        StageBias.SOURCE,
     ]
     sb.add_instance(currentBias)
     sb = connectInstanceTerminalsOfOneTransistorStageBias(sb, currentBias)
@@ -44,11 +44,11 @@ def createOneTransistorStageBias(currentBias) -> Circuit:
 def createTwoTransistorStageBias(currentBias) -> Circuit:
     sb = StageBias(id=1, techtype="?")
     sb.ports = [
-        "out",
-        "inoutput",
-        "insource",
-        "inner",
-        "source",
+        StageBias.OUT,
+        StageBias.INOUTPUT,
+        StageBias.INSOURCE,
+        StageBias.INNER,
+        StageBias.SOURCE,
     ]
     sb.add_instance(currentBias)
     sb = connectInstanceTerminalsOfTwoTransistorStageBias(sb, currentBias)

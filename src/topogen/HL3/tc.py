@@ -18,53 +18,53 @@ GALLERY_DOT_DIR.mkdir(parents=True, exist_ok=True)
 GALLERY_IMAGE_DIR = Path(__file__).parent.parent.parent.parent / "gallery" / "HL3" / "tc" / "images"
 GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-
-def connectInstanceTerminalsOfSimpleTransconductance(tc: Circuit, differentialPair: Circuit) -> Circuit:
-    connect((tc, "input1"), (differentialPair, "input1"))
-    connect((tc, "input2"), (differentialPair, "input2"))
-    connect((tc, "out1"), (differentialPair, "output1"))
-    connect((tc, "out2"), (differentialPair, "output2"))
-    connect((tc, "source"), (differentialPair, "source"))
+tc = Transconductance
+def connectInstanceTerminalsOfSimpleTransconductance(tc: Transconductance, dp: DiffPair) -> Transconductance:
+    connect((tc, Transconductance.INPUT1), (dp, DiffPair.INPUT1))
+    connect((tc, Transconductance.INPUT2), (dp, DiffPair.INPUT2))
+    connect((tc, Transconductance.OUT1), (dp, DiffPair.OUTPUT1))
+    connect((tc, Transconductance.OUT2), (dp, DiffPair.OUTPUT2))
+    connect((tc, Transconductance.SOURCE), (dp, DiffPair.SOURCE))
     return tc
 
-def connectInstanceTerminalsOfFeedbackTransconductance(tc: Circuit, differentialPair1: Circuit, differentialPair2: Circuit) -> Circuit:
-    connect((tc, "input1"), (differentialPair1, "input1"))
-    connect((tc, "inner"), (differentialPair1, "input2"))
-    connect((tc, "out1"), (differentialPair1, "output1"))
-    connect((tc, "out2"), (differentialPair1, "output2"))
-    connect((tc, "source1"), (differentialPair1, "source"))
+def connectInstanceTerminalsOfFeedbackTransconductance(tc: Transconductance, dp1: DiffPair, dp2: DiffPair) -> Transconductance:
+    connect((tc, Transconductance.INPUT1), (dp1, DiffPair.INPUT1))
+    connect((tc, Transconductance.INNER), (dp1, DiffPair.INPUT2))
+    connect((tc, Transconductance.OUT1), (dp1, DiffPair.OUTPUT1))
+    connect((tc, Transconductance.OUT2), (dp1, DiffPair.OUTPUT2))
+    connect((tc, Transconductance.SOURCE_1), (dp1, DiffPair.SOURCE))
 
 
-    connect((tc, "input2"), (differentialPair2, "input1"))
-    connect((tc, "inner"), (differentialPair2, "input2"))
-    connect((tc, "out1"), (differentialPair2, "output1"))
-    connect((tc, "out2"), (differentialPair2, "output2"))
-    connect((tc, "source2"), (differentialPair2, "source"))
+    connect((tc, Transconductance.INPUT2), (dp2, DiffPair.INPUT1))
+    connect((tc, Transconductance.INNER), (dp2, DiffPair.INPUT2))
+    connect((tc, Transconductance.OUT1), (dp2, DiffPair.OUTPUT1))
+    connect((tc, Transconductance.OUT2), (dp2, DiffPair.OUTPUT2))
+    connect((tc, Transconductance.SOURCE_2), (dp2, DiffPair.SOURCE))
     return tc
 
-def connectInstanceTerminalsOfComplementaryTransconductance(tc: Circuit, differentialPairNmos: Circuit, differentialPairPmos: Circuit) -> Circuit:
-    connect((tc, "input1"), (differentialPairNmos, "input1"))
-    connect((tc, "input2"), (differentialPairNmos, "input2"))
-    connect((tc, "out1_nmos"), (differentialPairNmos, "output1"))
-    connect((tc, "out2_nmos"), (differentialPairNmos, "output2"))
-    connect((tc, "source_nmos"), (differentialPairNmos, "source"))
+def connectInstanceTerminalsOfComplementaryTransconductance(tc: Transconductance, dp_nmos: DiffPair, dp_pmos: DiffPair) -> Transconductance:
+    connect((tc, Transconductance.INPUT1), (dp_nmos, DiffPair.INPUT1))
+    connect((tc, Transconductance.INPUT2), (dp_nmos, DiffPair.INPUT2))
+    connect((tc, Transconductance.OUT1NMOS), (dp_nmos, DiffPair.OUTPUT1))
+    connect((tc, Transconductance.OUT2NMOS), (dp_nmos, DiffPair.OUTPUT2))
+    connect((tc, Transconductance.SOURCE_NMOS), (dp_nmos, DiffPair.SOURCE))
 
 
-    connect((tc, "input1"), (differentialPairPmos, "input1"))
-    connect((tc, "input2"), (differentialPairPmos, "input2"))
-    connect((tc, "out1_pmos"), (differentialPairPmos, "output1"))
-    connect((tc, "out2_pmos"), (differentialPairPmos, "output2"))
-    connect((tc, "source_pmos"), (differentialPairPmos, "source"))
+    connect((tc, Transconductance.INPUT1), (dp_pmos, DiffPair.INPUT1))
+    connect((tc, Transconductance.INPUT2), (dp_pmos, DiffPair.INPUT2))
+    connect((tc, Transconductance.OUT1PMOS), (dp_pmos, DiffPair.OUTPUT1))
+    connect((tc, Transconductance.OUT2PMOS), (dp_pmos, DiffPair.OUTPUT2))
+    connect((tc, Transconductance.SOURCE_PMOS), (dp_pmos, DiffPair.SOURCE))
     return tc
 
 def createSimpleTransconductance(differentialPair):
     tc = Transconductance(id=1, techtype="?")
     tc.ports = [
-        "out1",
-        "out2",
-        "input1",
-        "input2",
-        "source",
+        Transconductance.OUT1,
+        Transconductance.OUT2,
+        Transconductance.INPUT1,
+        Transconductance.INPUT2,
+        Transconductance.SOURCE,
     ]
     tc.add_instance(differentialPair)
     tc = connectInstanceTerminalsOfSimpleTransconductance(tc, differentialPair)
@@ -75,12 +75,12 @@ def createFeedbackTransconductance(differentialPair)-> Circuit:
     differentialPair2 = deepcopy(differentialPair)
     tc = Transconductance(id=1, techtype="?")
     tc.ports = [
-        "out1",
-        "out2",
-        "input1",
-        "input2",
-        "source1",
-        "source2",
+        Transconductance.OUT1,
+        Transconductance.OUT2,
+        Transconductance.INPUT1,
+        Transconductance.INPUT2,
+        Transconductance.SOURCE_1,
+        Transconductance.SOURCE_2,
     ]
     tc.add_instance(differentialPair1)
     tc.add_instance(differentialPair2)
@@ -91,14 +91,14 @@ def createFeedbackTransconductance(differentialPair)-> Circuit:
 def createComplementaryTransconductance(differentialPairPmos, differentialPairNmos) -> Circuit:
     tc = Transconductance(id=1, techtype="?")
     tc.ports = [
-        "out1_nmos",
-        "out2_nmos",
-        "out1_pmos",
-        "out2_pmos",
-        "input1",
-        "input2",
-        "source_pmos",
-        "source_nmos",
+        Transconductance.OUT1NMOS,
+        Transconductance.OUT2NMOS,
+        Transconductance.OUT1PMOS,
+        Transconductance.OUT2PMOS,
+        Transconductance.INPUT1,
+        Transconductance.INPUT2,
+        Transconductance.SOURCE_PMOS,
+        Transconductance.SOURCE_NMOS,
     ]
     tc.add_instance(differentialPairPmos)
     tc.add_instance(differentialPairNmos)
