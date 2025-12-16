@@ -39,13 +39,13 @@ def createSimpleTransconductanceNonInvertingStage(
 ) -> NonInvertingStage:
     stage = NonInvertingStage(id=1, techtype="?")
     stage.ports = [
-        "out1",
-        "out2",
-        "in1",
-        "in2",
-        "source_transconductance",
-        "source_pmos",
-        "source_nmos",
+        NonInvertingStage.OUT1,
+        NonInvertingStage.OUT2,
+        NonInvertingStage.IN1,
+        NonInvertingStage.IN2,
+        NonInvertingStage.SOURCETRANSCONDUCTANCE,
+        NonInvertingStage.SOURCEPMOS,
+        NonInvertingStage.SOURCENMOS,
     ]
     stage.add_instance(transconductance)
     stage.add_instance(load)
@@ -69,14 +69,14 @@ def createComplementaryTransconductanceNonInvertingStage(
 ) -> NonInvertingStage:
     stage = NonInvertingStage(id=1, techtype="?")
     stage.ports = [
-        "out1",
-        "out2",
-        "in1",
-        "in2",
-        "source_transconductance_nmos",
-        "source_transconductance_pmos",
-        "source_pmos",
-        "source_nmos",
+        NonInvertingStage.OUT1,
+        NonInvertingStage.OUT2,
+        NonInvertingStage.IN1,
+        NonInvertingStage.IN2,
+        NonInvertingStage.SOURCETRANSCONDUCTANCENMOS,
+        NonInvertingStage.SOURCETRANSCONDUCTANCEPMOS,
+        NonInvertingStage.SOURCEPMOS,
+        NonInvertingStage.SOURCENMOS,
     ]
     stage.add_instance(transconductance)
     stage.add_instance(load)
@@ -105,15 +105,15 @@ def createFeedbackTransconductanceNonInvertingStage(
 ) -> NonInvertingStage:
     stage = NonInvertingStage(id=1, techtype=transconductance.tech)
     stage.ports = [
-        "out1",
-        "out2",
-        "in1",
-        "in2",
-        "source_transconductance1",
-        "source_transconductance2",
-        "inner_transconductance",
-        "source_pmos",
-        "source_nmos",
+        NonInvertingStage.OUT1,
+        NonInvertingStage.OUT2,
+        NonInvertingStage.IN1,
+        NonInvertingStage.IN2,
+        NonInvertingStage.SOURCETRANSCONDUCTANCE1,
+        NonInvertingStage.SOURCETRANSCONDUCTANCE2,
+        NonInvertingStage.INNERTRANSCONDUCTANCE,
+        NonInvertingStage.SOURCEPMOS,
+        NonInvertingStage.SOURCENMOS,
     ]
     stage.add_instance(transconductance)
     stage.add_instance(load)
@@ -175,30 +175,6 @@ def createFeedbackTransconductanceNonInvertingStages(
                 transconductance, load, sb1, sb2
             )
             # TODO: add if(nonInvertingStage.everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType())
-
-
-# def test_2_10():
-#     tc = list(TransconductanceManager().getComplementaryTransconductance())
-#     assert len(tc) == 1
-#     tc = tc[0]
-
-#     load = list(LoadManager().createLoadsForComplementaryNonInvertingStage())[9]
-#     sb_nmos = list(StageBiasManager().getOneTransistorStageBiasesNmos())[0]
-#     sb_pmos = list(StageBiasManager().getOneTransistorStageBiasesPmos())[0]
-#     non_inv_stage = createComplementaryTransconductanceNonInvertingStage(
-#         tc, load, sb_nmos, sb_pmos
-#     )
-#     case_id = 1
-#     circuit_id = 10
-#     save_graphviz_figure(
-#         non_inv_stage,
-#         GALLERY_DOT_DIR / f"n_inv_{case_id}_{circuit_id}xxx.dot",
-#     )
-#     convert_dot_to_png(
-#         GALLERY_DOT_DIR / f"n_inv_{case_id}_{circuit_id}xxx.dot",
-#         GALLERY_IMAGE_DIR / f"n_inv_{case_id}_{circuit_id}xxx.png",
-#     )
-#     print("num components:", non_inv_stage.component_count)
 
 
 class NonInvertingStageManager:
@@ -329,7 +305,29 @@ class NonInvertingStageManager:
                 sb_mn.getTwoTransistorStageBiasesNmos(),
             )
 
-        return eval(f"case_{caseNumber}")()
+        def case_unknown():
+            raise NotImplementedError("unknow case.")
+
+        case_fn = [
+            case_unknown,
+            case_1,
+            case_2,
+            case_3,
+            case_4,
+            case_5,
+            case_6,
+            case_7,
+            case_8,
+            case_9,
+            case_10,
+            case_11,
+            case_12,
+            case_13,
+            case_14,
+            case_15,
+            case_16,
+        ]
+        return case_fn[caseNumber]()
 
     def createFullyDifferentialNonInvertingStages(
         self,
@@ -368,7 +366,17 @@ class NonInvertingStageManager:
                 sb_mn.getTwoTransistorStageBiasesNmos(),
             )
 
-        return eval(f"case_{caseNumber}")()
+        def case_unknown():
+            raise NotImplementedError("unknow case.")
+
+        case_fn = [
+            case_unknown,
+            case_1,
+            case_2,
+            case_3,
+            case_4,
+        ]
+        return case_fn[caseNumber]()
 
     def createComplementaryNonInvertingStages(
         self,
@@ -396,7 +404,15 @@ class NonInvertingStageManager:
                 sb_mn.getTwoTransistorStageBiasesPmos(),
             )
 
-        return eval(f"case_{caseNumber}")()
+        def case_unknown():
+            raise NotImplementedError("unknow case.")
+
+        case_fn = [
+            case_unknown,
+            case_1,
+            case_2,
+        ]
+        return case_fn[caseNumber]()
 
     def createSymmetricalNonInvertingStages(
         self, caseNumber: int
@@ -463,7 +479,21 @@ class NonInvertingStageManager:
                 sb_mn.getTwoTransistorStageBiasesNmos(),
             )
 
-        return eval(f"case_{caseNumber}")()
+        def case_unknown():
+            raise NotImplementedError("unknow case.")
+
+        case_fn = [
+            case_unknown,
+            case_1,
+            case_2,
+            case_3,
+            case_4,
+            case_5,
+            case_6,
+            case_7,
+            case_8,
+        ]
+        return case_fn[caseNumber]()
 
     def initializeFeedbackNonInvertingStages(self) -> None:
         transconductanceNmos = (
@@ -590,5 +620,3 @@ if __name__ == "__main__":
                 GALLERY_IMAGE_DIR
                 / f"FeedbackNonInvertingStages/n_inv_{case_id}_{circuit_id}.png",
             )
-
-    # test_2_10()

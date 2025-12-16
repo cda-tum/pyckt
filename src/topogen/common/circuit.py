@@ -370,14 +370,14 @@ class Transconductance(Circuit):
     OUT1PMOS = "out1_pmos"
     OUT2PMOS = "out2_pmos"
 
-    # // for "SimpleTransconductance"
+    #  "SimpleTransconductance"
     SOURCE = "source"
 
-    # // used in "FeedbackTransconductance"
+    # "FeedbackTransconductance"
     SOURCE_1 = "source_1"
     SOURCE_2 = "source_2"
 
-    # // used in "ComplementaryTransconductance"
+    # "ComplementaryTransconductance"
     SOURCE_NMOS = "source_nmos"
     SOURCE_PMOS = "source_pmos"
 
@@ -389,6 +389,72 @@ class Transconductance(Circuit):
 
 
 class NonInvertingStage(Circuit):
+
+    IN1 = "in1"
+    IN2 = "in2"
+    OUT1 = "out1"
+    OUT2 = "out2"
+
+    SOURCETRANSCONDUCTANCE = "SourceTransconductance"
+
+    SOURCETRANSCONDUCTANCE1 = "SourceTransconductance1"
+    SOURCETRANSCONDUCTANCE2 = "SourceTransconductance2"
+    INNERTRANSCONDUCTANCE = "InnerTransconductance"
+
+    SOURCETRANSCONDUCTANCEPMOS = "SourceTransconductancePmos"
+    SOURCETRANSCONDUCTANCENMOS = "SourceTransconductanceNmos"
+
+    SOURCENMOS = "SourceNmos"
+    SOURCEPMOS = "SourcePmos"
+
+    INPUTSTAGEBIAS = "InputStageBias"
+    INSOURCESTAGEBIAS = "InSourceStageBias"
+    INOUTPUTSTAGEBIAS = "InOutputStageBias"
+    INNERSTAGEBIAS = "InnerStageBias"
+
+    INNERSTAGEBIAS1 = "InnerStageBias1"
+    INNERSTAGEBIAS2 = "InnerStageBias2"
+
+    INPUTSTAGEBIASPMOS = "InputStageBiasPmos"
+    INSOURCESTAGEBIASPMOS = "InSourceStageBiasPmos"
+    INOUTPUTSTAGEBIASPMOS = "InOutputStageBiasPmos"
+    INNERSTAGEBIASPMOS = "InnerStageBiasPmos"
+
+    INPUTSTAGEBIASNMOS = "InputStageBiasNmos"
+    INSOURCESTAGEBIASNMOS = "InSourceStageBiasNmos"
+    INOUTPUTSTAGEBIASNMOS = "InOutputStageBiasNmos"
+    INNERSTAGEBIASNMOS = "InnerStageBiasNmos"
+
+    SOURCEGCC1 = "SourceGCC1"
+    SOURCEGCC2 = "SourceGCC2"
+
+    INNERLOAD1 = "InnerLoad1"
+    INNERLOAD2 = "InnerLoad2"
+    INNERGCC = "InnerGCC"
+    INNERBIASGCC = "InnerBiasGCC"
+    INNERSOURCELOAD1 = "InnerSourceLOad1"
+    INNEROUTPUTLOAD1 = "InnerOutputLoad1"
+    INNERSOURCELOAD2 = "InnerSourceLoad2"
+    INNEROUTPUTLOAD2 = "InnerOutputLoad2"
+    INNERTRANSISTORSTACK1LOAD1 = "InnerTransistorStack1Load1"
+    INNERTRANSISTORSTACK2LOAD1 = "InnerTransistorStack2Load1"
+    INNERTRANSISTORSTACK1LOAD2 = "InnerTransistorStack1Load2"
+    INNERTRANSISTORSTACK2LOAD2 = "InnerTransistorStack2Load2"
+
+    INNERSOURCELOADNMOS = "InnerSourceLoadNmos"
+    INNEROUTPUTLOADNMOS = "InnerOutputLoadNmos"
+    INNERSOURCELOADPMOS = "InnerSourceLoadPmos"
+    INNEROUTPUTLOADPMOS = "InnerOutputLoadPmos"
+    INNERTRANSISTORSTACK1LOADNMOS = "InnerTransistorStack1LoadNmos"
+    INNERTRANSISTORSTACK2LOADNMOS = "InnerTransistorStack2LoadNmos"
+    INNERTRANSISTORSTACK1LOADPMOS = "InnerTransistorStack1LoadPmos"
+    INNERTRANSISTORSTACK2LOADPMOS = "InnerTransistorStack2LoadPmos"
+
+    OUTOUTPUT1LOAD1 = "OutOutput1Load1"
+    OUTOUTPUT2LOAD1 = "OutOutput2Load1"
+    OUTSOURCE1LOAD1 = "OutSource1Load1"
+    OUTSOURCE2LOAD1 = "OutSource2Load1"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "non_inv"
         if "id" not in kwargs:
