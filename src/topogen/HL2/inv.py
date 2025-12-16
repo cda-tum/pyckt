@@ -1,4 +1,3 @@
-import jsbeautifier
 from src.topogen.common.circuit import *
 
 from src.topogen.HL2.cb import CurrentBiasManager
@@ -7,223 +6,235 @@ cb_mng = CurrentBiasManager()
 
 inv1 = Inverter(techtype="?", id=1)
 inv1.ports = [
-    "inCurrentBiasNmos",
-    "inCurrentBiasPmos",
-    "output",
-    "sourceCurrentBiasNmos",
-    "sourceCurrentBiasPmos",
+    Inverter.IN_CURRENTBIASNMOS,
+    Inverter.IN_CURRENTBIASPMOS,
+    Inverter.OUTPUT,
+    Inverter.SOURCE_CURRENTBIASNMOS,
+    Inverter.SOURCE_CURRENTBIASPMOS,
 ]
 
 inv1.add_instance(cb_mng.getAllCurrentBiasesNmos()[0])
-inv1.add_connection_xxx(port="inCurrentBiasNmos", instance_id=0, instance_port="in")
-inv1.add_connection_xxx(port="output", instance_id=0, instance_port="out")
 inv1.add_connection_xxx(
-    port="sourceCurrentBiasNmos", instance_id=0, instance_port="source"
+    port=Inverter.IN_CURRENTBIASNMOS, instance_id=0, instance_port=CurrentBias.IN
+)
+inv1.add_connection_xxx(
+    port=Inverter.OUTPUT, instance_id=0, instance_port=CurrentBias.OUT
+)
+inv1.add_connection_xxx(
+    port=Inverter.SOURCE_CURRENTBIASNMOS,
+    instance_id=0,
+    instance_port=CurrentBias.SOURCE,
 )
 
 inv1.add_instance(cb_mng.getAllCurrentBiasesPmos()[0])
-inv1.add_connection_xxx(port="inCurrentBiasNmos", instance_id=1, instance_port="in")
-inv1.add_connection_xxx(port="output", instance_id=1, instance_port="out")
 inv1.add_connection_xxx(
-    port="sourceCurrentBiasPmos", instance_id=1, instance_port="source"
+    port=Inverter.IN_CURRENTBIASNMOS, instance_id=1, instance_port=CurrentBias.IN
+)
+inv1.add_connection_xxx(
+    port=Inverter.OUTPUT, instance_id=1, instance_port=CurrentBias.OUT
+)
+inv1.add_connection_xxx(
+    port=Inverter.SOURCE_CURRENTBIASPMOS,
+    instance_id=1,
+    instance_port=CurrentBias.SOURCE,
 )
 
 # -----------------
 
 inv2 = Inverter(techtype="?", id=2)
 inv2.ports = [
-    "inCurrentBiasPmos",
-    "inOutputCurrentBiasNmos",
-    "inSourceCurrentBiasNmos",
-    "innerCurrentBiasNmos",
-    "output",
-    "sourceCurrentBiasNmos",
-    "sourceCurrentBiasPmos",
+    Inverter.IN_CURRENTBIASPMOS,
+    Inverter.INOUTPUT_CURRENTBIASNMOS,
+    Inverter.INSOURCE_CURRENTBIASNMOS,
+    Inverter.INNER_CURRENTBIASNMOS,
+    Inverter.OUTPUT,
+    Inverter.SOURCE_CURRENTBIASNMOS,
+    Inverter.SOURCE_CURRENTBIASPMOS,
 ]
 
 inv2.add_instance(cb_mng.getAllCurrentBiasesNmos()[1])
-inv2.add_connection_xxx("output", 0, "out")
-inv2.add_connection_xxx("sourceCurrentBiasNmos", 0, "source")
-inv2.add_connection_xxx("inOutputCurrentBiasNmos", 0, "inOutput")
-inv2.add_connection_xxx("inSourceCurrentBiasNmos", 0, "inSource")
-inv2.add_connection_xxx("innerCurrentBiasNmos", 0, "inner")
+inv2.add_connection_xxx(Inverter.OUTPUT, 0, CurrentBias.OUT)
+inv2.add_connection_xxx(Inverter.SOURCE_CURRENTBIASNMOS, 0, CurrentBias.SOURCE)
+inv2.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASNMOS, 0, CurrentBias.INOUTPUT)
+inv2.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASNMOS, 0, CurrentBias.INSOURCE)
+inv2.add_connection_xxx(Inverter.INNER_CURRENTBIASNMOS, 0, CurrentBias.INNER)
 
 
 inv2.add_instance(cb_mng.getAllCurrentBiasesPmos()[0])
-inv2.add_connection_xxx("inCurrentBiasNmos", 1, "in")
-inv2.add_connection_xxx("output", 1, "out")
-inv2.add_connection_xxx("sourceCurrentBiasPmos", 1, "inOutput")
+inv2.add_connection_xxx(Inverter.IN_CURRENTBIASNMOS, 1, CurrentBias.IN)
+inv2.add_connection_xxx(Inverter.OUTPUT, 1, CurrentBias.OUT)
+inv2.add_connection_xxx(Inverter.SOURCE_CURRENTBIASPMOS, 1, CurrentBias.INOUTPUT)
 # -----------------
 
 inv3 = Inverter(techtype="?", id=3)
 inv3.ports = [
-    "inCurrentBiasPmos",
-    "inOutputCurrentBiasNmos",
-    "inSourceCurrentBiasNmos",
-    "innerCurrentBiasNmos",
-    "output",
-    "sourceCurrentBiasNmos",
-    "sourceCurrentBiasPmos",
+    Inverter.IN_CURRENTBIASPMOS,
+    Inverter.INOUTPUT_CURRENTBIASNMOS,
+    Inverter.INSOURCE_CURRENTBIASNMOS,
+    Inverter.INNER_CURRENTBIASNMOS,
+    Inverter.OUTPUT,
+    Inverter.SOURCE_CURRENTBIASNMOS,
+    Inverter.SOURCE_CURRENTBIASPMOS,
 ]
 
 inv3.add_instance(cb_mng.getAllCurrentBiasesNmos()[2])
-inv3.add_connection_xxx("output", 0, "out")
-inv3.add_connection_xxx("sourceCurrentBiasNmos", 0, "source")
-inv3.add_connection_xxx("inOutputCurrentBiasNmos", 0, "inOutput")
-inv3.add_connection_xxx("inSourceCurrentBiasNmos", 0, "inSource")
-inv3.add_connection_xxx("innerCurrentBiasNmos", 0, "inner")
+inv3.add_connection_xxx(Inverter.OUTPUT, 0, CurrentBias.OUT)
+inv3.add_connection_xxx(Inverter.SOURCE_CURRENTBIASNMOS, 0, CurrentBias.SOURCE)
+inv3.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASNMOS, 0, CurrentBias.INOUTPUT)
+inv3.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASNMOS, 0, CurrentBias.INSOURCE)
+inv3.add_connection_xxx(Inverter.INNER_CURRENTBIASNMOS, 0, CurrentBias.INNER)
 
 
 inv3.add_instance(cb_mng.getAllCurrentBiasesPmos()[0])
-inv3.add_connection_xxx("inCurrentBiasNmos", 1, "in")
-inv3.add_connection_xxx("output", 1, "out")
-inv3.add_connection_xxx("sourceCurrentBiasPmos", 1, "inOutput")
+inv3.add_connection_xxx(Inverter.IN_CURRENTBIASNMOS, 1, CurrentBias.IN)
+inv3.add_connection_xxx(Inverter.OUTPUT, 1, CurrentBias.OUT)
+inv3.add_connection_xxx(Inverter.SOURCE_CURRENTBIASPMOS, 1, CurrentBias.INOUTPUT)
 
 
 # --------------------
 
 inv4 = Inverter(techtype="?", id=4)
 inv4.ports = [
-    "inCurrentBiasNmos",
-    "inOutputCurrentBiasPmos",
-    "inSourceCurrentBiasPmos",
-    "innerCurrentBiasPmos",
-    "output",
-    "sourceCurrentBiasNmos",
-    "sourceCurrentBiasPmos",
+    Inverter.IN_CURRENTBIASNMOS,
+    Inverter.INOUTPUT_CURRENTBIASPMOS,
+    Inverter.INSOURCE_CURRENTBIASPMOS,
+    Inverter.INNER_CURRENTBIASPMOS,
+    Inverter.OUTPUT,
+    Inverter.SOURCE_CURRENTBIASNMOS,
+    Inverter.SOURCE_CURRENTBIASPMOS,
 ]
 
 inv4.add_instance(cb_mng.getAllCurrentBiasesNmos()[0])
-inv4.add_connection_xxx("inCurrentBiasNmos", 0, "in")
-inv4.add_connection_xxx("output", 0, "out")
-inv4.add_connection_xxx("sourceCurrentBiasNmos", 0, "source")
+inv4.add_connection_xxx(Inverter.IN_CURRENTBIASNMOS, 0, CurrentBias.IN)
+inv4.add_connection_xxx(Inverter.OUTPUT, 0, CurrentBias.OUT)
+inv4.add_connection_xxx(Inverter.SOURCE_CURRENTBIASNMOS, 0, CurrentBias.SOURCE)
 
 
 inv4.add_instance(cb_mng.getAllCurrentBiasesPmos()[1])
-inv4.add_connection_xxx("output", 1, "out")
-inv4.add_connection_xxx("sourceCurrentBiasPmos", 1, "source")
-inv4.add_connection_xxx("inOutputCurrentBiasPmos", 1, "inOutput")
-inv4.add_connection_xxx("inSourceCurrentBiasPmos", 1, "inSource")
-inv4.add_connection_xxx("innerCurrentBiasPmos", 1, "inner")
+inv4.add_connection_xxx(Inverter.OUTPUT, 1, CurrentBias.OUT)
+inv4.add_connection_xxx(Inverter.SOURCE_CURRENTBIASPMOS, 1, CurrentBias.SOURCE)
+inv4.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASPMOS, 1, CurrentBias.INOUTPUT)
+inv4.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASPMOS, 1, CurrentBias.INSOURCE)
+inv4.add_connection_xxx(Inverter.INNER_CURRENTBIASPMOS, 1, CurrentBias.INNER)
 
 
 # --------------------
 
 inv5 = Inverter(techtype="?", id=5)
 inv5.ports = [
-    "inOutputCurrentBiasNmos",
-    "inOutputCurrentBiasPmos",
-    "inSourceCurrentBiasNmos",
-    "inSourceCurrentBiasPmos",
-    "innerCurrentBiasNmos",
-    "innerCurrentBiasPmos",
-    "output",
-    "sourceCurrentBiasNmos",
-    "sourceCurrentBiasPmos",
+    Inverter.INOUTPUT_CURRENTBIASNMOS,
+    Inverter.INOUTPUT_CURRENTBIASPMOS,
+    Inverter.INSOURCE_CURRENTBIASNMOS,
+    Inverter.INSOURCE_CURRENTBIASPMOS,
+    Inverter.INNER_CURRENTBIASNMOS,
+    Inverter.INNER_CURRENTBIASPMOS,
+    Inverter.OUTPUT,
+    Inverter.SOURCE_CURRENTBIASNMOS,
+    Inverter.SOURCE_CURRENTBIASPMOS,
 ]
 
 inv5.add_instance(cb_mng.getAllCurrentBiasesNmos()[1])
-inv5.add_connection_xxx("output", 0, "out")
-inv5.add_connection_xxx("sourceCurrentBiasNmos", 0, "source")
-inv5.add_connection_xxx("inOutputCurrentBiasNmos", 0, "inOutput")
-inv5.add_connection_xxx("inSourceCurrentBiasNmos", 0, "inSource")
-inv5.add_connection_xxx("innerCurrentBiasNmos", 0, "inner")
+inv5.add_connection_xxx(Inverter.OUTPUT, 0, CurrentBias.OUT)
+inv5.add_connection_xxx(Inverter.SOURCE_CURRENTBIASNMOS, 0, CurrentBias.SOURCE)
+inv5.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASNMOS, 0, CurrentBias.INOUTPUT)
+inv5.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASNMOS, 0, CurrentBias.INSOURCE)
+inv5.add_connection_xxx(Inverter.INNER_CURRENTBIASNMOS, 0, CurrentBias.INNER)
 
 
 inv5.add_instance(cb_mng.getAllCurrentBiasesPmos()[1])
-inv5.add_connection_xxx("output", 1, "out")
-inv5.add_connection_xxx("sourceCurrentBiasPmos", 1, "source")
-inv5.add_connection_xxx("inOutputCurrentBiasPmos", 1, "inOutput")
-inv5.add_connection_xxx("inSourceCurrentBiasPmos", 1, "inSource")
-inv5.add_connection_xxx("innerCurrentBiasPmos", 1, "inner")
+inv5.add_connection_xxx(Inverter.OUTPUT, 1, CurrentBias.OUT)
+inv5.add_connection_xxx(Inverter.SOURCE_CURRENTBIASPMOS, 1, CurrentBias.SOURCE)
+inv5.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASPMOS, 1, CurrentBias.INOUTPUT)
+inv5.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASPMOS, 1, CurrentBias.INSOURCE)
+inv5.add_connection_xxx(Inverter.INNER_CURRENTBIASPMOS, 1, CurrentBias.INNER)
 
 # --------------------
 
 inv6 = Inverter(techtype="?", id=6)
 inv6.ports = [
-    "inOutputCurrentBiasNmos",
-    "inOutputCurrentBiasPmos",
-    "inSourceCurrentBiasNmos",
-    "inSourceCurrentBiasPmos",
-    "innerCurrentBiasNmos",
-    "innerCurrentBiasPmos",
-    "output",
-    "sourceCurrentBiasNmos",
-    "sourceCurrentBiasPmos",
+    Inverter.INOUTPUT_CURRENTBIASNMOS,
+    Inverter.INOUTPUT_CURRENTBIASPMOS,
+    Inverter.INSOURCE_CURRENTBIASNMOS,
+    Inverter.INSOURCE_CURRENTBIASPMOS,
+    Inverter.INNER_CURRENTBIASNMOS,
+    Inverter.INNER_CURRENTBIASPMOS,
+    Inverter.OUTPUT,
+    Inverter.SOURCE_CURRENTBIASNMOS,
+    Inverter.SOURCE_CURRENTBIASPMOS,
 ]
 
 inv6.add_instance(cb_mng.getAllCurrentBiasesNmos()[2])
-inv6.add_connection_xxx("output", 0, "out")
-inv6.add_connection_xxx("sourceCurrentBiasNmos", 0, "source")
-inv6.add_connection_xxx("inOutputCurrentBiasNmos", 0, "inOutput")
-inv6.add_connection_xxx("inSourceCurrentBiasNmos", 0, "inSource")
-inv6.add_connection_xxx("innerCurrentBiasNmos", 0, "inner")
+inv6.add_connection_xxx(Inverter.OUTPUT, 0, CurrentBias.OUT)
+inv6.add_connection_xxx(Inverter.SOURCE_CURRENTBIASNMOS, 0, CurrentBias.SOURCE)
+inv6.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASNMOS, 0, CurrentBias.INOUTPUT)
+inv6.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASNMOS, 0, CurrentBias.INSOURCE)
+inv6.add_connection_xxx(Inverter.INNER_CURRENTBIASNMOS, 0, CurrentBias.INNER)
 
 
 inv6.add_instance(cb_mng.getAllCurrentBiasesPmos()[2])
-inv6.add_connection_xxx("output", 1, "out")
-inv6.add_connection_xxx("sourceCurrentBiasPmos", 1, "source")
-inv6.add_connection_xxx("inOutputCurrentBiasPmos", 1, "inOutput")
-inv6.add_connection_xxx("inSourceCurrentBiasPmos", 1, "inSource")
-inv6.add_connection_xxx("innerCurrentBiasPmos", 1, "inner")
+inv6.add_connection_xxx(Inverter.OUTPUT, 1, CurrentBias.OUT)
+inv6.add_connection_xxx(Inverter.SOURCE_CURRENTBIASPMOS, 1, CurrentBias.SOURCE)
+inv6.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASPMOS, 1, CurrentBias.INOUTPUT)
+inv6.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASPMOS, 1, CurrentBias.INSOURCE)
+inv6.add_connection_xxx(Inverter.INNER_CURRENTBIASPMOS, 1, CurrentBias.INNER)
 
 
 # --------------------
 
 inv7 = Inverter(techtype="?", id=7)
 inv7.ports = [
-    "inCurrentBiasNmos",
-    "inOutputCurrentBiasPmos",
-    "inSourceCurrentBiasPmos",
-    "innerCurrentBiasPmos",
-    "output",
-    "sourceCurrentBiasNmos",
-    "sourceCurrentBiasPmos",
+    Inverter.IN_CURRENTBIASNMOS,
+    Inverter.INOUTPUT_CURRENTBIASPMOS,
+    Inverter.INSOURCE_CURRENTBIASPMOS,
+    Inverter.INNER_CURRENTBIASPMOS,
+    Inverter.OUTPUT,
+    Inverter.SOURCE_CURRENTBIASNMOS,
+    Inverter.SOURCE_CURRENTBIASPMOS,
 ]
 
 inv7.add_instance(cb_mng.getAllCurrentBiasesNmos()[0])
-inv7.add_connection_xxx("inCurrentBiasNmos", 0, "in")
-inv7.add_connection_xxx("output", 0, "out")
-inv7.add_connection_xxx("sourceCurrentBiasNmos", 0, "source")
+inv7.add_connection_xxx(Inverter.IN_CURRENTBIASNMOS, 0, CurrentBias.IN)
+inv7.add_connection_xxx(Inverter.OUTPUT, 0, CurrentBias.OUT)
+inv7.add_connection_xxx(Inverter.SOURCE_CURRENTBIASNMOS, 0, CurrentBias.SOURCE)
 
 
 inv7.add_instance(cb_mng.getAllCurrentBiasesPmos()[1])
-inv7.add_connection_xxx("output", 1, "out")
-inv7.add_connection_xxx("sourceCurrentBiasPmos", 1, "source")
-inv7.add_connection_xxx("inOutputCurrentBiasPmos", 1, "inOutput")
-inv7.add_connection_xxx("inSourceCurrentBiasPmos", 1, "inSource")
-inv7.add_connection_xxx("innerCurrentBiasPmos", 1, "inner")
+inv7.add_connection_xxx(Inverter.OUTPUT, 1, CurrentBias.OUT)
+inv7.add_connection_xxx(Inverter.SOURCE_CURRENTBIASPMOS, 1, CurrentBias.SOURCE)
+inv7.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASPMOS, 1, CurrentBias.INOUTPUT)
+inv7.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASPMOS, 1, CurrentBias.INSOURCE)
+inv7.add_connection_xxx(Inverter.INNER_CURRENTBIASPMOS, 1, CurrentBias.INNER)
 
 
 # --------------------
 
 inv8 = Inverter(techtype="?", id=8)
 inv8.ports = [
-    "inOutputCurrentBiasNmos",
-    "inOutputCurrentBiasPmos",
-    "inSourceCurrentBiasNmos",
-    "inSourceCurrentBiasPmos",
-    "innerCurrentBiasNmos",
-    "innerCurrentBiasPmos",
-    "output",
-    "sourceCurrentBiasNmos",
-    "sourceCurrentBiasPmos",
+    Inverter.INOUTPUT_CURRENTBIASNMOS,
+    Inverter.INOUTPUT_CURRENTBIASPMOS,
+    Inverter.INSOURCE_CURRENTBIASNMOS,
+    Inverter.INSOURCE_CURRENTBIASPMOS,
+    Inverter.INNER_CURRENTBIASNMOS,
+    Inverter.INNER_CURRENTBIASPMOS,
+    Inverter.OUTPUT,
+    Inverter.SOURCE_CURRENTBIASNMOS,
+    Inverter.SOURCE_CURRENTBIASPMOS,
 ]
 
 inv8.add_instance(cb_mng.getAllCurrentBiasesNmos()[2])
-inv8.add_connection_xxx("output", 0, "out")
-inv8.add_connection_xxx("sourceCurrentBiasNmos", 0, "source")
-inv8.add_connection_xxx("inOutputCurrentBiasNmos", 0, "inOutput")
-inv8.add_connection_xxx("inSourceCurrentBiasNmos", 0, "inSource")
-inv8.add_connection_xxx("innerCurrentBiasNmos", 0, "inner")
+inv8.add_connection_xxx(Inverter.OUTPUT, 0, CurrentBias.OUT)
+inv8.add_connection_xxx(Inverter.SOURCE_CURRENTBIASNMOS, 0, CurrentBias.SOURCE)
+inv8.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASNMOS, 0, CurrentBias.INOUTPUT)
+inv8.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASNMOS, 0, CurrentBias.INSOURCE)
+inv8.add_connection_xxx(Inverter.INNER_CURRENTBIASNMOS, 0, CurrentBias.INNER)
 
 
 inv8.add_instance(cb_mng.getAllCurrentBiasesPmos()[2])
-inv8.add_connection_xxx("output", 1, "out")
-inv8.add_connection_xxx("sourceCurrentBiasPmos", 1, "source")
-inv8.add_connection_xxx("inOutputCurrentBiasPmos", 1, "inOutput")
-inv8.add_connection_xxx("inSourceCurrentBiasPmos", 1, "inSource")
-inv8.add_connection_xxx("innerCurrentBiasPmos", 1, "inner")
+inv8.add_connection_xxx(Inverter.OUTPUT, 1, CurrentBias.OUT)
+inv8.add_connection_xxx(Inverter.SOURCE_CURRENTBIASPMOS, 1, CurrentBias.SOURCE)
+inv8.add_connection_xxx(Inverter.INOUTPUT_CURRENTBIASPMOS, 1, CurrentBias.INOUTPUT)
+inv8.add_connection_xxx(Inverter.INSOURCE_CURRENTBIASPMOS, 1, CurrentBias.INSOURCE)
+inv8.add_connection_xxx(Inverter.INNER_CURRENTBIASPMOS, 1, CurrentBias.INNER)
 
 
 class InverterManager:

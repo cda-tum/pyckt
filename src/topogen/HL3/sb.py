@@ -17,17 +17,17 @@ GALLERY_IMAGE_DIR = Path(__file__).parent.parent.parent.parent / "gallery" / "HL
 GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 def connectInstanceTerminalsOfOneTransistorStageBias(stageBias:Circuit, currentBias:Circuit) -> Circuit:
-    connect((stageBias, StageBias.IN), (currentBias, "in"))
-    connect((stageBias, StageBias.OUT), (currentBias, "out"))
-    connect((stageBias, StageBias.SOURCE), (currentBias, "source"))
+    connect((stageBias, StageBias.IN), (currentBias, CurrentBias.IN))
+    connect((stageBias, StageBias.OUT), (currentBias, CurrentBias.OUT))
+    connect((stageBias, StageBias.SOURCE), (currentBias, CurrentBias.SOURCE))
     return stageBias
 
 def connectInstanceTerminalsOfTwoTransistorStageBias(stageBias:Circuit, currentBias:Circuit) -> Circuit:
-    connect((stageBias, StageBias.INOUTPUT), (currentBias, "inoutput"))
-    connect((stageBias, StageBias.INSOURCE), (currentBias, "insource"))
-    connect((stageBias, StageBias.INNER), (currentBias, "inner"))
-    connect((stageBias, StageBias.OUT), (currentBias, "out"))
-    connect((stageBias, StageBias.SOURCE), (currentBias, "source"))
+    connect((stageBias, StageBias.INOUTPUT), (currentBias, CurrentBias.INOUTPUT))
+    connect((stageBias, StageBias.INSOURCE), (currentBias, CurrentBias.INSOURCE ))
+    connect((stageBias, StageBias.INNER), (currentBias, CurrentBias.INNER ))
+    connect((stageBias, StageBias.OUT), (currentBias, CurrentBias.OUT))
+    connect((stageBias, StageBias.SOURCE), (currentBias, CurrentBias.SOURCE))
     return stageBias
 
 def createOneTransistorStageBias(currentBias) -> Circuit:

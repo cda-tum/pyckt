@@ -9,6 +9,7 @@ from src.topogen.common.circuit import (
     convert_dot_to_png,
     createTransistorStack,
     connectInstanceTerminal,
+    connect,
 )
 
 from pathlib import Path
@@ -25,71 +26,75 @@ GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 logger = setup_logger(log_level="DEBUG", log_file=None)
 
 
-def connectInstanceTerminalsOfTwoTransistorLoadPart(out: dict, ts1, ts2):
+def connectInstanceTerminalsOfTwoTransistorLoadPart(out: LoadPart, ts1, ts2):
     num = 1
     # fmt: off
     for transistorStack in [ts1, ts2]:
         if transistorStack.instances[0].name.startswith("cb"):
             if num == 1:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out1", "out")
+                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))
             else:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out2", "out")
-            out, transistorStack =  connectInstanceTerminal(out, transistorStack, "inner", "in")
-            out, transistorStack =  connectInstanceTerminal(out, transistorStack, "source", "source")
+                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))
+
+            connect((out, LoadPart.INNER), (transistorStack, TransistorStack.IN))
+            connect((out, LoadPart.SOURCE), (transistorStack, TransistorStack.SOURCE))
 
         else:
             if num == 1:
-                out, transistorStack =  connectInstanceTerminal(out, transistorStack, "out1", "in")
+                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.IN))
             else:
-                out, transistorStack =  connectInstanceTerminal(out, transistorStack, "out2", "in")
+                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.IN))
+
             if ts1.instances[0].name.startswith("vb") and ts2.instances[0].name.startswith("vb"):
                 if num == 1:
-                    out, transistorStack = connectInstanceTerminal(out, transistorStack, "out1", "out")
+                    connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))
                 else:
-                    out, transistorStack =  connectInstanceTerminal(out, transistorStack, "out2", "out")
+                    connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))
             else:
-                out, transistorStack =  connectInstanceTerminal(out, transistorStack, "inner", "out")
-            out, transistorStack = connectInstanceTerminal(out, transistorStack, "source", "source")
+                connect((out, LoadPart.INNER), (transistorStack, TransistorStack.OUT))
+            
+            connect((out, LoadPart.SOURCE), (transistorStack, TransistorStack.SOURCE))
         num += 1
     # fmt: on
     return out
 
 
-def connectInstanceTerminalsOfFourTransistorLoadPart(out, ts1, ts2):
+def connectInstanceTerminalsOfFourTransistorLoadPart(out: LoadPart, ts1, ts2):
     num = 1
     # fmt: off
     for transistorStack in [ts1, ts2]:
         if transistorStack.instances[0].name.startswith("cb"):
             if num==1:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out1", "out" )
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "inner_transistorstack1", "inner" )
-            else:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out2", "out" )
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "inner_transistorstack2", "inner" )                    
+                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))
+                connect((out, LoadPart.INNERTRANSISTORSTACK1), (transistorStack, TransistorStack.INNER))
 
-            out, transistorStack =connectInstanceTerminal(out, transistorStack, "inner_output", "inoutput" )
-            out, transistorStack = connectInstanceTerminal(out, transistorStack, "inner_source", "insource" )
-            out, transistorStack = connectInstanceTerminal(out, transistorStack, "source", "source" )
+            else:
+                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))
+                connect((out, LoadPart.INNERTRANSISTORSTACK2), (transistorStack, TransistorStack.INNER))
+
+            connect((out, LoadPart.INNEROUTPUT), (transistorStack, TransistorStack.INOUTPUT))
+            connect((out, LoadPart.INNERSOURCE), (transistorStack, TransistorStack.INSOURCE))
+            connect((out, LoadPart.SOURCE), (transistorStack, TransistorStack.SOURCE))
         else:
             if num==1:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out1", "in" )
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "inner_transistorstack1", "inner" )
+                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.IN))
+                connect((out, LoadPart.INNERTRANSISTORSTACK1), (transistorStack, TransistorStack.INNER))
             else:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out2", "in" )
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "inner_transistorstack2", "inner" )
-            
+                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.IN))
+                connect((out, LoadPart.INNERTRANSISTORSTACK2), (transistorStack, TransistorStack.INNER))
+
             if ts1.instances[0].name.startswith("vb") and ts2.instances[0].name.startswith("vb"): 
                 if num==1:
-                    out, transistorStack =connectInstanceTerminal(out, transistorStack, "outoutput1", "outinput" )
-                    out, transistorStack = connectInstanceTerminal(out, transistorStack, "outsource1", "outsource" )
+                    connect((out, LoadPart.OUTOUTPUT1), (transistorStack, TransistorStack.OUTINPUT))
+                    connect((out, LoadPart.OUTSOURCE1), (transistorStack, TransistorStack.OUTSOURCE))
                 else:
-                    out, transistorStack=connectInstanceTerminal(out, transistorStack, "outoutput2", "outinput" )
-                    out, transistorStack=connectInstanceTerminal(out, transistorStack, "outsource2", "outsource" )
+                    connect((out, LoadPart.OUTOUTPUT2), (transistorStack, TransistorStack.OUTINPUT))
+                    connect((out, LoadPart.OUTSOURCE2), (transistorStack, TransistorStack.OUTSOURCE))
             else:
-                out, transistorStack=connectInstanceTerminal(out, transistorStack, "inner_output", "outinput" )
-                out, transistorStack=connectInstanceTerminal(out, transistorStack, "inner_source", "outsource" )
-            
-            out, transistorStack=connectInstanceTerminal(out, transistorStack, "source", "source" )
+                connect((out, LoadPart.INNEROUTPUT), (transistorStack, TransistorStack.OUTINPUT))
+                connect((out, LoadPart.INNERSOURCE), (transistorStack, TransistorStack.OUTSOURCE))
+
+            connect((out, LoadPart.SOURCE), (transistorStack, TransistorStack.SOURCE))   
         
         num+=1
     return out
@@ -104,27 +109,28 @@ def connectInstanceTerminalsOfTwoTransistorLoadPartDifferentSources(
     for transistorStack in [ts1, ts2]:
         if transistorStack.name.startswith("cb"):
             if num == 1:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out1", "out")
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "source1", "source")
+                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))   
+                connect((out, LoadPart.SOURCE1), (transistorStack, TransistorStack.SOURCE))   
             else:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out2", "out")
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "source2", "source")
-            out, transistorStack = connectInstanceTerminal(out, transistorStack, "inner", "in")
+                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))   
+                connect((out, LoadPart.SOURCE2), (transistorStack, TransistorStack.SOURCE))   
+            
+            connect((out, LoadPart.INNER), (transistorStack, TransistorStack.IN))   
         else:
             if num == 1:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out1", "in")
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "source1", "source")
+                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.IN))   
+                connect((out, LoadPart.SOURCE1), (transistorStack, TransistorStack.SOURCE))   
             else:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "out2", "in")
-                out, transistorStack =connectInstanceTerminal(out, transistorStack, "source2", "source")
+                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.IN))   
+                connect((out, LoadPart.SOURCE2), (transistorStack, TransistorStack.SOURCE))   
 
             if ts1.name == "vb" and ts2.name == "vb":
                 if num == 1:
-                    out, transistorStack = connectInstanceTerminal(out, transistorStack, "out1", "out")
+                    connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))   
                 else:
-                    out, transistorStack = connectInstanceTerminal(out, transistorStack, "out2", "out")
+                    connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT)) 
             else:
-                out, transistorStack = connectInstanceTerminal(out, transistorStack, "inner", "out")
+                connect((out, LoadPart.INNER), (transistorStack, TransistorStack.OUT)) 
         num += 1
     return out
     # fmt: on
@@ -137,7 +143,7 @@ def createTwoTransistorLoadPart(ts1: TransistorStack, ts2: TransistorStack):
     #     lp = LoadPart(id=1, techtype="p")
     # else:
     lp = LoadPart(id=1, techtype="p")
-    lp.ports = ["out1", "out2", "source"]
+    lp.ports = [LoadPart.OUT1, LoadPart.OUT2, LoadPart.SOURCE]
     lp.add_instance(ts1)
     lp.add_instance(ts2)
 
@@ -152,7 +158,7 @@ def createTwoTransistorLoadPartDifferentSources(
     ts1: TransistorStack, ts2: TransistorStack
 ):
     lp = LoadPart(id=1, techtype="p")
-    lp.ports = ["out1", "out2", "source1", "source2"]
+    lp.ports = [LoadPart.OUT1, LoadPart.OUT2, LoadPart.SOURCE1, LoadPart.SOURCE2]
     lp.add_instance(ts1)
     lp.add_instance(ts2)
 
@@ -166,25 +172,27 @@ def createTwoTransistorLoadPartDifferentSources(
 def connectInstanceTerminalsOfThreeTransistorLoadPart(
     out, ts1: TransistorStack, ts2: TransistorStack
 ):
-    out, ts1 = connectInstanceTerminal(out, ts1, "out1", "in")
-    out, ts1 = connectInstanceTerminal(out, ts1, "inner_source", "out")
-    out, ts1 = connectInstanceTerminal(out, ts1, "source", "source")
+    
+    connect((out, LoadPart.OUT1), (ts1, TransistorStack.IN))
+    connect((out, LoadPart.INNERSOURCE), (ts1, TransistorStack.OUT))
+    connect((out, LoadPart.SOURCE), (ts1, TransistorStack.SOURCE))
 
-    out, ts2 = connectInstanceTerminal(out, ts2, "out2", "out")
+    connect((out, LoadPart.OUT2), (ts2, TransistorStack.OUT))
+
     if len(ts1.instances) == 1 and ts1.instances[0].name == "dt":
-        out, ts2 = connectInstanceTerminal(out, ts2, "inner_output", "inoutput")
+        connect((out, LoadPart.INNEROUTPUT), (ts2, TransistorStack.INOUTPUT))
     else:
-        out, ts2 = connectInstanceTerminal(out, ts2, "out1", "inoutput")
+        connect((out, LoadPart.OUT1), (ts2, TransistorStack.INOUTPUT))
 
-    out, ts2 = connectInstanceTerminal(out, ts2, "inner_source", "insource")
-    out, ts2 = connectInstanceTerminal(out, ts2, "inner_transistorstack2", "inner")
-    out, ts2 = connectInstanceTerminal(out, ts2, "source", "source")
+    connect((out, LoadPart.INNERSOURCE), (ts2, TransistorStack.INSOURCE))
+    connect((out, LoadPart.INNERTRANSISTORSTACK2), (ts2, TransistorStack.INNER))
+    connect((out, LoadPart.SOURCE), (ts2, TransistorStack.SOURCE))
     return out
 
 
 def createThreeTransistorLoadPart(ts1: TransistorStack, ts2: TransistorStack):
     lp = LoadPart(id=1, techtype="p")
-    lp.ports = ["out1", "out2", "source", "inner_transistorstack2", "inner_source"]
+    lp.ports = [ LoadPart.OUT1, LoadPart.OUT2, LoadPart.SOURCE, LoadPart.INNERTRANSISTORSTACK2, LoadPart.INNERSOURCE]
     lp.add_instance(ts1)
     lp.add_instance(ts2)
 
@@ -323,11 +331,11 @@ def createFourTransistorLoadPart(ts1, ts2):
     # else:
     lp = LoadPart(id=1, techtype="p")
     lp.ports = [
-        "out1",
-        "out2",
-        "inner_transistorstack1",
-        "inner_transistorstack2",
-        "source",
+        LoadPart.OUT1,
+        LoadPart.OUT2,
+        LoadPart.INNERTRANSISTORSTACK1,
+        LoadPart.INNERTRANSISTORSTACK2,
+        LoadPart.SOURCE
     ]
     lp.add_instance(ts1)
     lp.add_instance(ts2)
@@ -611,8 +619,8 @@ class LoadPartManager:
         self.fourTransistorsLoadPartsPmosVoltageBiases_ = createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases)
 
     def initializeLoadPartsNmos(self):
-        oneTransistorVoltageBiases = VoltageBiasManager().getOneTransistorVoltageBiasesNmos();
-        twoTransistorVoltageBiases = VoltageBiasManager().getTwoTransistorVoltageBiasesNmos();
+        oneTransistorVoltageBiases = VoltageBiasManager().getOneTransistorVoltageBiasesNmos()
+        twoTransistorVoltageBiases = VoltageBiasManager().getTwoTransistorVoltageBiasesNmos()
         # oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesNmos();
         # twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesNmos();
 

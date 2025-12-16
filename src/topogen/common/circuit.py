@@ -1,4 +1,4 @@
-import json
+from __future__ import annotations
 from collections import defaultdict
 
 import random
@@ -27,7 +27,7 @@ class Circuit:
         # instance id within parent circuit
         self.instance_id: int = -1
 
-    def add_instance(self, instance: Union[Callable, None] = None) -> None:
+    def add_instance(self, instance: Circuit) -> None:
         # automatically assign instance id as the current index in the instances list
         instance.instance_id = len(self.instances)
         self.instances.append(instance)
@@ -263,6 +263,14 @@ class DiodeTransistor(Circuit):
 
 
 class VoltageBias(Circuit):
+    IN = "in"
+    SOURCE = "source"
+    OUT = "out"
+
+    INNER = "inner"
+    OUTINPUT = "out_input"
+    OUTSOURCE = "out_source"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "vb"
         if "id" not in kwargs:
@@ -271,6 +279,14 @@ class VoltageBias(Circuit):
 
 
 class CurrentBias(Circuit):
+    IN = "in"
+    SOURCE = "source"
+    OUT = "out"
+
+    INNER = "inner"
+    INOUTPUT = "in_output"
+    INSOURCE = "in_source"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "cb"
         if "id" not in kwargs:
@@ -279,6 +295,22 @@ class CurrentBias(Circuit):
 
 
 class Inverter(Circuit):
+    OUTPUT = "output"
+
+    SOURCE_CURRENTBIASNMOS = "source_nmos"
+    SOURCE_CURRENTBIASPMOS = "source_pmos"
+
+    IN_CURRENTBIASNMOS = "in_curent_bias_nmos"
+    IN_CURRENTBIASPMOS = "in_curent_bias_pmos"
+
+    INSOURCE_CURRENTBIASNMOS = "in_source_current_bias_nmos"
+    INOUTPUT_CURRENTBIASNMOS = "in_output_current_bias_nmos"
+    INSOURCE_CURRENTBIASPMOS = "in_source_current_bias_pmos"
+    INOUTPUT_CURRENTBIASPMOS = "in_output_current_bias_pmos"
+
+    INNER_CURRENTBIASNMOS = "inner_current_bias_nmos"
+    INNER_CURRENTBIASPMOS = "inner_current_bias_pmos"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "inv"
         if "id" not in kwargs:
@@ -287,6 +319,18 @@ class Inverter(Circuit):
 
 
 class TransistorStack(Circuit):
+    IN = "in"
+    SOURCE = "source"
+    OUT = "out"
+
+    INNER = "inner"
+    INOUTPUT = "in_output"
+    INSOURCE = "in_source"
+
+    # INNER = "inner"
+    OUTINPUT = "out_input"
+    OUTSOURCE = "out_source"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "ts"
         if "id" not in kwargs:
@@ -295,6 +339,25 @@ class TransistorStack(Circuit):
 
 
 class LoadPart(Circuit):
+    OUT1 = "out1"
+    OUT2 = "out2"
+    SOURCE = "source"
+
+    SOURCE1 = "source1"
+    SOURCE2 = "source2"
+    INNER = "inner"
+
+    INNEROUTPUT = "inner_output"
+    INNERSOURCE = "inner_source"
+
+    OUTOUTPUT1 = "out_output1"
+    OUTOUTPUT2 = "out_output2"
+    OUTSOURCE1 = "out_source1"
+    OUTSOURCE2 = "out_source2"
+
+    INNERTRANSISTORSTACK1 = "inner_transistorstack1"
+    INNERTRANSISTORSTACK2 = "inner_transistorstack2"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "lp"
         if "id" not in kwargs:
@@ -317,6 +380,36 @@ class LoadPart(Circuit):
 
 
 class Load(Circuit):
+    OUT1 = "out1"
+    OUT2 = "out2"
+
+    SOURCELOAD1 = "source_load1"
+    SOURCELOAD2 = "source_load2"
+
+    SOURCEGCC1 = "source_gcc1"
+    SOURCEGCC2 = "source_gcc2"
+
+    INNERLOAD1 = "inner_load1"
+    INNERLOAD2 = "inner_load2"
+
+    INNERGCC = "inner_gcc"
+    INNERBIASGCC = "inner_bias_gcc"
+
+    INNERSOURCELOAD1 = "inner_source_load1"
+    INNEROUTPUTLOAD1 = "inner_output_load1"
+    INNERSOURCELOAD2 = "inner_source_load2"
+    INNEROUTPUTLOAD2 = "inner_output_load2"
+
+    INNERTRANSISTORSTACK1LOAD1 = "inner_transistorstack1_load1"
+    INNERTRANSISTORSTACK2LOAD1 = "inner_transistorstack2_load1"
+    INNERTRANSISTORSTACK1LOAD2 = "inner_transistorstack1_load2"
+    INNERTRANSISTORSTACK2LOAD2 = "inner_transistorstack2_load2"
+
+    OUTOUTPUT1LOAD1 = "out_output1_load1"
+    OUTOUTPUT2LOAD1 = "out_output2_load1"
+    OUTSOURCE1LOAD1 = "out_source_load1"
+    OUTSOURCE2LOAD1 = "out_source_load2"
+
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "l"
         if "id" not in kwargs:
