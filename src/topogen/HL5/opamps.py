@@ -44,7 +44,7 @@ def createSimpleTwoStageOpAmps() -> Iterator[OpAmp]:
 
 def createSimpleOpAmp(
     firstStage: Union[NonInvertingStage, InvertingStage],
-    secondStage: Union[NonInvertingStage, InvertingStage],
+    secondStage: Union[NonInvertingStage, InvertingStage, None],
 ) -> OpAmp:
     opamp = OpAmp(id=1, techtype="undef")
     opamp.ports += [
@@ -65,7 +65,7 @@ def createSimpleOpAmp(
 def connectInstanceTerminalsSimpleOpAmp(
     opamp: OpAmp,
     firstStage: Union[NonInvertingStage, InvertingStage],
-    secondStage: Union[NonInvertingStage, InvertingStage],
+    secondStage: Union[NonInvertingStage, InvertingStage, None],
 ):
     connect((opamp, OpAmp.IN1), (firstStage, NonInvertingStage.IN1))
     connect((opamp, OpAmp.IN2), (firstStage, NonInvertingStage.IN2))
