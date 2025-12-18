@@ -1,259 +1,218 @@
 from src.topogen.common.circuit import *
+from itertools import chain
+from typing import Union, Iterator
+from copy import deepcopy
 
-
-vb_p_1 = VoltageBias(techtype="p", id=1)
-vb_p_1.ports = [VoltageBias.IN, VoltageBias.OUT, VoltageBias.SOURCE]
-vb_p_1.add_instance(NormalTransistor(techtype="p"))
-vb_p_1.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_p_1.add_connection_xxx(port=VoltageBias.OUT, instance_id=0, instance_port="gate")
-vb_p_1.add_connection_xxx(
-    port=VoltageBias.SOURCE, instance_id=0, instance_port="source"
+GALLERY_DOT_DIR = (
+    Path(__file__).parent.parent.parent.parent / "gallery" / "HL2" / "vb" / "dots"
 )
+GALLERY_DOT_DIR.mkdir(parents=True, exist_ok=True)
 
-
-vb_p_2 = VoltageBias(techtype="p", id=2)
-vb_p_2.ports = [VoltageBias.IN, VoltageBias.OUT, VoltageBias.SOURCE]
-vb_p_2.add_instance(DiodeTransistor(techtype="p"))
-vb_p_2.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_p_2.add_connection_xxx(port=VoltageBias.OUT, instance_id=0, instance_port="gate")
-vb_p_2.add_connection_xxx(
-    port=VoltageBias.SOURCE, instance_id=0, instance_port="source"
+GALLERY_IMAGE_DIR = (
+    Path(__file__).parent.parent.parent.parent / "gallery" / "HL2" / "vb" / "images"
 )
-
-# fmt: off
-
-vb_p_3 = VoltageBias(techtype="p", id=3)
-vb_p_3.ports = [
-    VoltageBias.IN,
-    VoltageBias.INNER,
-    VoltageBias.OUTINPUT,
-    VoltageBias.OUTSOURCE,
-    VoltageBias.SOURCE,
-]
-vb_p_3.add_instance(DiodeTransistor(techtype="p"))
-vb_p_3.add_instance(DiodeTransistor(techtype="p", id=2))
-
-vb_p_3.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_p_3.add_connection_xxx(port=VoltageBias.INNER, instance_id=0, instance_port="source")
-vb_p_3.add_connection_xxx(port=VoltageBias.INNER, instance_id=1, instance_port="drain")
-vb_p_3.add_connection_xxx(port=VoltageBias.OUTINPUT, instance_id=0, instance_port="gate")
-vb_p_3.add_connection_xxx(port=VoltageBias.OUTSOURCE, instance_id=1, instance_port="gate")
-vb_p_3.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=1, instance_port="source")
-
-
-vb_p_4 = VoltageBias(techtype="p", id=4)
-vb_p_4.ports = [
-    VoltageBias.IN,
-    VoltageBias.INNER,
-    VoltageBias.OUTINPUT,
-    VoltageBias.OUTSOURCE,
-    VoltageBias.SOURCE,
-]
-# vb_p_4.ports = ["in", "inner", "outinput", "source"]
-vb_p_4.add_instance(NormalTransistor(techtype="p"))
-vb_p_4.add_instance(NormalTransistor(techtype="p", id=2))
-
-vb_p_4.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_p_4.add_connection_xxx(port=VoltageBias.INNER, instance_id=0, instance_port="source")
-vb_p_4.add_connection_xxx(port=VoltageBias.INNER, instance_id=1, instance_port="drain")
-vb_p_4.add_connection_xxx(port=VoltageBias.OUTINPUT, instance_id=0, instance_port="gate")
-vb_p_4.add_connection_xxx(port=VoltageBias.OUTSOURCE, instance_id=0, instance_port="gate")
-vb_p_4.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=1, instance_port="source")
-
-
-vb_p_5 = VoltageBias(techtype="p", id=5)
-vb_p_5.ports = [
-    VoltageBias.IN,
-    VoltageBias.INNER,
-    VoltageBias.OUTINPUT,
-    VoltageBias.OUTSOURCE,
-    VoltageBias.SOURCE,
-]
-vb_p_5.add_instance(DiodeTransistor(techtype="p"))
-vb_p_5.add_instance(NormalTransistor(techtype="p", id=1))
-
-vb_p_5.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_p_5.add_connection_xxx(port=VoltageBias.INNER, instance_id=0, instance_port="source")
-vb_p_5.add_connection_xxx(port=VoltageBias.INNER, instance_id=1, instance_port="drain")
-vb_p_5.add_connection_xxx(port=VoltageBias.OUTINPUT, instance_id=0, instance_port="gate")
-vb_p_5.add_connection_xxx(port=VoltageBias.OUTSOURCE, instance_id=1, instance_port="gate")
-vb_p_5.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=1, instance_port="source")
-
-
-vb_p_6 = VoltageBias(techtype="p", id=6)
-vb_p_6.ports = [
-    VoltageBias.IN,
-    VoltageBias.INNER,
-    VoltageBias.OUTINPUT,
-    VoltageBias.OUTSOURCE,
-    VoltageBias.SOURCE,
-]
-# vb_p_6.ports = ["in", "inner", "outinput", "source"]
-
-vb_p_6.add_instance(DiodeTransistor(techtype="p"))
-vb_p_6.add_instance(NormalTransistor(techtype="p", id=1))
-
-vb_p_6.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_p_6.add_connection_xxx(port=VoltageBias.INNER, instance_id=0, instance_port="source")
-vb_p_6.add_connection_xxx(port=VoltageBias.INNER, instance_id=1, instance_port="drain")
-vb_p_6.add_connection_xxx(port=VoltageBias.OUTINPUT, instance_id=0, instance_port="gate")
-# vb_p_6.add_connection_xxx(port="outsource", instance_name="nt.1", instance_port="gate")
-vb_p_6.add_connection_xxx(port=VoltageBias.OUTSOURCE, instance_id=0, instance_port="gate")
-vb_p_6.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=1, instance_port="source")
-
-
-# ==============================
-vb_n_1 = VoltageBias(techtype="n", id=1)
-vb_n_1.ports = [VoltageBias.IN, VoltageBias.OUT, VoltageBias.SOURCE]
-vb_n_1.add_instance(NormalTransistor(techtype="n"))
-vb_n_1.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_n_1.add_connection_xxx(port=VoltageBias.OUT, instance_id=0, instance_port="gate")
-vb_n_1.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=0, instance_port="source")
-
-vb_n_2 = VoltageBias(techtype="n", id=2)
-vb_n_2.ports = [VoltageBias.IN, VoltageBias.OUT, VoltageBias.SOURCE]
-vb_n_2.add_instance(DiodeTransistor(techtype="n"))
-vb_n_2.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_n_2.add_connection_xxx(port=VoltageBias.OUT, instance_id=0, instance_port="gate")
-vb_n_2.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=0, instance_port="source")
-
-
-vb_n_3 = VoltageBias(techtype="n", id=3)
-vb_n_3.ports = [
-    VoltageBias.IN,
-    VoltageBias.INNER,
-    VoltageBias.OUTINPUT,
-    VoltageBias.OUTSOURCE,
-    VoltageBias.SOURCE,
-]
-vb_n_3.add_instance(DiodeTransistor(techtype="n"))
-vb_n_3.add_instance(DiodeTransistor(techtype="n", id=2))
-
-vb_n_3.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_n_3.add_connection_xxx(port=VoltageBias.INNER, instance_id=0, instance_port="source")
-vb_n_3.add_connection_xxx(port=VoltageBias.INNER, instance_id=1, instance_port="drain")
-vb_n_3.add_connection_xxx(port=VoltageBias.OUTINPUT, instance_id=0, instance_port="gate")
-vb_n_3.add_connection_xxx(port=VoltageBias.OUTSOURCE, instance_id=1, instance_port="gate")
-vb_n_3.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=1, instance_port="source")
-
-
-vb_n_4 = VoltageBias(techtype="n", id=4)
-vb_n_4.ports = [
-    VoltageBias.IN,
-    VoltageBias.INNER,
-    VoltageBias.OUTINPUT,
-    VoltageBias.OUTSOURCE,
-    VoltageBias.SOURCE,
-]
-vb_n_4.add_instance(NormalTransistor(techtype="n"))
-vb_n_4.add_instance(NormalTransistor(techtype="n", id=2))
-
-vb_n_4.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_n_4.add_connection_xxx(port=VoltageBias.INNER, instance_id=0, instance_port="source")
-vb_n_4.add_connection_xxx(port=VoltageBias.INNER, instance_id=1, instance_port="drain")
-vb_n_4.add_connection_xxx(port=VoltageBias.OUTINPUT, instance_id=0, instance_port="gate")
-vb_n_4.add_connection_xxx(port=VoltageBias.OUTSOURCE, instance_id=1, instance_port="gate")
-vb_n_4.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=1, instance_port="source")
-
-
-vb_n_5 = VoltageBias(techtype="n", id=5)
-vb_n_5.ports = [
-    VoltageBias.IN,
-    VoltageBias.INNER,
-    VoltageBias.OUTINPUT,
-    VoltageBias.OUTSOURCE,
-    VoltageBias.SOURCE,
-]
-vb_n_5.add_instance(DiodeTransistor(techtype="n"))
-vb_n_5.add_instance(NormalTransistor(techtype="n", id=1))
-
-vb_n_5.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_n_5.add_connection_xxx(port=VoltageBias.INNER, instance_id=0, instance_port="source")
-vb_n_5.add_connection_xxx(port=VoltageBias.INNER, instance_id=1, instance_port="drain")
-vb_n_5.add_connection_xxx(port=VoltageBias.OUTINPUT, instance_id=0, instance_port="gate")
-vb_n_5.add_connection_xxx(port=VoltageBias.OUTSOURCE, instance_id=1, instance_port="gate")
-vb_n_5.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=1, instance_port="source")
-
-
-vb_n_6 = VoltageBias(techtype="n", id=6)
-vb_n_6.ports = [
-    VoltageBias.IN,
-    VoltageBias.INNER,
-    VoltageBias.OUTINPUT,
-    VoltageBias.OUTSOURCE,
-    VoltageBias.SOURCE,
-]
-# vb_n_6.ports = ["in", "inner", "outinput", "source"]
-vb_n_6.add_instance(DiodeTransistor(techtype="n"))
-vb_n_6.add_instance(NormalTransistor(techtype="n", id=1))
-
-vb_n_6.add_connection_xxx(port=VoltageBias.IN, instance_id=0, instance_port="drain")
-vb_n_6.add_connection_xxx(port=VoltageBias.INNER, instance_id=0, instance_port="source")
-vb_n_6.add_connection_xxx(port=VoltageBias.INNER, instance_id=1, instance_port="drain")
-vb_n_6.add_connection_xxx(port=VoltageBias.OUTINPUT, instance_id=0, instance_port="gate")
-# vb_p_6.add_connection_xxx(port="outsource", instance_name="nt.1", instance_port="gate")
-vb_n_6.add_connection_xxx(port=VoltageBias.OUTSOURCE, instance_id=0, instance_port="gate")
-vb_n_6.add_connection_xxx(port=VoltageBias.SOURCE, instance_id=1, instance_port="source")
+GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class VoltageBiasManager:
     """For voltage bias subcircuit, all transistors in the VB has the same type (NMOS, PMOS)"""
 
-    def getAllVoltageBiasesPmos(self):
-        return sorted(
-            list(
-                set(
-                    self.getOneTransistorVoltageBiasesPmos()
-                    + self.getTwoTransistorVoltageBiasesPmos()
-                    + self.getDiodeTransistorVoltageBiasPmos()
-                    + self.getTwoDiodeTransistorVoltageBiasPmos()
-                )
-            ),
-            key=lambda x: x.name + str(x.id),
+    def __init__(self):
+        self.initializeOneTransistorVoltageBiasesNmos()
+        self.initializeOneTransistorVoltageBiasesPmos()
+        self.initializeTwoTransistorVoltageBiasesNmos()
+        self.initializeTwoTransistorVoltageBiasesPmos()
+
+    def getAllVoltageBiasesPmos(self) -> Iterator[VoltageBias]:
+        return chain(
+            self.oneTransistorVoltageBiasesPmos_, self.twoTransistorVoltageBiasesPmos_
         )
 
-    def getAllVoltageBiasesNmos(self):
-        return sorted(
-            list(
-                set(
-                    self.getOneTransistorVoltageBiasesNmos()
-                    + self.getTwoTransistorVoltageBiasesNmos()
-                    + self.getDiodeTransistorVoltageBiasNmos()
-                    + self.getTwoDiodeTransistorVoltageBiasNmos()
-                )
-            ),
-            key=lambda x: x.name + str(x.id),
+    def getAllVoltageBiasesNmos(self) -> Iterator[VoltageBias]:
+        return chain(
+            self.oneTransistorVoltageBiasesNmos_, self.twoTransistorVoltageBiasesNmos_
         )
+
+    def getDiodeTransistorVoltageBiasNmos(self) -> VoltageBias:
+        for vb in self.oneTransistorVoltageBiasesNmos_:
+            if vb.isSingleDiodeTransistor:
+                return vb
+
+    def getDiodeTransistorVoltageBiasPmos(self) -> VoltageBias:
+        for vb in self.oneTransistorVoltageBiasesPmos_:
+            if vb.isSingleDiodeTransistor:
+                return vb
+
+    def getTwoDiodeTransistorVoltageBiasNmos(self) -> VoltageBias:
+        for vb in self.getTwoTransistorVoltageBiasesNmos():
+            if vb.instances[0].name == "dt" and vb.instances[1].name == "dt":
+                return vb
+
+    def getTwoDiodeTransistorVoltageBiasPmos(self) -> VoltageBias:
+        for vb in self.getTwoTransistorVoltageBiasesPmos():
+            if vb.instances[0].name == "dt" and vb.instances[1].name == "dt":
+                return vb
 
     def getOneTransistorVoltageBiasesPmos(self):
-        return [vb_p_1, vb_p_2]
+        return self.oneTransistorVoltageBiasesPmos_
 
     def getTwoTransistorVoltageBiasesPmos(self):
-        return [vb_p_3, vb_p_4, vb_p_5, vb_p_6]
+        return self.twoTransistorVoltageBiasesPmos_
 
     def getOneTransistorVoltageBiasesNmos(self):
-        return [vb_n_1, vb_n_2]
+        return self.oneTransistorVoltageBiasesNmos_
 
     def getTwoTransistorVoltageBiasesNmos(self):
-        return [vb_n_3, vb_n_4, vb_n_5, vb_n_6]
+        return self.twoTransistorVoltageBiasesNmos_
 
-    def getDiodeTransistorVoltageBiasNmos(self):
-        return [vb_n_2]
+    def initializeOneTransistorVoltageBiasesPmos(self) -> None:
+        normalTransistorPmos = NormalTransistor(techtype="p")
+        diodeTransistorPmos = DiodeTransistor(techtype="p")
+        self.oneTransistorVoltageBiasesPmos_ = self.createOneTransistorVoltageBiases(
+            normalTransistorPmos, diodeTransistorPmos
+        )
 
-    def getDiodeTransistorVoltageBiasPmos(self):
-        return [vb_p_2]
+    def initializeTwoTransistorVoltageBiasesPmos(self) -> None:
+        normalTransistorPmos = NormalTransistor(techtype="p")
+        diodeTransistorPmos = DiodeTransistor(techtype="p")
+        self.twoTransistorVoltageBiasesPmos_ = self.createTwoTransistorVoltageBiases(
+            normalTransistorPmos, diodeTransistorPmos
+        )
 
-    def getTwoDiodeTransistorVoltageBiasNmos(self):
-        return [vb_n_3]
+    def initializeOneTransistorVoltageBiasesNmos(self) -> None:
+        normalTransistorNmos = NormalTransistor(techtype="n")
+        diodeTransistorNmos = DiodeTransistor(techtype="n")
+        self.oneTransistorVoltageBiasesNmos_ = list(
+            self.createOneTransistorVoltageBiases(
+                normalTransistorNmos, diodeTransistorNmos
+            )
+        )
 
-    def getTwoDiodeTransistorVoltageBiasPmos(self):
-        return [vb_p_3]
+    def initializeTwoTransistorVoltageBiasesNmos(self) -> None:
+        normalTransistorNmos = NormalTransistor(techtype="n")
+        diodeTransistorNmos = DiodeTransistor(techtype="n")
+        self.twoTransistorVoltageBiasesNmos_ = list(
+            self.createTwoTransistorVoltageBiases(
+                normalTransistorNmos, diodeTransistorNmos
+            )
+        )
+
+    def createOneTransistorVoltageBiases(
+        self, normalTransistor: NormalTransistor, diodeTransistor: DiodeTransistor
+    ) -> Iterator[VoltageBias]:
+        firstOneTransistorVoltageBias = self.createOneTransistorCircuit(
+            normalTransistor
+        )
+        secondOneTransistorVoltageBias = self.createOneTransistorCircuit(
+            diodeTransistor
+        )
+        return chain([firstOneTransistorVoltageBias, secondOneTransistorVoltageBias])
+
+    def createTwoTransistorVoltageBiases(
+        self, normalTransistor: NormalTransistor, diodeTransistor: DiodeTransistor
+    ) -> Iterator[VoltageBias]:
+        diodeTransistor1 = deepcopy(diodeTransistor)
+        diodeTransistor2 = deepcopy(diodeTransistor)
+
+        diodeTransistor1.id = 1
+        diodeTransistor2.id = 1
+
+        normalTransistor1 = deepcopy(normalTransistor)
+        normalTransistor2 = deepcopy(normalTransistor)
+        normalTransistor1.id = 1
+        normalTransistor2.id = 2
+        twoDiodeTransistorCircuit = self.createTwoTransistorCircuit(
+            diodeTransistor1, diodeTransistor2
+        )
+        twoNormalTransistorCircuit = self.createTwoTransistorCircuit(
+            normalTransistor1, normalTransistor2
+        )
+        mixedCircuits = self.createTwoTransistorCircuit(
+            normalTransistor, diodeTransistor
+        )
+        return chain(
+            [twoDiodeTransistorCircuit, twoNormalTransistorCircuit, mixedCircuits]
+        )
+
+    def createOneTransistorCircuit(self, instance: Circuit) -> VoltageBias:
+        vb = VoltageBias(id=1, techtype=instance.tech)
+        vb.ports = [VoltageBias.IN, VoltageBias.SOURCE, VoltageBias.OUT]
+        vb.add_instance(instance)
+        vb = self.connectInstanceTerminalsOneTransistorVoltageBias(vb, instance)
+        return vb
+
+    def createTwoTransistorCircuit(
+        self, sourceTransistor: Circuit, outputTransistor: Circuit
+    ) -> Union[VoltageBias, None]:
+        if outputTransistor.name == "dt":
+            vb = VoltageBias(id=1, techtype=sourceTransistor.tech)
+            vb.ports = [
+                VoltageBias.IN,
+                VoltageBias.SOURCE,
+                VoltageBias.INNER,
+                VoltageBias.OUTSOURCE,
+                VoltageBias.OUTINPUT,
+            ]
+            vb.add_instance(sourceTransistor)
+            vb.add_instance(outputTransistor)
+            vb = self.connectInstanceTerminalsTwoTransistorVoltageBias(
+                vb, sourceTransistor, outputTransistor
+            )
+            return vb
+        if sourceTransistor.name == "nt":
+            vb = VoltageBias(id=1, techtype=sourceTransistor.tech)
+            vb.ports = [
+                VoltageBias.IN,
+                VoltageBias.SOURCE,
+                VoltageBias.INNER,
+                VoltageBias.OUTINPUT,
+            ]
+            vb.add_instance(sourceTransistor)
+            vb.add_instance(outputTransistor)
+            vb = self.connectInstanceTerminalsTwoTransistorVoltageBias(
+                vb, sourceTransistor, outputTransistor
+            )
+            return vb
+        return None
+
+    def connectInstanceTerminalsOneTransistorVoltageBias(
+        self, vb: VoltageBias, transistor: Circuit
+    ) -> VoltageBias:
+        connect((vb, VoltageBias.OUT), (transistor, "gate"))
+        connect((vb, VoltageBias.IN), (transistor, "drain"))
+        connect((vb, VoltageBias.SOURCE), (transistor, "source"))
+        return vb
+
+    def connectInstanceTerminalsTwoTransistorVoltageBias(
+        self, vb: VoltageBias, sourceTransistor: Circuit, outputTransistor: Circuit
+    ) -> VoltageBias:
+        if VoltageBias.OUTSOURCE in vb.ports:
+            connect((vb, VoltageBias.OUTSOURCE), (sourceTransistor, "gate"))
+        else:
+            connect((vb, VoltageBias.IN), (sourceTransistor, "gate"))
+
+        connect((vb, VoltageBias.INNER), (sourceTransistor, "drain"))
+        connect((vb, VoltageBias.SOURCE), (sourceTransistor, "source"))
+
+        connect((vb, VoltageBias.OUTINPUT), (outputTransistor, "gate"))
+        connect((vb, VoltageBias.IN), (outputTransistor, "drain"))
+        connect((vb, VoltageBias.INNER), (outputTransistor, "source"))
+        return vb
 
 
 if __name__ == "__main__":
     vb_mng = VoltageBiasManager()
-    all_vb = vb_mng.getAllVoltageBiasesNmos() + vb_mng.getAllVoltageBiasesPmos()
+    all_vb = list(vb_mng.getAllVoltageBiasesNmos()) + list(
+        vb_mng.getAllVoltageBiasesPmos()
+    )
 
-    for idx, circuit in enumerate(all_vb):
-        if circuit != None:
-            save_graphviz_figure(circuit, filename=Path(f"gallery/HL2/vb-{idx}.dot"))
+    case_id = 0
+    for circuit_id, circuit in enumerate(all_vb):
+        print(circuit)
+        save_graphviz_figure(
+            circuit, filename=GALLERY_DOT_DIR / f"vb_{case_id}_{circuit_id}.dot"
+        )
+        convert_dot_to_png(
+            GALLERY_DOT_DIR / f"vb_{case_id}_{circuit_id}.dot",
+            GALLERY_IMAGE_DIR / f"vb_{case_id}_{circuit_id}.png",
+        )
