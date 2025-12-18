@@ -5,6 +5,11 @@ import random
 import os
 from typing import List, Union, Callable, Tuple
 from pathlib import Path
+from copy import deepcopy
+
+from src.utils.loguru_loader import Logger
+
+logger = Logger()
 
 
 class Circuit:
@@ -333,6 +338,10 @@ class VoltageBias(Circuit):
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
 
+    @property
+    def isSingleDiodeTransistor(self) -> bool:
+        return len(self.instances) == 1 and self.instances[0].name == "dt"
+
 
 class CurrentBias(Circuit):
     IN = "in"
@@ -348,6 +357,17 @@ class CurrentBias(Circuit):
         if "id" not in kwargs:
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
+
+    def getGateNetsNotConnectedToADrain(self):
+        out = []
+        # print("connection:", self.connections)
+        for circuit_port, conn_list in self.connections.items():
+            ports = []
+            for conn in conn_list:
+                ports.append(conn["port"])
+            if "gate" in ports and "drain" not in ports:
+                out.append(circuit_port)
+        return out
 
 
 class Inverter(Circuit):
@@ -372,6 +392,14 @@ class Inverter(Circuit):
         if "id" not in kwargs:
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
+
+    def find_cb_with_tech(self, tech="p") -> CurrentBias:
+        cb: CurrentBias = None
+        for inst in self.instances:
+            if inst.tech == tech:
+                cb = inst
+                break
+        return cb
 
 
 class TransistorStack(Circuit):
