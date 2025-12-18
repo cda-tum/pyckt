@@ -376,8 +376,8 @@ class Inverter(Circuit):
     SOURCE_CURRENTBIASNMOS = "source_nmos"
     SOURCE_CURRENTBIASPMOS = "source_pmos"
 
-    IN_CURRENTBIASNMOS = "in_curent_bias_nmos"
-    IN_CURRENTBIASPMOS = "in_curent_bias_pmos"
+    IN_CURRENTBIASNMOS = "in_current_bias_nmos"
+    IN_CURRENTBIASPMOS = "in_current_bias_pmos"
 
     INSOURCE_CURRENTBIASNMOS = "in_source_current_bias_nmos"
     INOUTPUT_CURRENTBIASNMOS = "in_output_current_bias_nmos"
@@ -634,6 +634,29 @@ class NonInvertingStage(Circuit):
 
     def __init__(self, *args, **kwargs):
         kwargs["name"] = "non_inv"
+        if "id" not in kwargs:
+            kwargs["id"] = 1
+        super().__init__(*args, **kwargs)
+
+
+class InvertingStage(Circuit):
+
+    OUTPUT = "output"
+    SOURCEPMOS = "source_pmos"
+    SOURCENMOS = "source_nmos"
+
+    INTRANSCONDUCTANCE = "in_transconductance"
+    INOUTPUTTRANSCONDUCTANCE = "in_output_transconductance"
+    INSOURCETRANSCONDUCTANCE = "in_source_transconductance"
+    INNERTRANSCONDUCTANCE = "innter_transconductance"
+
+    INSTAGEBIAS = "in_stage_bias"
+    INOUTPUTSTAGEBIAS = "in_output_stage_bias"
+    INSOURCESTAGEBIAS = "in_source_stage_bias"
+    INNERSTAGEBIAS = "inner_stage_bias"
+
+    def __init__(self, *args, **kwargs):
+        kwargs["name"] = "inv"
         if "id" not in kwargs:
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
