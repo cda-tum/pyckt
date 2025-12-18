@@ -243,6 +243,55 @@ class Circuit:
 
         return obj
 
+    def _add_instances_to_flat_circuit(self, connections={}, instances=[]) -> None:
+
+        if self.__class__.__name__ == "NormalTransistor":
+            instances.append(self)
+
+        if self.__class__.__name__ == "DiodeTransistor":
+            instances.append(self)
+
+        for inst in self.instances:
+            inst._add_instances_to_flat_circuit(
+                connections,
+                instances,
+            )
+
+    def flatten(self):
+        from collections import OrderedDict
+
+        connections = OrderedDict()
+        instances = []
+        self._add_instances_to_flat_circuit(connections, instances)
+
+        def set_terminal(
+            top_current_terminal: str, looking_terminal: str, instance: Circuit
+        ):
+            if instance.name not in ["dt", "nt"]:
+                for conn in instance.connections[looking_terminal]:
+                    obtained_inst_id = int(conn["child"][-1])
+                    obtained_inst = instance.instances[obtained_inst_id]
+                    set_terminal(top_current_terminal, conn["port"], obtained_inst)
+            else:
+                if looking_terminal == "gate":
+                    instance.gate = top_current_terminal
+                if looking_terminal == "drain":
+                    instance.drain = top_current_terminal
+                if looking_terminal == "source":
+                    instance.source = top_current_terminal
+
+        for top_current_terminal, conn_list in self.connections.items():
+            for conn in conn_list:
+                obtained_inst_id = int(conn["child"][-1])
+                obtained_inst = self.instances[obtained_inst_id]
+                set_terminal(top_current_terminal, conn["port"], obtained_inst)
+
+        from copy import deepcopy
+
+        self.instances = deepcopy(instances)
+        self.connections = {}
+        return self
+
 
 class NormalTransistor(Circuit):
     def __init__(self, *args, **kwargs):
@@ -252,6 +301,10 @@ class NormalTransistor(Circuit):
         super().__init__(*args, **kwargs)
         self.ports = ["drain", "gate", "source"]
 
+        self.drain = None
+        self.gate = None
+        self.source = None
+
 
 class DiodeTransistor(Circuit):
     def __init__(self, *args, **kwargs):
@@ -260,6 +313,9 @@ class DiodeTransistor(Circuit):
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
         self.ports = ["drain", "gate", "source"]
+        self.drain = None
+        self.gate = None
+        self.source = None
 
 
 class VoltageBias(Circuit):
@@ -614,3 +670,78 @@ def assignInstanceIds(circuits: List[Circuit], start_idx=10):
 def hasGCC(load: Load) -> bool:
     assert load.name == "l"
     return "inner_gcc" in load.ports
+
+
+def sourceTransistorIsDiodeTransistor(cb: CurrentBias) -> bool:
+    if cb.component_count == 1:
+        inst = cb.instances[0]
+        return inst.name == "dt"
+    else:
+        # source transistor is the first one!
+        source_transistor = cb.instances[0]
+        return source_transistor.name == "dt"
+
+
+def everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
+    circuit: Circuit,
+) -> bool:
+
+    flatCircuit = deepcopy(circuit).flatten()
+
+    drain_nets = defaultdict(list)
+    gate_nets = defaultdict(list)
+
+    for inst in flatCircuit.instances:
+        gate_nets[inst.gate].append(inst)
+        drain_nets[inst.drain].append(inst)
+
+    def gatePinsAreOnlyNDoped(inst_list):
+        isTrue = True
+        for inst in inst_list:
+            if inst.tech == "p":
+                isTrue = False
+        return isTrue
+
+    def moreThanOneNDopdedDrainPin(inst_list):
+        isTrue = False
+        count = 0
+        for inst in inst_list:
+            if inst.tech == "n":
+                count += 1
+            if count >= 2:
+                isTrue = True
+                break
+        return isTrue
+
+    def moreThanOnePDopdedDrainPin(inst_list):
+        isTrue = False
+        count = 0
+        for inst in inst_list:
+            if inst.tech == "p":
+                count += 1
+            if count >= 2:
+                isTrue = True
+                break
+        return isTrue
+
+    def gatePinsAreOnlyPDoped(inst_list):
+        for inst in inst_list:
+            if inst.tech == "n":
+                return False
+        return True
+
+    for net in list(set(gate_nets.keys()).intersection(drain_nets.keys())):
+        logger.debug(f"{net=}")
+        if gatePinsAreOnlyNDoped(gate_nets[net]):
+            if moreThanOneNDopdedDrainPin(drain_nets[net]):
+                return False
+        elif gatePinsAreOnlyPDoped(gate_nets[net]):
+            if moreThanOnePDopdedDrainPin(drain_nets[net]):
+                return False
+        else:
+            if moreThanOnePDopdedDrainPin(
+                drain_nets[net]
+            ) or moreThanOneNDopdedDrainPin(drain_nets[net]):
+                return False
+
+    return True
