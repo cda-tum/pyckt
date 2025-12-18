@@ -11,7 +11,7 @@ from src.topogen.common.circuit import (
     connectInstanceTerminal,
     connect,
 )
-
+from src.topogen.common.circuit import *
 from pathlib import Path
 import json
 
@@ -203,77 +203,8 @@ def createThreeTransistorLoadPart(ts1: TransistorStack, ts2: TransistorStack):
     return lp
 
 
-def isNDoped(name):
-    if "NMOS" in name:
-        return True
-    if "DIODE_NMOS" in name:
-        return True
-    return False
-
-
-def isPDoped(name):
-    if "PMOS" in name:
-        return True
-    if "DIODE_PMOS" in name:
-        return True
-    return False
-
-
-def moreThanOneNDopdedDrainPin(drainPins):
-    counter = 0
-    for pin in drainPins:
-        if "NMOS" in pin:
-            counter += 1
-        if counter >= 2:
-            return True
-    return False
-
-
-def moreThanOnePDopdedDrainPin(drainPins):
-    counter = 0
-    for pin in drainPins:
-        if "PMOS" in pin:
-            counter += 1
-        if counter >= 2:
-            return True
-    return False
-
-
-def everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(flatNets):
-    for main_net, sub_nets in flatNets.items():
-        gatePins = [net for net in sub_nets if net.endswidth("MOS.G")]
-        drainPins = [net for net in sub_nets if net.endswidth("MOS.D")]
-
-        if False not in list(map(isNDoped, gatePins)):
-            if moreThanOneNDopdedDrainPin(drainPins):
-                return False
-        elif False not in list(map(isPDoped, gatePins)):
-            if moreThanOnePDopdedDrainPin(drainPins):
-                return False
-        else:
-            if moreThanOneNDopdedDrainPin(drainPins) or moreThanOnePDopdedDrainPin(
-                drainPins
-            ):
-                return False
-
-    return True
-
-
-def hasGateNetsNotConnectedToADrain(subcircuit):
-    return False
-
-
-def isSingleDiodeTransistor(subcircuit):
-    if subcircuit["type"] in ["DIODE_PMOS", "DIODE_NMOS"]:
-        return True
-    else:
-        pass
-        # if "instances" in subcircuit:
-        #     for
-
-
 def createTwoTransistorLoadPartsVoltageBiases(
-    oneTransistorVoltageBiases: list[Circuit],
+    oneTransistorVoltageBiases: list[VoltageBias],
 ):
     out: list[Circuit] = []
     for voltageBias in oneTransistorVoltageBiases:
@@ -291,8 +222,8 @@ def createTwoTransistorLoadPartsVoltageBiases(
 
 
 def createTwoTransistorLoadPartsMixed(
-    oneTransistorVoltageBiases, oneTransistorCurrentBiases
-):
+    oneTransistorVoltageBiases: list[VoltageBias], oneTransistorCurrentBiases: list[CurrentBias]
+) -> List[LoadPart]:
     out = []
     for voltageBias in oneTransistorVoltageBiases:
         for currentBias in oneTransistorCurrentBiases:
@@ -307,8 +238,8 @@ def createTwoTransistorLoadPartsMixed(
 
 
 def createThreeTransistorLoadPartsMixed(
-    oneTransistorVoltageBiases, twoTransistorCurrentBiases
-):
+    oneTransistorVoltageBiases: list[VoltageBias], twoTransistorCurrentBiases: list[CurrentBias]
+)-> list[LoadPart]:
     out = []
     for voltageBias in oneTransistorVoltageBiases:
         for currentBias in twoTransistorCurrentBiases:
@@ -322,13 +253,7 @@ def createThreeTransistorLoadPartsMixed(
     return out
 
 
-def createFourTransistorLoadPart(ts1, ts2):
-    # out = {}
-    # if ts1.instances[0].name.startswith("vb") and ts2.instances[0].name.startswith(
-    #     "vb"
-    # ):
-    #     lp = LoadPart(id=1, techtype="p")
-    # else:
+def createFourTransistorLoadPart(ts1, ts2)-> LoadPart:
     lp = LoadPart(id=1, techtype="p")
     lp.ports = [
         LoadPart.OUT1,
@@ -343,9 +268,9 @@ def createFourTransistorLoadPart(ts1, ts2):
     if ts1.instances[0].name.startswith("vb") and ts2.instances[0].name.startswith(
         "vb"
     ):
-        lp.ports.append(["outoutput1", "outoutput2", "outsource1", "outsource2"])
+        lp.ports  += [LoadPart.OUTOUTPUT1, LoadPart.OUTOUTPUT2, LoadPart.OUTSOURCE1, LoadPart.OUTSOURCE2]
     else:
-        lp.ports.append(["inner_output", "innersouce"])
+        lp.ports += [LoadPart.INNEROUTPUT, LoadPart.INNERSOURCE]
 
     lp = connectInstanceTerminalsOfFourTransistorLoadPart(lp, ts1, ts2)
     return lp
@@ -570,11 +495,12 @@ class LoadPartManager:
             VoltageBiasManager().getTwoTransistorVoltageBiasesNmos()
         )
         oneTransistorCurrentBiases = (
-            CurrentBiasManager().getOneTransistorCurrentBiasesNmos()
+            [CurrentBiasManager().getOneTransistorCurrentBiasesNmos()]
         )
         twoTransistorCurrentBiases = (
             CurrentBiasManager().getTwoTransistorCurrentBiasesNmos()
-        )
+        ) 
+
         return (
             createTwoTransistorLoadPartsMixed(
                 oneTransistorVoltageBiases, oneTransistorCurrentBiases
