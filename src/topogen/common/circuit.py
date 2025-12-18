@@ -662,6 +662,26 @@ class InvertingStage(Circuit):
         super().__init__(*args, **kwargs)
 
 
+class OpAmp(Circuit):
+
+    IN1 = "in1"
+    IN2 = "in2"
+    OUT = "out"
+    OUT1 = "out1"
+    OUT2 = "out2"
+    IBIAS = "ibias"
+    VREF = "vref"
+
+    SOURCEPMOS = "source_pmos"
+    SOURCENMOS = "source_nmos"
+
+    def __init__(self, *args, **kwargs):
+        kwargs["name"] = "opamp"
+        if "id" not in kwargs:
+            kwargs["id"] = 1
+        super().__init__(*args, **kwargs)
+
+
 def save_graphviz_figure(circuit: Circuit, filename: Path):
     with open(filename, "w") as fw:
 
