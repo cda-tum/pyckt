@@ -1,12 +1,10 @@
-from src.topogen.HL3.lp import *
-from src.topogen.HL2.vb import *
-from src.topogen.common.circuit import *
-
-
+from itertools import chain
 from pathlib import Path
 from typing import Callable, Iterator
-from itertools import chain
 
+from topogen.common.circuit import *
+from topogen.HL2.vb import *
+from topogen.HL3.lp import *
 
 # fmt: off
 

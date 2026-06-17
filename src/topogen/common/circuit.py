@@ -1,13 +1,13 @@
 from __future__ import annotations
-from collections import defaultdict
 
-import random
 import os
-from typing import List, Union, Callable, Tuple
-from pathlib import Path
+import random
+from collections import defaultdict
 from copy import deepcopy
+from pathlib import Path
+from typing import Callable, List, Tuple, Union
 
-from src.utils.loguru_loader import Logger
+from pyckt.utils.loguru_loader import Logger
 
 logger = Logger()
 
@@ -96,7 +96,7 @@ class Circuit:
             if "n" in _techlist and "p" not in _techlist:
                 return "n"
             
-            raise NotImplementedError("unknown techtype.")  
+            raise NotImplementedError("unknown techtype.")
 
     @property
     def component_count(self) -> int:

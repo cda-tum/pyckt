@@ -1,6 +1,4 @@
-import jsbeautifier
-from src.topogen.common.circuit import *
-
+from topogen.common.circuit import *
 
 dp1 = DiffPair(techtype="p", id=1)
 dp1.ports = [

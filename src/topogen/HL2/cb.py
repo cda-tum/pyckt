@@ -1,8 +1,8 @@
-from src.topogen.common.circuit import *
-
 from copy import deepcopy
 from itertools import chain
 from typing import Iterator
+
+from topogen.common.circuit import *
 
 GALLERY_DOT_DIR = (
     Path(__file__).parent.parent.parent.parent / "gallery" / "HL2" / "cb" / "dots"
@@ -40,7 +40,7 @@ class CurrentBiasManager:
         return list(self.twoTransistorCurrentBiasesPmos_)
 
     def getOneTransistorCurrentBiasesNmos(self) -> list[CurrentBias]:
-        return self.oneTransistorCurrentBiasesNmos_
+        return [self.oneTransistorCurrentBiasesNmos_]
 
     def getTwoTransistorCurrentBiasesNmos(self) -> list[CurrentBias]:
         return list(self.twoTransistorCurrentBiasesNmos_)

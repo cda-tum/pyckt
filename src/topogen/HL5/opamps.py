@@ -1,20 +1,16 @@
-# from src.topogen.HL2 import *
-# from src.topogen.HL3 import *
-# from src.topogen.HL3.l import LoadManager
-# from src.topogen.HL3.sb import StageBiasManager
-# from src.topogen.HL3.tc import TransconductanceManager
-# from src.topogen.HL2.inv import InverterManager
-from src.topogen.HL4.non_inv import NonInvertingStageManager
-from src.topogen.HL4.inv import InvertingStageManager
-from src.topogen.common.circuit import *
-
-
+# from topogen.HL2 import *
+# from topogen.HL3 import *
+# from topogen.HL3.l import LoadManager
+# from topogen.HL3.sb import StageBiasManager
+# from topogen.HL3.tc import TransconductanceManager
+# from topogen.HL2.inv import InverterManager
 from pathlib import Path
-from typing import Callable, Iterator, Union
-from itertools import chain
-from copy import deepcopy
+from typing import Iterator, Union
 
-from src.utils.loguru_loader import setup_logger
+from pyckt.utils.loguru_loader import setup_logger
+from topogen.common.circuit import *
+from topogen.HL4.inv import InvertingStageManager
+from topogen.HL4.non_inv import NonInvertingStageManager
 
 logger = setup_logger()
 
@@ -80,6 +76,22 @@ def connectInstanceTerminalsSimpleOpAmp(
         connect((opamp, OpAmp.OUT), (secondStage, InvertingStage.OUTPUT))
         # connect((opamp, OpAmp.OUT1), (secondStage, InvertingStage.OUTPUT))
     return opamp
+
+
+class OpAmpFactory:
+    """Thin wrapper around the module-level op-amp creation functions.
+
+    Provides a class-based interface so that the synthesis generator can
+    treat it uniformly alongside the other HL2–HL4 manager classes.
+    """
+
+    def create_one_stage_opamps(self) -> list[OpAmp]:
+        """Return all simple one-stage op-amps (case 1–16 of NonInvertingStageManager)."""
+        return list(createSimpleOneStageOpAmps())
+
+    def create_two_stage_opamps(self) -> list[OpAmp]:
+        """Return all simple two-stage op-amps (cases 1–16 × all InvertingStages)."""
+        return list(createSimpleTwoStageOpAmps())
 
 
 if __name__ == "__main__":

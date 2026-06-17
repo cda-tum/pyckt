@@ -1,0 +1,15 @@
+File: src/pyckt/io/__init__.py
+Covered lines: 8
+Total statements: 8
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+25, 33-38, 40
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

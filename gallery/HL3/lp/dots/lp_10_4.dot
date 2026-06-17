@@ -1,0 +1,118 @@
+digraph g { 
+fontname="Helvetica,Arial,sans-serif" 
+node [fontname="Helvetica,Arial,sans-serif"] 
+edge [fontname="Helvetica,Arial,sans-serif"] 
+subgraph "cluster_58" {
+ rankdir="TB" 
+label="[p]  ([-1].lp1)" 
+subgraph "cluster_47" {
+ rankdir="TB" 
+label="[?]  ([0].ts1)" 
+subgraph "cluster_80" {
+ rankdir="TB" 
+label="[p]  ([0].vb1)" 
+ subgraph "cluster_top.([-1].lp1).([0].ts1).([0].vb1).([0].nt1)" {
+label="nt0"  "top.([-1].lp1).([0].ts1).([0].vb1).([0].nt1)" [
+                rankdir="TB"
+                label = "{ <S> S↲| <G> G| <D> D }"
+                shape="record"
+            ]
+}
+ subgraph "cluster_top.([-1].lp1).([0].ts1).([0].vb1).([1].dt1)" {
+label="dt1" 
+ "top.([-1].lp1).([0].ts1).([0].vb1).([1].dt1)" [
+                rankdir="TB"
+                label = "{ <S> S↲| <G> G*| <D> D* }"
+                shape="record"
+            ]}
+ "top.([-1].lp1).([0].ts1).([0].vb1).out_source" [shape=plaintext, width=0.1, label="out_source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).([0].vb1).inner" [shape=plaintext, width=0.1, label="inner", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).([0].vb1).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).([0].vb1).out_input" [shape=plaintext, width=0.1, label="out_input", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).([0].vb1).in" [shape=plaintext, width=0.1, label="in", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).([0].vb1).out_source" -> "top.([-1].lp1).([0].ts1).([0].vb1).([0].nt1)": G [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).([0].vb1).inner" -> "top.([-1].lp1).([0].ts1).([0].vb1).([0].nt1)": D [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).([0].vb1).inner" -> "top.([-1].lp1).([0].ts1).([0].vb1).([1].dt1)": S [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).([0].vb1).source" -> "top.([-1].lp1).([0].ts1).([0].vb1).([0].nt1)": S [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).([0].vb1).out_input" -> "top.([-1].lp1).([0].ts1).([0].vb1).([1].dt1)": G [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).([0].vb1).in" -> "top.([-1].lp1).([0].ts1).([0].vb1).([1].dt1)": D [arrowhead=none]; 
+
+}
+ "top.([-1].lp1).([0].ts1).in" [shape=plaintext, width=0.1, label="in", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).inner" [shape=plaintext, width=0.1, label="inner", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).out_source" [shape=plaintext, width=0.1, label="out_source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).out_input" [shape=plaintext, width=0.1, label="out_input", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([0].ts1).in" -> "top.([-1].lp1).([0].ts1).([0].vb1).in"  [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).source" -> "top.([-1].lp1).([0].ts1).([0].vb1).source"  [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).inner" -> "top.([-1].lp1).([0].ts1).([0].vb1).inner"  [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).out_source" -> "top.([-1].lp1).([0].ts1).([0].vb1).out_source"  [arrowhead=none]; 
+ "top.([-1].lp1).([0].ts1).out_input" -> "top.([-1].lp1).([0].ts1).([0].vb1).out_input"  [arrowhead=none]; 
+
+}
+subgraph "cluster_60" {
+ rankdir="TB" 
+label="[?]  ([1].ts2)" 
+subgraph "cluster_40" {
+ rankdir="TB" 
+label="[p]  ([0].vb1)" 
+ subgraph "cluster_top.([-1].lp1).([1].ts2).([0].vb1).([0].nt1)" {
+label="nt0"  "top.([-1].lp1).([1].ts2).([0].vb1).([0].nt1)" [
+                rankdir="TB"
+                label = "{ <S> S↲| <G> G| <D> D }"
+                shape="record"
+            ]
+}
+ subgraph "cluster_top.([-1].lp1).([1].ts2).([0].vb1).([1].dt1)" {
+label="dt1" 
+ "top.([-1].lp1).([1].ts2).([0].vb1).([1].dt1)" [
+                rankdir="TB"
+                label = "{ <S> S↲| <G> G*| <D> D* }"
+                shape="record"
+            ]}
+ "top.([-1].lp1).([1].ts2).([0].vb1).out_source" [shape=plaintext, width=0.1, label="out_source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).([0].vb1).inner" [shape=plaintext, width=0.1, label="inner", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).([0].vb1).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).([0].vb1).out_input" [shape=plaintext, width=0.1, label="out_input", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).([0].vb1).in" [shape=plaintext, width=0.1, label="in", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).([0].vb1).out_source" -> "top.([-1].lp1).([1].ts2).([0].vb1).([0].nt1)": G [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).([0].vb1).inner" -> "top.([-1].lp1).([1].ts2).([0].vb1).([0].nt1)": D [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).([0].vb1).inner" -> "top.([-1].lp1).([1].ts2).([0].vb1).([1].dt1)": S [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).([0].vb1).source" -> "top.([-1].lp1).([1].ts2).([0].vb1).([0].nt1)": S [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).([0].vb1).out_input" -> "top.([-1].lp1).([1].ts2).([0].vb1).([1].dt1)": G [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).([0].vb1).in" -> "top.([-1].lp1).([1].ts2).([0].vb1).([1].dt1)": D [arrowhead=none]; 
+
+}
+ "top.([-1].lp1).([1].ts2).in" [shape=plaintext, width=0.1, label="in", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).inner" [shape=plaintext, width=0.1, label="inner", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).out_source" [shape=plaintext, width=0.1, label="out_source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).out_input" [shape=plaintext, width=0.1, label="out_input", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).([1].ts2).in" -> "top.([-1].lp1).([1].ts2).([0].vb1).in"  [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).source" -> "top.([-1].lp1).([1].ts2).([0].vb1).source"  [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).inner" -> "top.([-1].lp1).([1].ts2).([0].vb1).inner"  [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).out_source" -> "top.([-1].lp1).([1].ts2).([0].vb1).out_source"  [arrowhead=none]; 
+ "top.([-1].lp1).([1].ts2).out_input" -> "top.([-1].lp1).([1].ts2).([0].vb1).out_input"  [arrowhead=none]; 
+
+}
+ "top.([-1].lp1).out1" [shape=plaintext, width=0.1, label="out1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).inner_transistorstack1" [shape=plaintext, width=0.1, label="inner_transistorstack1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).out_output1" [shape=plaintext, width=0.1, label="out_output1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).out_source1" [shape=plaintext, width=0.1, label="out_source1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).out2" [shape=plaintext, width=0.1, label="out2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).inner_transistorstack2" [shape=plaintext, width=0.1, label="inner_transistorstack2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).out_output2" [shape=plaintext, width=0.1, label="out_output2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).out_source2" [shape=plaintext, width=0.1, label="out_source2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].lp1).out1" -> "top.([-1].lp1).([0].ts1).in"  [arrowhead=none]; 
+ "top.([-1].lp1).inner_transistorstack1" -> "top.([-1].lp1).([0].ts1).inner"  [arrowhead=none]; 
+ "top.([-1].lp1).out_output1" -> "top.([-1].lp1).([0].ts1).out_input"  [arrowhead=none]; 
+ "top.([-1].lp1).out_source1" -> "top.([-1].lp1).([0].ts1).out_source"  [arrowhead=none]; 
+ "top.([-1].lp1).source" -> "top.([-1].lp1).([0].ts1).source"  [arrowhead=none]; 
+ "top.([-1].lp1).source" -> "top.([-1].lp1).([1].ts2).source"  [arrowhead=none]; 
+ "top.([-1].lp1).out2" -> "top.([-1].lp1).([1].ts2).in"  [arrowhead=none]; 
+ "top.([-1].lp1).inner_transistorstack2" -> "top.([-1].lp1).([1].ts2).inner"  [arrowhead=none]; 
+ "top.([-1].lp1).out_output2" -> "top.([-1].lp1).([1].ts2).out_input"  [arrowhead=none]; 
+ "top.([-1].lp1).out_source2" -> "top.([-1].lp1).([1].ts2).out_source"  [arrowhead=none]; 
+
+}} 

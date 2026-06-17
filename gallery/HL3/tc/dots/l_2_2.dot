@@ -1,0 +1,86 @@
+digraph g { 
+fontname="Helvetica,Arial,sans-serif" 
+node [fontname="Helvetica,Arial,sans-serif"] 
+edge [fontname="Helvetica,Arial,sans-serif"] 
+subgraph "cluster_31" {
+ rankdir="TB" 
+label="[?]  ([-1].tc1)" 
+subgraph "cluster_92" {
+ rankdir="TB" 
+label="[n]  ([0].dp2)" 
+ subgraph "cluster_top.([-1].tc1).([0].dp2).([0].nt1)" {
+label="nt0"  "top.([-1].tc1).([0].dp2).([0].nt1)" [
+                rankdir="TB"
+                label = "{ <D> D| <G> G| <S> S⭢ }"
+                shape="record"
+            ]
+}
+ subgraph "cluster_top.([-1].tc1).([0].dp2).([1].nt1)" {
+label="nt1"  "top.([-1].tc1).([0].dp2).([1].nt1)" [
+                rankdir="TB"
+                label = "{ <D> D| <G> G| <S> S⭢ }"
+                shape="record"
+            ]
+}
+ "top.([-1].tc1).([0].dp2).out1" [shape=plaintext, width=0.1, label="out1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([0].dp2).input1" [shape=plaintext, width=0.1, label="input1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([0].dp2).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([0].dp2).out2" [shape=plaintext, width=0.1, label="out2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([0].dp2).input2" [shape=plaintext, width=0.1, label="input2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([0].dp2).out1" -> "top.([-1].tc1).([0].dp2).([0].nt1)": D [arrowhead=none]; 
+ "top.([-1].tc1).([0].dp2).input1" -> "top.([-1].tc1).([0].dp2).([0].nt1)": G [arrowhead=none]; 
+ "top.([-1].tc1).([0].dp2).source" -> "top.([-1].tc1).([0].dp2).([0].nt1)": S [arrowhead=none]; 
+ "top.([-1].tc1).([0].dp2).source" -> "top.([-1].tc1).([0].dp2).([1].nt1)": S [arrowhead=none]; 
+ "top.([-1].tc1).([0].dp2).out2" -> "top.([-1].tc1).([0].dp2).([1].nt1)": D [arrowhead=none]; 
+ "top.([-1].tc1).([0].dp2).input2" -> "top.([-1].tc1).([0].dp2).([1].nt1)": G [arrowhead=none]; 
+
+}
+subgraph "cluster_11" {
+ rankdir="TB" 
+label="[n]  ([1].dp2)" 
+ subgraph "cluster_top.([-1].tc1).([1].dp2).([0].nt1)" {
+label="nt0"  "top.([-1].tc1).([1].dp2).([0].nt1)" [
+                rankdir="TB"
+                label = "{ <D> D| <G> G| <S> S⭢ }"
+                shape="record"
+            ]
+}
+ subgraph "cluster_top.([-1].tc1).([1].dp2).([1].nt1)" {
+label="nt1"  "top.([-1].tc1).([1].dp2).([1].nt1)" [
+                rankdir="TB"
+                label = "{ <D> D| <G> G| <S> S⭢ }"
+                shape="record"
+            ]
+}
+ "top.([-1].tc1).([1].dp2).out1" [shape=plaintext, width=0.1, label="out1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([1].dp2).input1" [shape=plaintext, width=0.1, label="input1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([1].dp2).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([1].dp2).out2" [shape=plaintext, width=0.1, label="out2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([1].dp2).input2" [shape=plaintext, width=0.1, label="input2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).([1].dp2).out1" -> "top.([-1].tc1).([1].dp2).([0].nt1)": D [arrowhead=none]; 
+ "top.([-1].tc1).([1].dp2).input1" -> "top.([-1].tc1).([1].dp2).([0].nt1)": G [arrowhead=none]; 
+ "top.([-1].tc1).([1].dp2).source" -> "top.([-1].tc1).([1].dp2).([0].nt1)": S [arrowhead=none]; 
+ "top.([-1].tc1).([1].dp2).source" -> "top.([-1].tc1).([1].dp2).([1].nt1)": S [arrowhead=none]; 
+ "top.([-1].tc1).([1].dp2).out2" -> "top.([-1].tc1).([1].dp2).([1].nt1)": D [arrowhead=none]; 
+ "top.([-1].tc1).([1].dp2).input2" -> "top.([-1].tc1).([1].dp2).([1].nt1)": G [arrowhead=none]; 
+
+}
+ "top.([-1].tc1).input1" [shape=plaintext, width=0.1, label="input1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).inner" [shape=plaintext, width=0.1, label="inner", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).out1" [shape=plaintext, width=0.1, label="out1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).out2" [shape=plaintext, width=0.1, label="out2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).source_1" [shape=plaintext, width=0.1, label="source_1", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).input2" [shape=plaintext, width=0.1, label="input2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).source_2" [shape=plaintext, width=0.1, label="source_2", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].tc1).input1" -> "top.([-1].tc1).([0].dp2).input1"  [arrowhead=none]; 
+ "top.([-1].tc1).inner" -> "top.([-1].tc1).([0].dp2).input2"  [arrowhead=none]; 
+ "top.([-1].tc1).inner" -> "top.([-1].tc1).([1].dp2).input2"  [arrowhead=none]; 
+ "top.([-1].tc1).out1" -> "top.([-1].tc1).([0].dp2).out1"  [arrowhead=none]; 
+ "top.([-1].tc1).out1" -> "top.([-1].tc1).([1].dp2).out1"  [arrowhead=none]; 
+ "top.([-1].tc1).out2" -> "top.([-1].tc1).([0].dp2).out2"  [arrowhead=none]; 
+ "top.([-1].tc1).out2" -> "top.([-1].tc1).([1].dp2).out2"  [arrowhead=none]; 
+ "top.([-1].tc1).source_1" -> "top.([-1].tc1).([0].dp2).source"  [arrowhead=none]; 
+ "top.([-1].tc1).input2" -> "top.([-1].tc1).([1].dp2).input1"  [arrowhead=none]; 
+ "top.([-1].tc1).source_2" -> "top.([-1].tc1).([1].dp2).source"  [arrowhead=none]; 
+
+}} 

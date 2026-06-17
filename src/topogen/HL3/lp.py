@@ -1,19 +1,19 @@
-from src.utils.loguru_loader import setup_logger
-from src.topogen.HL2.vb import VoltageBiasManager
-from src.topogen.HL2.cb import CurrentBiasManager
-from src.topogen.common.circuit import (
+import json
+from pathlib import Path
+
+from pyckt.utils.loguru_loader import setup_logger
+from topogen.common.circuit import *
+from topogen.common.circuit import (
     Circuit,
-    TransistorStack,
     LoadPart,
-    save_graphviz_figure,
+    TransistorStack,
+    connect,
     convert_dot_to_png,
     createTransistorStack,
-    connectInstanceTerminal,
-    connect,
+    save_graphviz_figure,
 )
-from src.topogen.common.circuit import *
-from pathlib import Path
-import json
+from topogen.HL2.cb import CurrentBiasManager
+from topogen.HL2.vb import VoltageBiasManager
 
 # fmt: off
 
@@ -83,7 +83,7 @@ def connectInstanceTerminalsOfFourTransistorLoadPart(out: LoadPart, ts1, ts2):
                 connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.IN))
                 connect((out, LoadPart.INNERTRANSISTORSTACK2), (transistorStack, TransistorStack.INNER))
 
-            if ts1.instances[0].name.startswith("vb") and ts2.instances[0].name.startswith("vb"): 
+            if ts1.instances[0].name.startswith("vb") and ts2.instances[0].name.startswith("vb"):
                 if num==1:
                     connect((out, LoadPart.OUTOUTPUT1), (transistorStack, TransistorStack.OUTINPUT))
                     connect((out, LoadPart.OUTSOURCE1), (transistorStack, TransistorStack.OUTSOURCE))
@@ -94,7 +94,7 @@ def connectInstanceTerminalsOfFourTransistorLoadPart(out: LoadPart, ts1, ts2):
                 connect((out, LoadPart.INNEROUTPUT), (transistorStack, TransistorStack.OUTINPUT))
                 connect((out, LoadPart.INNERSOURCE), (transistorStack, TransistorStack.OUTSOURCE))
 
-            connect((out, LoadPart.SOURCE), (transistorStack, TransistorStack.SOURCE))   
+            connect((out, LoadPart.SOURCE), (transistorStack, TransistorStack.SOURCE))
         
         num+=1
     return out
@@ -107,30 +107,30 @@ def connectInstanceTerminalsOfTwoTransistorLoadPartDifferentSources(
     num = 1
     # fmt: off
     for transistorStack in [ts1, ts2]:
-        if transistorStack.name.startswith("cb"):
+        if transistorStack.instances[0].name.startswith("cb"):
             if num == 1:
-                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))   
-                connect((out, LoadPart.SOURCE1), (transistorStack, TransistorStack.SOURCE))   
+                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))
+                connect((out, LoadPart.SOURCE1), (transistorStack, TransistorStack.SOURCE))
             else:
-                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))   
-                connect((out, LoadPart.SOURCE2), (transistorStack, TransistorStack.SOURCE))   
-            
-            connect((out, LoadPart.INNER), (transistorStack, TransistorStack.IN))   
+                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))
+                connect((out, LoadPart.SOURCE2), (transistorStack, TransistorStack.SOURCE))
+
+            connect((out, LoadPart.INNER), (transistorStack, TransistorStack.IN))
         else:
             if num == 1:
-                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.IN))   
-                connect((out, LoadPart.SOURCE1), (transistorStack, TransistorStack.SOURCE))   
+                connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.IN))
+                connect((out, LoadPart.SOURCE1), (transistorStack, TransistorStack.SOURCE))
             else:
-                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.IN))   
-                connect((out, LoadPart.SOURCE2), (transistorStack, TransistorStack.SOURCE))   
+                connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.IN))
+                connect((out, LoadPart.SOURCE2), (transistorStack, TransistorStack.SOURCE))
 
-            if ts1.name == "vb" and ts2.name == "vb":
+            if ts1.instances[0].name == "vb" and ts2.instances[0].name == "vb":
                 if num == 1:
-                    connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))   
+                    connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))
                 else:
-                    connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT)) 
+                    connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))
             else:
-                connect((out, LoadPart.INNER), (transistorStack, TransistorStack.OUT)) 
+                connect((out, LoadPart.INNER), (transistorStack, TransistorStack.OUT))
         num += 1
     return out
     # fmt: on
@@ -495,11 +495,11 @@ class LoadPartManager:
             VoltageBiasManager().getTwoTransistorVoltageBiasesNmos()
         )
         oneTransistorCurrentBiases = (
-            [CurrentBiasManager().getOneTransistorCurrentBiasesNmos()]
+            CurrentBiasManager().getOneTransistorCurrentBiasesNmos()
         )
         twoTransistorCurrentBiases = (
             CurrentBiasManager().getTwoTransistorCurrentBiasesNmos()
-        ) 
+        )
 
         return (
             createTwoTransistorLoadPartsMixed(

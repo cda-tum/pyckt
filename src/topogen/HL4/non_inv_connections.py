@@ -1,7 +1,7 @@
-# from src.topogen.HL2 import *
-# from src.topogen.HL3 import *
+# from topogen.HL2 import *
+# from topogen.HL3 import *
 
-from src.topogen.common.circuit import *
+from topogen.common.circuit import *
 
 
 def connectInstanceTerminalsOfSimpleTransconductance(
@@ -148,9 +148,9 @@ def connectInstanceTerminalsOfLoadPart2XXX(
             )
 
     if loadPart2.component_count > 3:
-        connect((stage,  NonInvertingStage.INNEROUTPUTLOAD2), (load, "inner_output_load2")) 
+        connect((stage,  NonInvertingStage.INNEROUTPUTLOAD2), (load, "inner_output_load2"))
         connect(
-            (stage, NonInvertingStage.INNERTRANSISTORSTACK1LOAD2), 
+            (stage, NonInvertingStage.INNERTRANSISTORSTACK1LOAD2),
             (load, "inner_transistorstack1_load2"),
         )
 
@@ -248,7 +248,7 @@ def connectInstanceTerminalsOfComplementaryLoad(
         connect((nonInvertingStage, NonInvertingStage.SOURCENMOS), (load, "source_load2"))
 
         if hasGCC(load):
-            connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK1LOADPMOS), (load, "source_gcc1")) 
+            connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK1LOADPMOS), (load, "source_gcc1"))
             connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK2LOADPMOS), (load, "source_gcc2"))
             connect((nonInvertingStage, NonInvertingStage.INNEROUTPUTLOADPMOS), (load, "inner_gcc"))
             connect((nonInvertingStage, NonInvertingStage.INNERSOURCELOADPMOS), (load, "inner_bias_gcc"))

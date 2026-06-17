@@ -1,0 +1,49 @@
+digraph g { 
+fontname="Helvetica,Arial,sans-serif" 
+node [fontname="Helvetica,Arial,sans-serif"] 
+edge [fontname="Helvetica,Arial,sans-serif"] 
+subgraph "cluster_53" {
+ rankdir="TB" 
+label="[?]  ([-1].sb1)" 
+subgraph "cluster_39" {
+ rankdir="TB" 
+label="[n]  ([0].cb1)" 
+ subgraph "cluster_top.([-1].sb1).([0].cb1).([0].nt1)" {
+label="nt0"  "top.([-1].sb1).([0].cb1).([0].nt1)" [
+                rankdir="TB"
+                label = "{ <D> D| <G> G| <S> S⭢ }"
+                shape="record"
+            ]
+}
+ subgraph "cluster_top.([-1].sb1).([0].cb1).([1].nt2)" {
+label="nt1"  "top.([-1].sb1).([0].cb1).([1].nt2)" [
+                rankdir="TB"
+                label = "{ <D> D| <G> G| <S> S⭢ }"
+                shape="record"
+            ]
+}
+ "top.([-1].sb1).([0].cb1).in_source" [shape=plaintext, width=0.1, label="in_source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).([0].cb1).inner" [shape=plaintext, width=0.1, label="inner", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).([0].cb1).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).([0].cb1).in_output" [shape=plaintext, width=0.1, label="in_output", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).([0].cb1).out" [shape=plaintext, width=0.1, label="out", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).([0].cb1).in_source" -> "top.([-1].sb1).([0].cb1).([0].nt1)": G [arrowhead=none]; 
+ "top.([-1].sb1).([0].cb1).inner" -> "top.([-1].sb1).([0].cb1).([0].nt1)": D [arrowhead=none]; 
+ "top.([-1].sb1).([0].cb1).inner" -> "top.([-1].sb1).([0].cb1).([1].nt2)": S [arrowhead=none]; 
+ "top.([-1].sb1).([0].cb1).source" -> "top.([-1].sb1).([0].cb1).([0].nt1)": S [arrowhead=none]; 
+ "top.([-1].sb1).([0].cb1).in_output" -> "top.([-1].sb1).([0].cb1).([1].nt2)": G [arrowhead=none]; 
+ "top.([-1].sb1).([0].cb1).out" -> "top.([-1].sb1).([0].cb1).([1].nt2)": D [arrowhead=none]; 
+
+}
+ "top.([-1].sb1).in_output" [shape=plaintext, width=0.1, label="in_output", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).in_source" [shape=plaintext, width=0.1, label="in_source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).inner" [shape=plaintext, width=0.1, label="inner", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).out" [shape=plaintext, width=0.1, label="out", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].sb1).in_output" -> "top.([-1].sb1).([0].cb1).in_output"  [arrowhead=none]; 
+ "top.([-1].sb1).in_source" -> "top.([-1].sb1).([0].cb1).in_source"  [arrowhead=none]; 
+ "top.([-1].sb1).inner" -> "top.([-1].sb1).([0].cb1).inner"  [arrowhead=none]; 
+ "top.([-1].sb1).out" -> "top.([-1].sb1).([0].cb1).out"  [arrowhead=none]; 
+ "top.([-1].sb1).source" -> "top.([-1].sb1).([0].cb1).source"  [arrowhead=none]; 
+
+}} 

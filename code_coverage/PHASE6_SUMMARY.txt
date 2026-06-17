@@ -1,0 +1,18 @@
+Coverage report (post-test_coverage_extras.py)
+================================================
+Total: 97.36% (5970/6132 stmts; 200 excluded)
+Per-file reports: 72
+
+Files still below 100% (every remaining miss is in topogen):
+   85.9%   451/ 525  src/topogen/common/circuit.py
+   90.8%    79/  87  src/topogen/HL3/sb.py
+   91.0%   111/ 122  src/topogen/HL4/inv.py
+   91.4%    74/  81  src/topogen/HL2/cb.py
+   91.5%    54/  59  src/topogen/HL4/non_inv_netdef.py
+   92.3%   274/ 297  src/topogen/HL3/lp.py
+   93.8%   105/ 112  src/topogen/HL2/vb.py
+   94.0%    94/ 100  src/topogen/HL3/tc.py
+   96.3%   309/ 321  src/topogen/HL3/l.py
+   96.7%   174/ 180  src/topogen/HL4/non_inv_connections.py
+   98.9%   175/ 177  src/pyckt/sizing/solver.py
+   99.5%   186/ 187  src/topogen/HL4/non_inv.py

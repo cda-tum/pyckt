@@ -1,0 +1,15 @@
+File: src/topogen/HL4/non_inv_netdef.py
+Covered lines: 54
+Total statements: 59
+Missing lines: 5
+Excluded lines: 0
+Coverage: 91.53%
+
+Executed line ranges:
+4, 7-9, 13, 16-17, 23-24, 29-30, 32-36, 40-41, 43-48, 51-57, 61-63, 66-70, 73-75, 77-78, 81-82, 85-86, 96, 99, 102-103, 105, 113
+
+Missing line ranges:
+10-11, 39, 60, 79
+
+Excluded line ranges:
+None

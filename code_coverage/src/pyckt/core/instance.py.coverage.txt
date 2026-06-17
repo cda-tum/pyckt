@@ -1,0 +1,15 @@
+File: src/pyckt/core/instance.py
+Covered lines: 27
+Total statements: 27
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+1, 3, 5, 8-9, 11-13, 15-16, 19-20, 22-25, 27-30, 32-33, 35-39
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

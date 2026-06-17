@@ -1,8 +1,7 @@
-from src.topogen.common.circuit import *
-
-from src.topogen.HL2.cb import CurrentBiasManager
-from itertools import chain
 from typing import Iterator
+
+from topogen.common.circuit import *
+from topogen.HL2.cb import CurrentBiasManager
 
 cb_mng = CurrentBiasManager()
 

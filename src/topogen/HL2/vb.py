@@ -1,7 +1,8 @@
-from src.topogen.common.circuit import *
-from itertools import chain
-from typing import Union, Iterator
 from copy import deepcopy
+from itertools import chain
+from typing import Iterator, Union
+
+from topogen.common.circuit import *
 
 GALLERY_DOT_DIR = (
     Path(__file__).parent.parent.parent.parent / "gallery" / "HL2" / "vb" / "dots"

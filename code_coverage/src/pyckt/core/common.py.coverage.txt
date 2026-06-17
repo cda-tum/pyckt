@@ -1,0 +1,15 @@
+File: src/pyckt/core/common.py
+Covered lines: 33
+Total statements: 33
+Missing lines: 0
+Excluded lines: 3
+Coverage: 100.00%
+
+Executed line ranges:
+1, 4, 8-9, 12-13, 16-17, 20-21, 24-25, 28-29, 32-33, 36-37, 40-41, 44, 46-47, 50-51, 54, 57, 66-67, 69, 72, 75, 79
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+70, 73, 76

@@ -1,0 +1,7 @@
+File: src/partitioning/__init__.py
+Coverage: 4/4 (100.00%)
+Missing lines: []
+Test files used:
+- tests/test_partitioning.py
+- tests/test_sizing_constraints.py
+- tests/test_sizing_analysis.py

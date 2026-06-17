@@ -1,0 +1,32 @@
+digraph g { 
+fontname="Helvetica,Arial,sans-serif" 
+node [fontname="Helvetica,Arial,sans-serif"] 
+edge [fontname="Helvetica,Arial,sans-serif"] 
+subgraph "cluster_95" {
+ rankdir="TB" 
+label="[p]  ([-1].cm2)" 
+ subgraph "cluster_top.([-1].cm2).([0].dt1)" {
+label="dt0" 
+ "top.([-1].cm2).([0].dt1)" [
+                rankdir="TB"
+                label = "{ <S> S↲| <G> G*| <D> D* }"
+                shape="record"
+            ]}
+ subgraph "cluster_top.([-1].cm2).([1].nt2)" {
+label="nt1"  "top.([-1].cm2).([1].nt2)" [
+                rankdir="TB"
+                label = "{ <S> S↲| <G> G| <D> D }"
+                shape="record"
+            ]
+}
+ "top.([-1].cm2).input" [shape=plaintext, width=0.1, label="input", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].cm2).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].cm2).output" [shape=plaintext, width=0.1, label="output", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].cm2).input" -> "top.([-1].cm2).([0].dt1)": D [arrowhead=none]; 
+ "top.([-1].cm2).input" -> "top.([-1].cm2).([0].dt1)": G [arrowhead=none]; 
+ "top.([-1].cm2).input" -> "top.([-1].cm2).([1].nt2)": G [arrowhead=none]; 
+ "top.([-1].cm2).source" -> "top.([-1].cm2).([0].dt1)": S [arrowhead=none]; 
+ "top.([-1].cm2).source" -> "top.([-1].cm2).([1].nt2)": S [arrowhead=none]; 
+ "top.([-1].cm2).output" -> "top.([-1].cm2).([1].nt2)": D [arrowhead=none]; 
+
+}} 

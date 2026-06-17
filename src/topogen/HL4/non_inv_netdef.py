@@ -1,7 +1,7 @@
-# from src.topogen.HL2 import *
-# from src.topogen.HL3 import *
+# from topogen.HL2 import *
+# from topogen.HL3 import *
 
-from src.topogen.common.circuit import *
+from topogen.common.circuit import *
 
 
 def addLoadPart1Nets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:

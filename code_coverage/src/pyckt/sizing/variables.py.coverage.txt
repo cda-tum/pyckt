@@ -1,0 +1,15 @@
+File: src/pyckt/sizing/variables.py
+Covered lines: 64
+Total statements: 64
+Missing lines: 0
+Excluded lines: 2
+Coverage: 100.00%
+
+Executed line ranges:
+10, 12-13, 18, 23-24, 39-42, 44-45, 51, 73, 79-81, 83-84, 87, 91, 97, 101, 105, 109, 113, 117, 121, 126-127, 129, 137-138, 148, 154-156, 161-162, 168, 179-181, 185, 195-198, 200, 206-208, 212, 217, 219, 221, 225-226, 228-229, 231, 233, 239-240
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+15-16

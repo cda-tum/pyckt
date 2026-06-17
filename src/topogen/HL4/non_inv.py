@@ -1,20 +1,16 @@
-# from src.topogen.HL2 import *
-# from src.topogen.HL3 import *
-from src.topogen.HL3.l import LoadManager
-from src.topogen.HL3.sb import StageBiasManager
-from src.topogen.HL3.tc import TransconductanceManager
-
-from src.topogen.HL4.non_inv_connections import *
-from src.topogen.HL4.non_inv_netdef import *
-from src.topogen.common.circuit import *
-
-
-from pathlib import Path
-from typing import Callable, Iterator
-from itertools import chain
+# from topogen.HL2 import *
+# from topogen.HL3 import *
 from copy import deepcopy
+from pathlib import Path
+from typing import Iterator
 
-from src.utils.loguru_loader import setup_logger
+from pyckt.utils.loguru_loader import setup_logger
+from topogen.common.circuit import *
+from topogen.HL3.l import LoadManager
+from topogen.HL3.sb import StageBiasManager
+from topogen.HL3.tc import TransconductanceManager
+from topogen.HL4.non_inv_connections import *
+from topogen.HL4.non_inv_netdef import *
 
 logger = setup_logger()
 
@@ -135,6 +131,7 @@ def createFeedbackTransconductanceNonInvertingStage(
 def createSimpleTransconductanceNonInvertingStages(
     transconductance: Transconductance, loads: list[Load], stageBiases: list[StageBias]
 ) -> Iterator[NonInvertingStage]:
+    stageBiases = list(stageBiases)  # materialise to allow re-iteration per load
     for l in loads:
         if l.component_count % 2 == 1:
             continue

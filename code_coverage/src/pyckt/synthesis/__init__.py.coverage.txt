@@ -1,0 +1,15 @@
+File: src/pyckt/synthesis/__init__.py
+Covered lines: 6
+Total statements: 6
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+37-41, 43
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

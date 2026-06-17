@@ -1,0 +1,91 @@
+digraph g { 
+fontname="Helvetica,Arial,sans-serif" 
+node [fontname="Helvetica,Arial,sans-serif"] 
+edge [fontname="Helvetica,Arial,sans-serif"] 
+subgraph "cluster_72" {
+ rankdir="TB" 
+label="[p]  ([-1].inv1)" 
+subgraph "cluster_78" {
+ rankdir="TB" 
+label="[undef]  ([0].inv1)" 
+subgraph "cluster_28" {
+ rankdir="TB" 
+label="[p]  ([0].cb1)" 
+ subgraph "cluster_top.([-1].inv1).([0].inv1).([0].cb1).([0].nt1)" {
+label="nt0"  "top.([-1].inv1).([0].inv1).([0].cb1).([0].nt1)" [
+                rankdir="TB"
+                label = "{ <S> S↲| <G> G| <D> D }"
+                shape="record"
+            ]
+}
+ subgraph "cluster_top.([-1].inv1).([0].inv1).([0].cb1).([1].nt2)" {
+label="nt1"  "top.([-1].inv1).([0].inv1).([0].cb1).([1].nt2)" [
+                rankdir="TB"
+                label = "{ <S> S↲| <G> G| <D> D }"
+                shape="record"
+            ]
+}
+ "top.([-1].inv1).([0].inv1).([0].cb1).in_source" [shape=plaintext, width=0.1, label="in_source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).([0].cb1).inner" [shape=plaintext, width=0.1, label="inner", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).([0].cb1).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).([0].cb1).in_output" [shape=plaintext, width=0.1, label="in_output", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).([0].cb1).out" [shape=plaintext, width=0.1, label="out", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).([0].cb1).in_source" -> "top.([-1].inv1).([0].inv1).([0].cb1).([0].nt1)": G [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).([0].cb1).inner" -> "top.([-1].inv1).([0].inv1).([0].cb1).([0].nt1)": D [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).([0].cb1).inner" -> "top.([-1].inv1).([0].inv1).([0].cb1).([1].nt2)": S [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).([0].cb1).source" -> "top.([-1].inv1).([0].inv1).([0].cb1).([0].nt1)": S [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).([0].cb1).in_output" -> "top.([-1].inv1).([0].inv1).([0].cb1).([1].nt2)": G [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).([0].cb1).out" -> "top.([-1].inv1).([0].inv1).([0].cb1).([1].nt2)": D [arrowhead=none]; 
+
+}
+subgraph "cluster_81" {
+ rankdir="TB" 
+label="[n]  ([1].cb1)" 
+ subgraph "cluster_top.([-1].inv1).([0].inv1).([1].cb1).([0].nt1)" {
+label="nt0"  "top.([-1].inv1).([0].inv1).([1].cb1).([0].nt1)" [
+                rankdir="TB"
+                label = "{ <D> D| <G> G| <S> S⭢ }"
+                shape="record"
+            ]
+}
+ "top.([-1].inv1).([0].inv1).([1].cb1).in" [shape=plaintext, width=0.1, label="in", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).([1].cb1).out" [shape=plaintext, width=0.1, label="out", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).([1].cb1).source" [shape=plaintext, width=0.1, label="source", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).([1].cb1).in" -> "top.([-1].inv1).([0].inv1).([1].cb1).([0].nt1)": G [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).([1].cb1).out" -> "top.([-1].inv1).([0].inv1).([1].cb1).([0].nt1)": D [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).([1].cb1).source" -> "top.([-1].inv1).([0].inv1).([1].cb1).([0].nt1)": S [arrowhead=none]; 
+
+}
+ "top.([-1].inv1).([0].inv1).output" [shape=plaintext, width=0.1, label="output", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).source_pmos" [shape=plaintext, width=0.1, label="source_pmos", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).source_nmos" [shape=plaintext, width=0.1, label="source_nmos", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).in_source_current_bias_pmos" [shape=plaintext, width=0.1, label="in_source_current_bias_pmos", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).in_output_current_bias_pmos" [shape=plaintext, width=0.1, label="in_output_current_bias_pmos", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).inner_current_bias_pmos" [shape=plaintext, width=0.1, label="inner_current_bias_pmos", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).in_current_bias_nmos" [shape=plaintext, width=0.1, label="in_current_bias_nmos", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).([0].inv1).output" -> "top.([-1].inv1).([0].inv1).([0].cb1).out"  [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).output" -> "top.([-1].inv1).([0].inv1).([1].cb1).out"  [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).source_pmos" -> "top.([-1].inv1).([0].inv1).([0].cb1).source"  [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).source_nmos" -> "top.([-1].inv1).([0].inv1).([1].cb1).source"  [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).in_source_current_bias_pmos" -> "top.([-1].inv1).([0].inv1).([0].cb1).in_source"  [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).in_output_current_bias_pmos" -> "top.([-1].inv1).([0].inv1).([0].cb1).in_output"  [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).inner_current_bias_pmos" -> "top.([-1].inv1).([0].inv1).([0].cb1).inner"  [arrowhead=none]; 
+ "top.([-1].inv1).([0].inv1).in_current_bias_nmos" -> "top.([-1].inv1).([0].inv1).([1].cb1).in"  [arrowhead=none]; 
+
+}
+ "top.([-1].inv1).output" [shape=plaintext, width=0.1, label="output", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).source_pmos" [shape=plaintext, width=0.1, label="source_pmos", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).source_nmos" [shape=plaintext, width=0.1, label="source_nmos", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).in_source_transconductance" [shape=plaintext, width=0.1, label="in_source_transconductance", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).in_output_transconductance" [shape=plaintext, width=0.1, label="in_output_transconductance", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).innter_transconductance" [shape=plaintext, width=0.1, label="innter_transconductance", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).in_stage_bias" [shape=plaintext, width=0.1, label="in_stage_bias", color="darkgoldenrod", style=filled, fontsize=10];    
+ "top.([-1].inv1).output" -> "top.([-1].inv1).([0].inv1).output"  [arrowhead=none]; 
+ "top.([-1].inv1).source_pmos" -> "top.([-1].inv1).([0].inv1).source_pmos"  [arrowhead=none]; 
+ "top.([-1].inv1).source_nmos" -> "top.([-1].inv1).([0].inv1).source_nmos"  [arrowhead=none]; 
+ "top.([-1].inv1).in_source_transconductance" -> "top.([-1].inv1).([0].inv1).in_source_current_bias_pmos"  [arrowhead=none]; 
+ "top.([-1].inv1).in_output_transconductance" -> "top.([-1].inv1).([0].inv1).in_output_current_bias_pmos"  [arrowhead=none]; 
+ "top.([-1].inv1).innter_transconductance" -> "top.([-1].inv1).([0].inv1).inner_current_bias_pmos"  [arrowhead=none]; 
+ "top.([-1].inv1).in_stage_bias" -> "top.([-1].inv1).([0].inv1).in_current_bias_nmos"  [arrowhead=none]; 
+
+}} 

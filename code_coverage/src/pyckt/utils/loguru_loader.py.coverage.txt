@@ -1,0 +1,15 @@
+File: src/pyckt/utils/loguru_loader.py
+Covered lines: 33
+Total statements: 33
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+1, 3, 6-7, 9-12, 15-18, 20-22, 28, 30-31, 33-34, 36-37, 41-46, 52-54, 61, 64
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

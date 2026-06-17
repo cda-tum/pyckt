@@ -1,0 +1,15 @@
+File: src/topogen/HL2/cm.py
+Covered lines: 39
+Total statements: 39
+Missing lines: 0
+Excluded lines: 6
+Coverage: 100.00%
+
+Executed line ranges:
+12, 14, 17, 19, 22, 25, 35-37, 39-43, 46, 56-58, 60-61, 63-64, 66-67, 69-71, 73-77, 80-82, 85-88
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+91-95, 98
