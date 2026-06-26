@@ -16,7 +16,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from pyckt.io.acst_xml import make_root, write_structure, write_tree
+from ckt_io.acst_xml import make_root, write_structure, write_tree
 
 from .model import (
     Structure,

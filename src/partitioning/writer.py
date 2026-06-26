@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from xml.etree.ElementTree import Element, ElementTree, SubElement, indent
 
-from pyckt.io.acst_xml import make_root, write_structure, write_tree
+from ckt_io.acst_xml import make_root, write_structure, write_tree
 
 from .result import PartitionResult, PartType, StageType
 
@@ -138,7 +138,7 @@ class AcstPartitionXMLWriter:
     ``resistorParts``, ``commonModeSignalDetectorParts``,
     ``positiveFeedbackParts`` and ``undefinedParts`` — each part carrying its
     main structures as full nested ``structure`` / ``pins`` / ``devices`` trees
-    via the shared :func:`pyckt.io.acst_xml.write_structure`.
+    via the shared :func:`ckt_io.acst_xml.write_structure`.
     """
 
     def __init__(self, result) -> None:  # AcstPartitionResult

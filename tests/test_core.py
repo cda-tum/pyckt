@@ -1,36 +1,35 @@
-"""Tests for pyckt.core — covers the 10 cases listed in core/README.md."""
-
-import pytest
+"""Tests for core — covers the 10 cases listed in core/README.md."""
 
 import argparse
 
-from pyckt.core import (
+import pytest
+
+from core import (
+    CellTripleId,
     Circuit,
     Device,
     DeviceType,
-    TechType,
-    PinType,
-    Terminal,
-    Net,
-    NetId,
-    Supply,
-    SupplyType,
-    Instance,
-    CellTripleId,
-    Port,
-    PortType,
     DuplicateDeviceError,
     DuplicateNetError,
     DuplicatePortError,
+    Instance,
+    InvalidPinError,
+    Net,
+    NetId,
+    PinType,
+    Port,
+    PortType,
+    Supply,
+    SupplyType,
+    TechType,
+    Terminal,
     UnknownDeviceError,
     UnknownNetError,
-    UnknownPortError,
     UnknownParameterError,
-    InvalidPinError,
+    UnknownPortError,
     ValidationError,
 )
-from pyckt.core.common import AbstractAnalysis
-
+from core.common import AbstractAnalysis
 
 # ── helpers ───────────────────────────────────────────────────────────────
 

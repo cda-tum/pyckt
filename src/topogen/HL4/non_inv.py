@@ -4,13 +4,13 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Iterator
 
-from pyckt.utils.loguru_loader import setup_logger
 from topogen.common.circuit import *
 from topogen.HL3.l import LoadManager
 from topogen.HL3.sb import StageBiasManager
 from topogen.HL3.tc import TransconductanceManager
 from topogen.HL4.non_inv_connections import *
 from topogen.HL4.non_inv_netdef import *
+from utils.loguru_loader import setup_logger
 
 logger = setup_logger()
 

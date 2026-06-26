@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from pyckt.core import Device, DeviceType, TechType
-
-from pyckt.sizing.problem import SizingProblem
-from pyckt.sizing.result import DeviceSizing
-import pyckt.sizing.solver as solver_mod
-from pyckt.sizing.solver import SizingSearchStrategy, SizingSolver
-from pyckt.sizing.variables import SizingVariableRegistry
-
-from pyckt.io.technology_parser import TransistorTechParams
+import sizing.solver as solver_mod
+from ckt_io.technology_parser import TransistorTechParams
+from core import Device, DeviceType, TechType
+from sizing.problem import SizingProblem
+from sizing.result import DeviceSizing
+from sizing.solver import SizingSearchStrategy, SizingSolver
+from sizing.variables import SizingVariableRegistry
 
 
 def _nmos_tech() -> TransistorTechParams:
@@ -404,7 +402,7 @@ def test_status_to_text_numeric_fallback(monkeypatch):
 
 def test_estimate_performance_no_gm_gds_branch():
 	"""_estimate_performance takes the else branch (gain_db=0) when gm or gds is absent (line 320)."""
-	from pyckt.sizing.result import SizingResult, DeviceSizing
+	from sizing.result import DeviceSizing, SizingResult
 
 	result = SizingResult()
 	result.devices = {
@@ -432,7 +430,7 @@ def test_safe_solver_stat_returns_default_when_attr_missing():
 def test_estimate_performance_with_no_devices_returns_default():
 	"""`_estimate_performance` short-circuits to a default
 	`ExpectedPerformance()` when `result.devices` is empty (line 319)."""
-	from pyckt.sizing.result import SizingResult
+	from sizing.result import SizingResult
 
 	solver = SizingSolver(SizingProblem())
 	result = SizingResult()
@@ -451,7 +449,7 @@ def test_estimate_performance_with_no_devices_returns_default():
 
 def test_sizing_result_summary_with_objective_value():
 	"""SizingResult.summary() includes the objective line when objective_value is set (line 257)."""
-	from pyckt.sizing.result import SizingResult, DeviceSizing
+	from sizing.result import DeviceSizing, SizingResult
 
 	result = SizingResult(solver_status="optimal", objective_value=42.5)
 	result.devices["mx"] = DeviceSizing("mx", width=5, length=2, current=100_000,
@@ -466,7 +464,8 @@ def test_sizing_result_summary_with_objective_value():
 def test_meets_specs_all_pass():
 	"""meets_specs() returns True when all active spec fields are satisfied."""
 	from types import SimpleNamespace
-	from pyckt.sizing.result import SizingResult, DeviceSizing, ExpectedPerformance
+
+	from sizing.result import DeviceSizing, ExpectedPerformance, SizingResult
 
 	result = SizingResult(
 		devices={"mx": DeviceSizing("mx", width=5, length=2, current=100_000,
@@ -499,7 +498,8 @@ def test_meets_specs_all_pass():
 def test_meets_specs_one_violation():
 	"""meets_specs() returns False when any single spec is violated."""
 	from types import SimpleNamespace
-	from pyckt.sizing.result import SizingResult, DeviceSizing, ExpectedPerformance
+
+	from sizing.result import DeviceSizing, ExpectedPerformance, SizingResult
 
 	result = SizingResult(
 		devices={"mx": DeviceSizing("mx", area=10)},
@@ -521,7 +521,8 @@ def test_meets_specs_one_violation():
 def test_meets_specs_zero_threshold_skipped():
 	"""meets_specs() treats zero-valued spec fields as unconstrained."""
 	from types import SimpleNamespace
-	from pyckt.sizing.result import SizingResult, DeviceSizing, ExpectedPerformance
+
+	from sizing.result import DeviceSizing, ExpectedPerformance, SizingResult
 
 	# performance has gain_db=0 but min_gain=0 so it should be skipped
 	result = SizingResult(
@@ -539,7 +540,8 @@ def test_meets_specs_zero_threshold_skipped():
 def test_meets_specs_no_devices_returns_false():
 	"""meets_specs() returns False for an infeasible (empty devices) result."""
 	from types import SimpleNamespace
-	from pyckt.sizing.result import SizingResult
+
+	from sizing.result import SizingResult
 
 	result = SizingResult(solver_status="infeasible")
 	specs = SimpleNamespace(
@@ -566,7 +568,7 @@ def _tiny_problem_with_bounds() -> SizingProblem:
 	physics.  The area variable is also pinned so the minimum-area objective
 	has a deterministic result.
 	"""
-	from pyckt.sizing.constraints import BoundsConstraint
+	from sizing.constraints import BoundsConstraint
 
 	problem = SizingProblem()
 	reg = problem.variables
@@ -611,7 +613,7 @@ def test_real_ortools_feasible_smoke():
 
 def test_real_ortools_infeasible_detection():
 	"""Phase 4: mutually exclusive bounds produce an infeasible result, not an exception."""
-	from pyckt.sizing.constraints import BoundsConstraint
+	from sizing.constraints import BoundsConstraint
 
 	problem = SizingProblem()
 	reg = problem.variables
@@ -632,7 +634,7 @@ def test_real_ortools_infeasible_detection():
 
 def test_real_ortools_objective_minimizes_area():
 	"""Phase 4: objective value reflects minimum total area when two widths are feasible."""
-	from pyckt.sizing.constraints import BoundsConstraint
+	from sizing.constraints import BoundsConstraint
 
 	# Build a problem where width can be 5 or 10 and length is fixed.
 	# CP-SAT min-area objective should pick width=5 (area = 5*2 = 10).

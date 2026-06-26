@@ -17,7 +17,13 @@ from pathlib import Path
 
 import pytest
 
-from pyckt.core import (
+from ckt_io.circuit_info_parser import (
+    CircuitInformation,
+    CircuitParameter,
+    Specifications,
+)
+from ckt_io.technology_parser import TechnologyParams, TransistorTechParams
+from core import (
     Circuit,
     Device,
     DeviceType,
@@ -29,14 +35,17 @@ from pyckt.core import (
     TechType,
     Terminal,
 )
-
-from pyckt.sizing.variables import (
-    SizingVariable,
-    SizingVariableRegistry,
-    TransistorVariables,
-    VoltageVariable,
+from partitioning.result import PartitionResult, PartType, StageType
+from recognition.model import (
+    ArrayStructure,
+    StructureId,
 )
-from pyckt.sizing.constraints import (
+from recognition.rulegen import (
+    EqualLengthRule,
+    EqualWLRule,
+    MatchedPairRule,
+)
+from sizing.constraints import (
     AreaEquation,
     BoundsConstraint,
     Constraint,
@@ -46,8 +55,8 @@ from pyckt.sizing.constraints import (
     KCLConstraints,
     KCLEquation,
     LinearConstraint,
-    OverdriveEquation,
     OutputConductanceEquation,
+    OverdriveEquation,
     PhaseMarginConstraint,
     PolesAndZerosConstraints,
     ProductConstraint,
@@ -58,29 +67,17 @@ from pyckt.sizing.constraints import (
     TransconductanceEquation,
     TransistorConstraints,
 )
-from pyckt.sizing.result import (
+from sizing.problem import SizingProblem
+from sizing.result import (
     DeviceSizing,
     ExpectedPerformance,
     SizingResult,
 )
-from pyckt.sizing.problem import SizingProblem
-
-from pyckt.io.technology_parser import TransistorTechParams, TechnologyParams
-
-from recognition.model import (
-    ArrayStructure,
-    StructureId,
-)
-from recognition.rulegen import (
-    EqualLengthRule,
-    EqualWLRule,
-    MatchedPairRule,
-)
-from partitioning.result import PartitionResult, PartType, StageType
-from pyckt.io.circuit_info_parser import (
-    CircuitParameter,
-    CircuitInformation,
-    Specifications,
+from sizing.variables import (
+    SizingVariable,
+    SizingVariableRegistry,
+    TransistorVariables,
+    VoltageVariable,
 )
 
 
@@ -129,7 +126,7 @@ class _NoVarAdapter(_MockAdapter):
 
 def test_solver_call_missing_method_raises_type_error():
     """_solver_call raises TypeError when the adapter lacks the requested method."""
-    from pyckt.sizing.constraints import _solver_call
+    from sizing.constraints import _solver_call
     adapter = object()  # has no add_equality
     with pytest.raises(TypeError, match="add_equality"):
         _solver_call(adapter, "add_equality", 1, 2)
@@ -137,8 +134,8 @@ def test_solver_call_missing_method_raises_type_error():
 
 def test_ratio_constraint_post_no_var_raises():
     """RatioConstraint.post raises TypeError when adapter has no `var()`."""
-    from pyckt.sizing.constraints import RatioConstraint
-    from pyckt.sizing.variables import SizingVariable
+    from sizing.constraints import RatioConstraint
+    from sizing.variables import SizingVariable
     a = SizingVariable("a", 1, 100)
     b = SizingVariable("b", 1, 100)
     c = SizingVariable("c", 1, 100)
@@ -150,9 +147,9 @@ def test_ratio_constraint_post_no_var_raises():
 
 def test_current_equation_post_no_var_raises():
     """CurrentEquation.post raises TypeError when adapter has no `var()`."""
-    from pyckt.sizing.constraints import CurrentEquation
-    from pyckt.sizing.variables import TransistorVariables
-    from pyckt.core.device import TechType
+    from core.device import TechType
+    from sizing.constraints import CurrentEquation
+    from sizing.variables import TransistorVariables
     tv = TransistorVariables("mx", TechType.N, _nmos_tech())
     constraint = CurrentEquation(tv, _nmos_tech())
     with pytest.raises(TypeError, match="var"):
@@ -161,9 +158,9 @@ def test_current_equation_post_no_var_raises():
 
 def test_transconductance_equation_post_no_var_raises():
     """TransconductanceEquation.post raises TypeError when adapter has no `var()`."""
-    from pyckt.sizing.constraints import TransconductanceEquation
-    from pyckt.sizing.variables import TransistorVariables
-    from pyckt.core.device import TechType
+    from core.device import TechType
+    from sizing.constraints import TransconductanceEquation
+    from sizing.variables import TransistorVariables
     tv = TransistorVariables("mx", TechType.N, _nmos_tech())
     constraint = TransconductanceEquation(tv)
     with pytest.raises(TypeError, match="var"):
@@ -973,13 +970,16 @@ class TestSizingProblemIntegration:
 
     @pytest.fixture(scope="class")
     def problem(self):
-        from pyckt.io import (
-            HSpiceMapping, HSpiceParser, SupplyNetConfig,
-            load_device_types, load_circuit_information,
+        from ckt_io import (
+            HSpiceMapping,
+            HSpiceParser,
+            SupplyNetConfig,
+            load_circuit_information,
+            load_device_types,
         )
-        from recognition.library import Library
-        from recognition.recognizer import StructureRecognizer, RuleGenerator
         from partitioning.partitioner import Partitioner
+        from recognition.library import Library
+        from recognition.recognizer import RuleGenerator, StructureRecognizer
 
         device_types = load_device_types(DATA / "deviceTypes.xcat")
         mapping = HSpiceMapping.from_file(DATA / "HSpiceMapping.xcat")

@@ -30,9 +30,14 @@ dev = [
     "mypy>=1.7",
     "build>=1.0",
 ]
+docs = [
+    "sphinx>=7.0",
+    "furo>=2024.1",
+    "myst-parser>=2.0",
+]
 
 [project.scripts]
-pyckt = "pyckt.cli:main"
+pyckt = "cli:main"
 
 # ─────────────────────────────────────────────────────────────────────
 # Packaging
@@ -40,6 +45,11 @@ pyckt = "pyckt.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# ``cli`` is a top-level module (src/cli.py), not a package, so packages.find
+# does not pick it up — declare it explicitly for wheel builds.
+[tool.setuptools]
+py-modules = ["cli"]
 
 [tool.setuptools.package-data]
 data = ["**/*.xml"]

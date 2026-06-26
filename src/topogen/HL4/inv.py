@@ -3,9 +3,9 @@
 from pathlib import Path
 from typing import Iterator
 
-from pyckt.utils.loguru_loader import setup_logger
 from topogen.common.circuit import *
 from topogen.HL2.inv import InverterManager
+from utils.loguru_loader import setup_logger
 
 logger = setup_logger()
 

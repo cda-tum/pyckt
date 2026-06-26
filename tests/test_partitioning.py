@@ -11,10 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from pyckt.core.device import TechType
-from pyckt.core.net import Supply, SupplyType
-from pyckt.io.circuit_info_parser import CircuitParameter
-
+from ckt_io.circuit_info_parser import CircuitParameter
+from core.device import Device, DeviceType, TechType
+from core.net import Supply, SupplyType
+from partitioning.partitioner import Partitioner
+from partitioning.result import PartitionResult, PartType, StageType
+from partitioning.writer import AcstPartitionXMLWriter, PartitionXMLWriter
 from recognition.model import (
     ArrayStructure,
     PairStructure,
@@ -24,13 +26,6 @@ from recognition.model import (
     StructureNet,
     StructurePin,
 )
-
-from pyckt.core.device import Device, DeviceType
-
-from partitioning.partitioner import Partitioner
-from partitioning.result import PartitionResult, PartType, StageType
-from partitioning.writer import AcstPartitionXMLWriter, PartitionXMLWriter
-
 
 # ═══════════════════════════════════════════════════════════════════════
 #  Helpers for building mock structures
@@ -266,7 +261,10 @@ class TestAcstPartitionXMLWriter:
 
     def _result(self):
         from partitioning.acst_parts import (
-            AcstPartitionResult, BiasPart, CapacitancePart, LoadPart,
+            AcstPartitionResult,
+            BiasPart,
+            CapacitancePart,
+            LoadPart,
             TransconductancePart,
         )
         net = StructureNet("net36")
@@ -349,11 +347,11 @@ class TestPartitioningIntegration:
 
     @pytest.fixture(scope="class")
     def pipeline(self):
-        from pyckt.io.device_types_parser import load_device_types
-        from pyckt.io.hspice_mapping import HSpiceMapping
-        from pyckt.io.hspice_parser import HSpiceParser
-        from pyckt.io.supply_nets_parser import SupplyNetConfig
-        from pyckt.io.circuit_info_parser import parse_circuit_parameters
+        from ckt_io.circuit_info_parser import parse_circuit_parameters
+        from ckt_io.device_types_parser import load_device_types
+        from ckt_io.hspice_mapping import HSpiceMapping
+        from ckt_io.hspice_parser import HSpiceParser
+        from ckt_io.supply_nets_parser import SupplyNetConfig
         from recognition.library import Library
         from recognition.recognizer import StructureRecognizer
 

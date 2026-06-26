@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from pyckt.core.device import DeviceType
+from core.device import DeviceType
 
 from .result import PartitionResult, PartType, StageType
 
 if TYPE_CHECKING:
-    from pyckt.io.circuit_info_parser import CircuitParameter
+    from ckt_io.circuit_info_parser import CircuitParameter
     from recognition.model import Structure, StructureCircuits
 
 

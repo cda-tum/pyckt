@@ -1,6 +1,6 @@
 """Structure Recognition Engine — bottom-up hierarchical recognition.
 
-Transforms a flat :class:`~pyckt.core.Circuit` into a hierarchical
+Transforms a flat :class:`~core.Circuit` into a hierarchical
 :class:`StructureCircuits` overlay by matching library templates:
 
     Level 0 → Arrays  |  Levels 1–3 → Pairs (with dominance resolution)
@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from pyckt.core.device import Device, PinType
-from pyckt.core.net import Net
+from core.device import Device, PinType
+from core.net import Net
 
 from .library import (
     PERSISTENCE_MAX,
@@ -41,7 +41,7 @@ from .model import (
 )
 
 if TYPE_CHECKING:
-    from pyckt.core.circuit import Circuit
+    from core.circuit import Circuit
 
 
 # ── Helpers ──────────────────────────────────────────────────────────

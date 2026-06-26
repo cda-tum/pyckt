@@ -1,4 +1,4 @@
-"""Tests for `pyckt.cli` — subcommand parser + Result wrapper (Week 9 Phase 4)."""
+"""Tests for `cli` — subcommand parser + Result wrapper (Week 9 Phase 4)."""
 from __future__ import annotations
 
 import argparse
@@ -6,8 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pyckt.cli import ANALYSIS_REGISTRY, Result, build_parser, run
-
+from cli import ANALYSIS_REGISTRY, Result, build_parser, run
 
 # ---------------------------------------------------------------------------
 # build_parser — shape & subcommand discovery
@@ -148,7 +147,7 @@ class TestRun:
     def test_returns_result_namedtuple(self, tmp_path):
         mock_instance, _, mock_import = self._patch_analysis("toplibgen")
         with (
-            patch("pyckt.cli.setup_logger"),
+            patch("cli.setup_logger"),
             patch("builtins.__import__", side_effect=mock_import),
         ):
             result = run([
@@ -162,7 +161,7 @@ class TestRun:
     def test_run_calls_initialize_compute_write_in_order(self, tmp_path):
         mock_instance, _, mock_import = self._patch_analysis("toplibgen")
         with (
-            patch("pyckt.cli.setup_logger"),
+            patch("cli.setup_logger"),
             patch("builtins.__import__", side_effect=mock_import),
         ):
             run(["--log-level-console", "OFF",
@@ -175,7 +174,7 @@ class TestRun:
         mock_instance, _, mock_import = self._patch_analysis("toplibgen")
         mock_instance.initialize.side_effect = ValueError("boom")
         with (
-            patch("pyckt.cli.setup_logger"),
+            patch("cli.setup_logger"),
             patch("builtins.__import__", side_effect=mock_import),
         ):
             result = run([
@@ -188,7 +187,7 @@ class TestRun:
     def test_run_prints_runtime_summary_on_success(self, tmp_path, capsys):
         _, _, mock_import = self._patch_analysis("toplibgen")
         with (
-            patch("pyckt.cli.setup_logger"),
+            patch("cli.setup_logger"),
             patch("builtins.__import__", side_effect=mock_import),
         ):
             run(["--log-level-console", "OFF",
@@ -206,7 +205,7 @@ class TestMain:
     It must propagate `run().returncode` through `sys.exit`."""
 
     def test_main_exits_with_run_returncode(self):
-        from pyckt import cli
+        import cli
         with patch.object(cli, "run", return_value=Result(returncode=7, data=None)):
             with pytest.raises(SystemExit) as exc:
                 cli.main()

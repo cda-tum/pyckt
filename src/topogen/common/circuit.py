@@ -7,7 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Callable, List, Tuple, Union
 
-from pyckt.utils.loguru_loader import Logger
+from utils.loguru_loader import Logger
 
 logger = Logger()
 

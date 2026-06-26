@@ -5,8 +5,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from pyckt.sizing.result import DeviceSizing, ExpectedPerformance, SizingResult
-from pyckt.sizing.writer import (
+from sizing.result import DeviceSizing, ExpectedPerformance, SizingResult
+from sizing.writer import (
     AcstSizingXMLWriter,
     SizedCircuitWriter,
     SizingXMLWriter,

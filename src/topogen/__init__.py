@@ -26,11 +26,11 @@ HL5  Op-amps                 ``OpAmpFactory`` (one- + two-stage assemblies)
 Main classes
 ------------
 * :class:`~topogen.common.circuit.Circuit` — the topogen-side circuit
-  data model (distinct from :class:`pyckt.core.Circuit`)
+  data model (distinct from :class:`core.Circuit`)
 * :class:`~topogen.analysis.TopLibGenAnalysis` — the
   ``--analysis toplibgen`` CLI dispatch endpoint that drives the full
   HL2–HL5 generator into a
-  :class:`pyckt.synthesis.TopologyLibrary` (see :mod:`pyckt.cli`).
+  :class:`synthesis.TopologyLibrary` (see :mod:`cli`).
 
 Typical usage
 -------------
@@ -41,5 +41,5 @@ Typical usage
     nmos_dp = DiffPairManager().getDifferentialPairNmos()
 
 For programmatic library generation see
-:class:`pyckt.synthesis.TopologyLibraryGenerator`.
+:class:`synthesis.TopologyLibraryGenerator`.
 """

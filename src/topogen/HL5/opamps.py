@@ -7,10 +7,10 @@
 from pathlib import Path
 from typing import Iterator, Union
 
-from pyckt.utils.loguru_loader import setup_logger
 from topogen.common.circuit import *
 from topogen.HL4.inv import InvertingStageManager
 from topogen.HL4.non_inv import NonInvertingStageManager
+from utils.loguru_loader import setup_logger
 
 logger = setup_logger()
 

@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-from pyckt.utils.loguru_loader import setup_logger
 from topogen.common.circuit import *
 from topogen.common.circuit import (
     Circuit,
@@ -14,6 +13,7 @@ from topogen.common.circuit import (
 )
 from topogen.HL2.cb import CurrentBiasManager
 from topogen.HL2.vb import VoltageBiasManager
+from utils.loguru_loader import setup_logger
 
 # fmt: off
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pyckt.core.common import AbstractAnalysis
+from core.common import AbstractAnalysis
 
 _log = logging.getLogger(__name__)
 
@@ -54,11 +54,11 @@ class PartitioningAnalysis(AbstractAnalysis):
     # ------------------------------------------------------------------
 
     def initialize(self) -> None:
-        from pyckt.io.circuit_info_parser import parse_circuit_parameters
-        from pyckt.io.device_types_parser import load_device_types
-        from pyckt.io.hspice_mapping import HSpiceMapping
-        from pyckt.io.hspice_parser import HSpiceParser
-        from pyckt.io.supply_nets_parser import SupplyNetConfig
+        from ckt_io.circuit_info_parser import parse_circuit_parameters
+        from ckt_io.device_types_parser import load_device_types
+        from ckt_io.hspice_mapping import HSpiceMapping
+        from ckt_io.hspice_parser import HSpiceParser
+        from ckt_io.supply_nets_parser import SupplyNetConfig
         from recognition.library import Library
         from recognition.recognizer import StructureRecognizer
 

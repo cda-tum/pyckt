@@ -10,20 +10,20 @@ Python dataclasses, covering:
   - Dominance relations (regular + current-mirror)
 """
 
-import pytest
 from pathlib import Path
 
+import pytest
+
 from recognition.library import (
-    Library,
+    _DEFAULT_LIB_DIR,
+    PERSISTENCE_MAX,
     ArrayLibrary,
-    PairLibrary,
-    StructurePinType,
     DevicePinType,
     HierarchyEntry,
-    PERSISTENCE_MAX,
-    _DEFAULT_LIB_DIR,
+    Library,
+    PairLibrary,
+    StructurePinType,
 )
-
 
 # ── Shared fixtures ────────────────────────────────────────────────────
 
@@ -300,6 +300,7 @@ class TestMissingBranches:
     def test_text_helper_none_text(self):
         """_text() returns '' when elem.text is None (library.py line 374)."""
         import xml.etree.ElementTree as ET
+
         from recognition.library import _text
         elem = ET.fromstring("<item/>")
         assert elem.text is None
@@ -308,7 +309,8 @@ class TestMissingBranches:
     def test_persistence_fallback_child_element(self, tmp_path):
         """pairLibraryItem with <persistence> child element (not attribute) is parsed (line 719)."""
         from pathlib import Path
-        from recognition.library import PairLibrary, PERSISTENCE_MAX
+
+        from recognition.library import PERSISTENCE_MAX, PairLibrary
 
         # Minimal AnalogLibrary.xml with child-element persistence form
         xml = """\

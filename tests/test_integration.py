@@ -13,16 +13,14 @@ from pathlib import Path
 
 import pytest
 
-from pyckt.io.device_types_parser import load_device_types
-from pyckt.io.hspice_mapping import HSpiceMapping
-from pyckt.io.hspice_parser import HSpiceParser
-from pyckt.io.supply_nets_parser import SupplyNetConfig
-
+from ckt_io.device_types_parser import load_device_types
+from ckt_io.hspice_mapping import HSpiceMapping
+from ckt_io.hspice_parser import HSpiceParser
+from ckt_io.supply_nets_parser import SupplyNetConfig
 from recognition.library import Library
 from recognition.recognizer import StructureRecognizer
 from recognition.rulegen import RuleGenerator
-from recognition.writer import StructRecXMLWriter, RuleXMLWriter
-
+from recognition.writer import RuleXMLWriter, StructRecXMLWriter
 
 # ── Fixtures ─────────────────────────────────────────────────────────
 

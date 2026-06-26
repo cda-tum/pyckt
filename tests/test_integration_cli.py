@@ -7,7 +7,7 @@ One ``Test{Mode}CLI`` class per CLI subcommand, each driving the full
 Discipline
 ----------
 
-* In-process invocation via :func:`pyckt.cli.run` — no subprocess.
+* In-process invocation via :func:`cli.run` — no subprocess.
 * Tests are *integration* tests: they assert end-to-end behaviour
   (exit code, output file present, one or two domain invariants).
   Unit-level coverage of each analysis class lives next door in
@@ -26,8 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from pyckt.cli import run
-
+from cli import run
 
 # ═══════════════════════════════════════════════════════════════════════
 # Shared session-scoped library fixture (used by toplibgen + synthesis)

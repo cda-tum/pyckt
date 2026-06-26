@@ -18,7 +18,7 @@ Main classes
 * :class:`~recognition.analysis.StructRecAnalysis` /
   :class:`~recognition.analysis.RuleGenAnalysis` — the
   ``--analysis structrec`` and ``--analysis rulegen`` CLI dispatch
-  endpoints (see :mod:`pyckt.cli`)
+  endpoints (see :mod:`cli`)
 
 Typical usage
 -------------

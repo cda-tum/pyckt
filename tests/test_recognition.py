@@ -1,5 +1,6 @@
 import unittest
-from pyckt.core.circuit import Circuit
+
+from core.circuit import Circuit
 from recognition.library import ArrayLibrary, Library, PairLibrary
 from recognition.model import StructureCircuits
 from recognition.recognizer import StructureRecognizer

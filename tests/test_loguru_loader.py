@@ -1,6 +1,7 @@
-import pyckt.utils.loguru_loader as loguru_loader
-from loguru import logger as loguru_logger
 import pytest
+from loguru import logger as loguru_logger
+
+import utils.loguru_loader as loguru_loader
 
 
 @pytest.fixture(autouse=True)

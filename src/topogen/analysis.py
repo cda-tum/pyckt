@@ -2,9 +2,9 @@
 
 :class:`TopLibGenAnalysis` is the top-level orchestrator dispatched by
 ``--analysis toplibgen``.  It wraps
-:class:`~pyckt.synthesis.generator.TopologyLibraryGenerator` in the
+:class:`~synthesis.generator.TopologyLibraryGenerator` in the
 standard ``initialize → compute → write`` lifecycle of
-:class:`~pyckt.core.common.AbstractAnalysis`.
+:class:`~core.common.AbstractAnalysis`.
 
 Pipeline
 --------
@@ -12,10 +12,10 @@ Pipeline
    generator with on-disk writes deferred (the generator runs in
    in-memory mode and disk persistence happens in ``write()``).
 2. **compute()** — call
-   :meth:`~pyckt.synthesis.generator.TopologyLibraryGenerator.generate`
+   :meth:`~synthesis.generator.TopologyLibraryGenerator.generate`
    to enumerate every valid op-amp topology.  Populates ``self.library``.
 3. **write()** — flush ``self.library`` to ``args.output_dir`` via
-   :meth:`~pyckt.synthesis.library.TopologyLibrary.to_directory`.
+   :meth:`~synthesis.library.TopologyLibrary.to_directory`.
 
 C++ ref: ``Synthesis::TopologyLibraryGeneration::initialize / compute / write``
 """
@@ -25,8 +25,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pyckt.core.common import AbstractAnalysis
-from pyckt.synthesis.library import TopologyLibrary
+from core.common import AbstractAnalysis
+from synthesis.library import TopologyLibrary
 
 _log = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class TopLibGenAnalysis(AbstractAnalysis):
         # Build the generator with output_dir=None so on-disk writes happen
         # during write(), not compute() — preserving the standard
         # initialize/compute/write separation that AbstractAnalysis expects.
-        from pyckt.synthesis.generator import TopologyLibraryGenerator
+        from synthesis.generator import TopologyLibraryGenerator
         self.generator = TopologyLibraryGenerator(output_dir=None)
         _log.debug("TopLibGenAnalysis initialized: output_dir=%s", output_dir)
 

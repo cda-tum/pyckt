@@ -7,8 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from pyckt.sizing.analysis import AutomaticSizingAnalysis
-from pyckt.sizing.result import SizingResult
+from sizing.analysis import AutomaticSizingAnalysis
+from sizing.result import SizingResult
 
 
 class _Dummy:
@@ -122,11 +122,11 @@ def test_initialize_populates_pipeline(monkeypatch, tmp_path: Path):
             assert sc is struct_circuits
             return rules
 
-    monkeypatch.setattr("pyckt.io.HSpiceMapping", FakeHSpiceMapping)
-    monkeypatch.setattr("pyckt.io.SupplyNetConfig", FakeSupplyNetConfig)
-    monkeypatch.setattr("pyckt.io.load_device_types", fake_load_device_types)
-    monkeypatch.setattr("pyckt.io.HSpiceParser", FakeHSpiceParser)
-    monkeypatch.setattr("pyckt.io.load_circuit_information", fake_load_circuit_information)
+    monkeypatch.setattr("ckt_io.HSpiceMapping", FakeHSpiceMapping)
+    monkeypatch.setattr("ckt_io.SupplyNetConfig", FakeSupplyNetConfig)
+    monkeypatch.setattr("ckt_io.load_device_types", fake_load_device_types)
+    monkeypatch.setattr("ckt_io.HSpiceParser", FakeHSpiceParser)
+    monkeypatch.setattr("ckt_io.load_circuit_information", fake_load_circuit_information)
     monkeypatch.setattr("recognition.library.Library", FakeLibrary)
     monkeypatch.setattr("recognition.recognizer.StructureRecognizer", FakeStructureRecognizer)
     monkeypatch.setattr("recognition.recognizer.RuleGenerator", FakeRuleGenerator)
@@ -145,7 +145,7 @@ def test_initialize_populates_pipeline(monkeypatch, tmp_path: Path):
 
 
 def test_compute_success(monkeypatch):
-    import pyckt.sizing.analysis as analysis_mod
+    import sizing.analysis as analysis_mod
 
     args = _args()
     analysis = AutomaticSizingAnalysis(args)
@@ -189,7 +189,7 @@ def test_compute_handles_infeasible(monkeypatch):
     a result with an empty ``devices`` dict (infeasible / timeout), analysis
     should complete and leave ``result.devices`` empty rather than raising.
     """
-    import pyckt.sizing.analysis as analysis_mod
+    import sizing.analysis as analysis_mod
 
     analysis = AutomaticSizingAnalysis(_args())
     analysis.circuit = _Dummy()
@@ -219,7 +219,7 @@ def test_compute_handles_infeasible(monkeypatch):
 
 
 def test_write_uses_both_writers(monkeypatch, tmp_path: Path):
-    import pyckt.sizing.analysis as analysis_mod
+    import sizing.analysis as analysis_mod
 
     out_file = tmp_path / "sizing.xml"
     args = _args(output_file=str(out_file), circuit_netlist="input.hspice")

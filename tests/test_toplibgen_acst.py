@@ -2,10 +2,10 @@
 
 Covers the three pieces wired together for toplibgen Stage 2:
 
-* :class:`~pyckt.io.hspice_writer.AcstNetlistWriter` — circuit → ``.ckt`` lines
-* :meth:`~pyckt.synthesis.library.TopologySpec.acst_category` /
-  :meth:`~pyckt.synthesis.library.TopologySpec.acst_name_prefix`
-* :meth:`~pyckt.synthesis.library.TopologyLibrary.to_acst_directory`
+* :class:`~ckt_io.hspice_writer.AcstNetlistWriter` — circuit → ``.ckt`` lines
+* :meth:`~synthesis.library.TopologySpec.acst_category` /
+  :meth:`~synthesis.library.TopologySpec.acst_name_prefix`
+* :meth:`~synthesis.library.TopologyLibrary.to_acst_directory`
 * :meth:`~topogen.analysis.TopLibGenAnalysis.write` honouring ``output_format``
 
 The heavy end-to-end run of the real generator is marked ``slow``.
@@ -16,9 +16,9 @@ import argparse
 
 import pytest
 
-from pyckt.core import Circuit, Device, DeviceType, PinType, TechType, Terminal
-from pyckt.io.hspice_writer import AcstNetlistWriter
-from pyckt.synthesis.library import TopologyLibrary, TopologySpec
+from ckt_io.hspice_writer import AcstNetlistWriter
+from core import Circuit, Device, DeviceType, PinType, TechType, Terminal
+from synthesis.library import TopologyLibrary, TopologySpec
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from pyckt.core.device import Device, DeviceType, TechType
-from pyckt.core.net import Net, Supply
+from core.device import Device, DeviceType, TechType
+from core.net import Net, Supply
+from partitioning.net_index import StructureNetIndex
 from recognition.model import (
     ArrayStructure,
     StructureCircuits,
@@ -11,8 +12,6 @@ from recognition.model import (
     StructureNet,
     StructurePin,
 )
-
-from partitioning.net_index import StructureNetIndex
 
 
 def _array(name: str, idx: int, pins: dict[str, StructureNet],
@@ -95,10 +94,10 @@ def test_distinct_structures_when_two_pins_on_same_net():
 
 
 def test_index_on_real_cascode_ota(inputs_dir):
-    from pyckt.io.device_types_parser import load_device_types
-    from pyckt.io.hspice_mapping import HSpiceMapping
-    from pyckt.io.hspice_parser import HSpiceParser
-    from pyckt.io.supply_nets_parser import SupplyNetConfig
+    from ckt_io.device_types_parser import load_device_types
+    from ckt_io.hspice_mapping import HSpiceMapping
+    from ckt_io.hspice_parser import HSpiceParser
+    from ckt_io.supply_nets_parser import SupplyNetConfig
     from recognition.library import Library
     from recognition.recognizer import StructureRecognizer
 

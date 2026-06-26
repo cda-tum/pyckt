@@ -28,11 +28,11 @@ Fixtures
 --------
 
 * :func:`inputs_dir`     — root path for per-mode test inputs
-* :func:`device_types`   — :class:`~pyckt.core.DeviceTypeRegister`
-* :func:`hspice_mapping` — :class:`~pyckt.io.hspice_mapping.HSpiceMapping`
-* :func:`supply_nets`    — :class:`~pyckt.io.supply_nets_parser.SupplyNetConfig`
-* :func:`tech_params`    — :class:`~pyckt.io.technology_parser.TechnologyParams`
-* :func:`simple_ota`     — fully-parsed :class:`~pyckt.core.Circuit` for
+* :func:`device_types`   — :class:`~core.DeviceTypeRegister`
+* :func:`hspice_mapping` — :class:`~ckt_io.hspice_mapping.HSpiceMapping`
+* :func:`supply_nets`    — :class:`~ckt_io.supply_nets_parser.SupplyNetConfig`
+* :func:`tech_params`    — :class:`~ckt_io.technology_parser.TechnologyParams`
+* :func:`simple_ota`     — fully-parsed :class:`~core.Circuit` for
   the cascoded symmetrical CMOS OTA (the canonical test op-amp)
 
 All fixtures are session-scoped: they are constructed once per ``pytest``
@@ -43,7 +43,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Path constants — also importable directly:
@@ -82,29 +81,29 @@ def inputs_dir() -> Path:
 
 @pytest.fixture(scope="session")
 def device_types():
-    """Shared :class:`~pyckt.core.DeviceTypeRegister` for all tests."""
-    from pyckt.io.device_types_parser import load_device_types
+    """Shared :class:`~core.DeviceTypeRegister` for all tests."""
+    from ckt_io.device_types_parser import load_device_types
     return load_device_types(_AUTO_SIZING / "deviceTypes.xcat")
 
 
 @pytest.fixture(scope="session")
 def hspice_mapping():
-    """Shared :class:`~pyckt.io.hspice_mapping.HSpiceMapping` for all tests."""
-    from pyckt.io.hspice_mapping import HSpiceMapping
+    """Shared :class:`~ckt_io.hspice_mapping.HSpiceMapping` for all tests."""
+    from ckt_io.hspice_mapping import HSpiceMapping
     return HSpiceMapping.from_file(_AUTO_SIZING / "HSpiceMapping.xcat")
 
 
 @pytest.fixture(scope="session")
 def supply_nets():
-    """Shared :class:`~pyckt.io.supply_nets_parser.SupplyNetConfig` for all tests."""
-    from pyckt.io.supply_nets_parser import SupplyNetConfig
+    """Shared :class:`~ckt_io.supply_nets_parser.SupplyNetConfig` for all tests."""
+    from ckt_io.supply_nets_parser import SupplyNetConfig
     return SupplyNetConfig.from_file(_AUTO_SIZING / "supplyNets.xcat")
 
 
 @pytest.fixture(scope="session")
 def tech_params():
-    """Shared :class:`~pyckt.io.technology_parser.TechnologyParams` for sizing tests."""
-    from pyckt.io.technology_parser import TechnologyParams
+    """Shared :class:`~ckt_io.technology_parser.TechnologyParams` for sizing tests."""
+    from ckt_io.technology_parser import TechnologyParams
     return TechnologyParams.from_file(_AUTO_SIZING / "TechnologyFile.xml")
 
 
@@ -112,10 +111,10 @@ def tech_params():
 def simple_ota(hspice_mapping, supply_nets, device_types):
     """Parsed cascoded symmetrical CMOS OTA — the canonical test op-amp.
 
-    Returns a fully-wired :class:`~pyckt.core.Circuit` ready to feed into
+    Returns a fully-wired :class:`~core.Circuit` ready to feed into
     structure recognition, partitioning, sizing, or any other downstream
     pipeline test.
     """
-    from pyckt.io.hspice_parser import HSpiceParser
+    from ckt_io.hspice_parser import HSpiceParser
     parser = HSpiceParser(hspice_mapping, supply_nets, device_types)
     return parser.parse(_AUTO_SIZING / "cascodedSymmetricalCMOSOTA.hspice")

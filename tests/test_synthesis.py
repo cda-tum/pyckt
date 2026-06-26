@@ -27,11 +27,11 @@ from pathlib import Path
 
 import pytest
 
-from pyckt.core.device import TechType
-from pyckt.io.circuit_info_parser import Specifications
-from pyckt.sizing.result import ExpectedPerformance, SizingResult
-from pyckt.synthesis.engine import SynthesisEngine
-from pyckt.synthesis.library import TopologyLibrary, TopologySpec
+from ckt_io.circuit_info_parser import Specifications
+from core.device import TechType
+from sizing.result import ExpectedPerformance, SizingResult
+from synthesis.engine import SynthesisEngine
+from synthesis.library import TopologyLibrary, TopologySpec
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -80,19 +80,19 @@ def _engine(lib=None, complementary=None, fully_differential=None) -> SynthesisE
 
 class TestImports:
     def test_engine_direct_import(self):
-        from pyckt.synthesis.engine import SynthesisEngine
+        from synthesis.engine import SynthesisEngine
         assert SynthesisEngine is not None
 
     def test_engine_re_exported_from_synthesis(self):
-        from pyckt.synthesis import SynthesisEngine
+        from synthesis import SynthesisEngine
         assert SynthesisEngine is not None
 
     def test_analysis_direct_import(self):
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         assert SynthesisAnalysis is not None
 
     def test_analysis_re_exported_from_synthesis(self):
-        from pyckt.synthesis import SynthesisAnalysis
+        from synthesis import SynthesisAnalysis
         assert SynthesisAnalysis is not None
 
 
@@ -294,7 +294,7 @@ class TestSynthesize:
         lib.add(_spec(id=1, is_complementary=False))
         specs = Specifications(complementary=True)
         engine = SynthesisEngine(lib, specs)
-        with caplog.at_level(logging.WARNING, logger="pyckt.synthesis.engine"):
+        with caplog.at_level(logging.WARNING, logger="synthesis.engine"):
             engine.synthesize()
         assert any("no candidates" in msg.lower() for msg in caplog.messages)
 
@@ -323,7 +323,7 @@ class TestSynthesisAnalysis:
         return argparse.Namespace(**defaults)
 
     def test_analysis_imports(self):
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         assert SynthesisAnalysis is not None
 
     @pytest.mark.slow
@@ -331,7 +331,7 @@ class TestSynthesisAnalysis:
         # Slow (~20 s): with library_dir=None this fully generates a fresh
         # topology library via TopologyLibraryGenerator. Marker added in
         # Week 9 Phase 5; run with `pytest -m slow` to include.
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         args = self._make_args()
         analysis = SynthesisAnalysis(args)
         # Should not raise NotImplementedError; may raise other errors
@@ -343,14 +343,14 @@ class TestSynthesisAnalysis:
             pass  # any other exception is acceptable here
 
     def test_initialize_missing_spec_file_raises_value_error(self):
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         args = self._make_args(xml_spec_file=None)
         analysis = SynthesisAnalysis(args)
         with pytest.raises(ValueError, match="xml-spec-file"):
             analysis.initialize()
 
     def test_initialize_nonexistent_spec_file_raises(self):
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         args = self._make_args(xml_spec_file="/nonexistent/spec.xml")
         analysis = SynthesisAnalysis(args)
         with pytest.raises(FileNotFoundError):
@@ -358,7 +358,7 @@ class TestSynthesisAnalysis:
 
     def test_compute_no_longer_raises_not_implemented(self, tmp_path):
         """compute() should not raise NotImplementedError (may raise RuntimeError)."""
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         args = self._make_args()
         analysis = SynthesisAnalysis(args)
         try:
@@ -370,7 +370,7 @@ class TestSynthesisAnalysis:
 
     def test_write_no_longer_raises_not_implemented(self, tmp_path):
         """write() should not raise NotImplementedError (may raise RuntimeError)."""
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         args = self._make_args()
         analysis = SynthesisAnalysis(args)
         try:
@@ -381,14 +381,14 @@ class TestSynthesisAnalysis:
             pass
 
     def test_compute_before_initialize_raises_runtime(self):
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         args = self._make_args()
         analysis = SynthesisAnalysis(args)
         with pytest.raises(RuntimeError):
             analysis.compute()
 
     def test_write_before_compute_raises_runtime(self, tmp_path):
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
         args = self._make_args(output_dir=str(tmp_path))
         analysis = SynthesisAnalysis(args)
         # Inject library + specs but skip compute
@@ -399,7 +399,7 @@ class TestSynthesisAnalysis:
 
     def test_full_pipeline_with_pre_built_library(self, tmp_path):
         """initialize+compute+write end-to-end with a pre-built library dir."""
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
 
         # Build a tiny library on disk
         lib_dir = tmp_path / "lib"
@@ -417,7 +417,7 @@ class TestSynthesisAnalysis:
 
     def test_write_creates_json_with_rank_field(self, tmp_path):
         """synthesis_results.json entries must have a 'rank' field."""
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
 
         lib_dir = tmp_path / "lib"
         _lib_4().to_directory(str(lib_dir))
@@ -435,7 +435,7 @@ class TestSynthesisAnalysis:
 
     def test_write_creates_candidate_ckt_files(self, tmp_path):
         """write() must create one .ckt file per result in candidates/."""
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
 
         lib_dir = tmp_path / "lib"
         _lib_4().to_directory(str(lib_dir))
@@ -452,7 +452,7 @@ class TestSynthesisAnalysis:
 
     def test_compute_logs_warning_when_no_candidates(self, tmp_path, caplog):
         """compute() must emit a WARNING when synthesize() finds nothing."""
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
 
         # Library has only non-complementary entries; spec requires complementary
         lib_dir = tmp_path / "lib"
@@ -467,14 +467,14 @@ class TestSynthesisAnalysis:
         # Override specs to force complementary=True (no match)
         analysis.specifications = Specifications(complementary=True)
 
-        with caplog.at_level(logging.WARNING, logger="pyckt.synthesis.analysis"):
+        with caplog.at_level(logging.WARNING, logger="synthesis.analysis"):
             analysis.compute()
 
         assert any("no" in msg.lower() for msg in caplog.messages)
 
     def test_results_sorted_best_first_in_json(self, tmp_path):
         """synthesis_results.json must be ordered rank 1, 2, … with non-decreasing scores."""
-        from pyckt.synthesis.analysis import SynthesisAnalysis
+        from synthesis.analysis import SynthesisAnalysis
 
         lib_dir = tmp_path / "lib"
         _lib_4().to_directory(str(lib_dir))

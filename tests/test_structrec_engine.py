@@ -6,34 +6,53 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from pyckt.core.circuit import Circuit
-from pyckt.core.device import Device, DeviceType, PinType, TechType
-from pyckt.core.net import Net, NetId, Supply, SupplyType
-from pyckt.core.terminal import Terminal
-
-from recognition.model import (
-    ArrayStructure, PairStructure, StructureCircuits,
-    StructureId, StructureNet, StructurePin,
-)
+from core.circuit import Circuit
+from core.device import Device, DeviceType, PinType, TechType
+from core.net import Net, NetId, Supply, SupplyType
+from core.terminal import Terminal
 from recognition.library import (
-    ArrayConnection, ArrayConnectionRule, ArrayLibrary, ArrayLibraryItem,
-    CharacteristicConnection, DevicePinType, DominanceRelation,
-    HierarchyEntry, Library, PairConnectionRule, PairLibrary,
-    PairLibraryItem, PairNetRule, PairPinMapping, ChildPinType,
-    StructurePinType, PERSISTENCE_MAX,
+    PERSISTENCE_MAX,
+    ArrayConnection,
+    ArrayConnectionRule,
+    ArrayLibrary,
+    ArrayLibraryItem,
+    CharacteristicConnection,
+    ChildPinType,
+    DevicePinType,
+    DominanceRelation,
+    HierarchyEntry,
+    Library,
+    PairConnectionRule,
+    PairLibrary,
+    PairLibraryItem,
+    PairNetRule,
+    PairPinMapping,
+    StructurePinType,
+)
+from recognition.model import (
+    ArrayStructure,
+    PairStructure,
+    StructureCircuits,
+    StructureId,
+    StructureNet,
+    StructurePin,
 )
 from recognition.recognizer import (
-    ArrayRecognizer, PairRecognizer, StructureRecognizer,
+    ArrayRecognizer,
+    PairRecognizer,
+    StructureRecognizer,
 )
 from recognition.rulegen import (
-    RuleGenerator, EqualLengthRule, EqualWLRule, MatchedPairRule,
+    EqualLengthRule,
+    EqualWLRule,
+    MatchedPairRule,
+    RuleGenerator,
 )
 from recognition.writer import (
     AcstStructRecXMLWriter,
-    StructRecXMLWriter,
     RuleXMLWriter,
+    StructRecXMLWriter,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────
 

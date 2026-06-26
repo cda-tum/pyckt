@@ -25,15 +25,14 @@ import pytest
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-
 from topogen.common.circuit import (
     Circuit,
-    NormalTransistor,
-    DiodeTransistor,
-    DiffPair,
     CurrentBias,
-    VoltageBias,
+    DiffPair,
+    DiodeTransistor,
     Inverter,
+    NormalTransistor,
+    VoltageBias,
 )
 
 
@@ -161,8 +160,8 @@ class TestVoltageBiasManager:
         """When source is a diode and output is a normal transistor neither
         branch in `createTwoTransistorCircuit` matches → returns None
         (line 177)."""
-        from topogen.HL2.vb import VoltageBiasManager
         from topogen.common.circuit import DiodeTransistor, NormalTransistor
+        from topogen.HL2.vb import VoltageBiasManager
         result = VoltageBiasManager().createTwoTransistorCircuit(
             sourceTransistor=DiodeTransistor(techtype="n"),
             outputTransistor=NormalTransistor(techtype="n"),
@@ -521,7 +520,9 @@ class TestCircuitUtilityHelpers:
 
     def test_source_transistor_is_diode_one_transistor(self):
         from topogen.common.circuit import (
-            CurrentBias, DiodeTransistor, NormalTransistor,
+            CurrentBias,
+            DiodeTransistor,
+            NormalTransistor,
             sourceTransistorIsDiodeTransistor,
         )
         cb_d = CurrentBias(techtype="n"); cb_d.add_instance(DiodeTransistor(techtype="n"))
@@ -534,7 +535,9 @@ class TestCircuitUtilityHelpers:
         """In a two-transistor CurrentBias, the source transistor (the
         first instance) decides."""
         from topogen.common.circuit import (
-            CurrentBias, DiodeTransistor, NormalTransistor,
+            CurrentBias,
+            DiodeTransistor,
+            NormalTransistor,
             sourceTransistorIsDiodeTransistor,
         )
         cb1 = CurrentBias(techtype="n")
@@ -554,7 +557,8 @@ class TestSaveGraphvizFigure:
 
     def test_writes_well_formed_dot_file(self, tmp_path):
         from topogen.common.circuit import (
-            NormalTransistor, save_graphviz_figure,
+            NormalTransistor,
+            save_graphviz_figure,
         )
         f = tmp_path / "out.dot"
         save_graphviz_figure(NormalTransistor(techtype="n"), filename=f)
@@ -636,6 +640,7 @@ class TestCircuitGetPort:
 
     def test_get_port_raises_on_list_ports(self):
         import pytest
+
         from topogen.common.circuit import NormalTransistor
         nt = NormalTransistor(techtype="n")
         with pytest.raises(AttributeError):
@@ -731,11 +736,11 @@ class TestLoadPartManagerExtras:
     def test_create_three_transistor_load_parts_mixed_pmos(self):
         """Exercises `connectInstanceTerminalsOfThreeTransistorLoadPart`
         (line 183 — non-`dt` branch)."""
+        from topogen.HL2.cb import CurrentBiasManager
+        from topogen.HL2.vb import VoltageBiasManager
         from topogen.HL3.lp import (
             createThreeTransistorLoadPartsMixed,
         )
-        from topogen.HL2.vb import VoltageBiasManager
-        from topogen.HL2.cb import CurrentBiasManager
         oneVb = VoltageBiasManager().getOneTransistorVoltageBiasesPmos()
         twoCb = CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
         result = createThreeTransistorLoadPartsMixed(list(oneVb), list(twoCb))
@@ -758,8 +763,8 @@ class TestLoadPartManagerPrintHelpers:
         assert "# numbers: 2" in out
 
     def test_print_json_v2_with_graphviz(self, capsys):
-        from topogen.HL3.lp import print_json_v2
         from topogen.common.circuit import NormalTransistor
+        from topogen.HL3.lp import print_json_v2
         print_json_v2([NormalTransistor(techtype="n")], print_graphviz=True)
         out = capsys.readouterr().out
         assert "# numbers: 1" in out
@@ -773,7 +778,8 @@ class TestLoadManagerExtras:
 
     def test_create_simple_loads_pmos_and_nmos(self):
         from topogen.HL3.l import (
-            createSimpleMixedLoadPmos, createSimpleMixedLoadNmos,
+            createSimpleMixedLoadNmos,
+            createSimpleMixedLoadPmos,
         )
         # Realise iterators — touches `createOneLoadPartLoad` for many variants.
         loads_p = list(createSimpleMixedLoadPmos())
@@ -786,8 +792,8 @@ class TestLoadManagerExtras:
         the rare 4-transistor path.  Pass one explicitly so we exercise the
         `ts1.name.startswith("vb") and ts2.name.startswith("vb")` branches
         (HL3/l.py lines 224-225 + 259-263) of the nested helpers."""
-        from topogen.HL3.lp import LoadPartManager
         from topogen.HL3.l import createTwoLoadPartLoadWithoutGCC
+        from topogen.HL3.lp import LoadPartManager
 
         mng = LoadPartManager()
         four_tx_vb_vb = mng.createFourTransistorsLoadPartsLoadPartsPmosVoltageBiases()
@@ -804,7 +810,8 @@ class TestLoadManagerExtras:
         `loadPart.ts1.instances[0].name == "dt"` configuration that the
         load-connection helpers check for."""
         from topogen.common.circuit import (
-            DiodeTransistor, TransistorStack,
+            DiodeTransistor,
+            TransistorStack,
         )
         ts = TransistorStack(id=1, techtype="?")
         ts.add_instance(DiodeTransistor(techtype="n"))
@@ -824,8 +831,8 @@ class TestLoadManagerExtras:
     def test_addload2nets_with_inner_dt_branch(self):
         """`addLoad2Nets` line 132 — loadPart2 with component_count > 2 and
         ts1 wrapping a `DiodeTransistor` directly."""
-        from topogen.HL3.lp import createThreeTransistorLoadPart
         from topogen.HL3.l import addLoad2Nets
+        from topogen.HL3.lp import createThreeTransistorLoadPart
 
         dt_ts = self._make_dt_wrapped_transistor_stack()
         ts2 = self._get_two_component_ts()
@@ -839,8 +846,8 @@ class TestLoadManagerExtras:
         """`createOneLoadPartLoad` → exercises both
         `connectInstanceTerminalsOfLoadPart1WithoutGCC` (line 44) and
         `addLoad1WithoutGCCNets` (line 76)."""
-        from topogen.HL3.lp import createThreeTransistorLoadPart
         from topogen.HL3.l import createOneLoadPartLoad
+        from topogen.HL3.lp import createThreeTransistorLoadPart
 
         dt_ts = self._make_dt_wrapped_transistor_stack()
         ts2 = self._get_two_component_ts()
@@ -852,9 +859,9 @@ class TestLoadManagerExtras:
     def test_connect_loadpart2_with_dt_ts(self):
         """Module-level `connectInstanceTerminalsOfLoadPart2` line 154 — fires
         when loadPart2.ts1 directly wraps a `dt` and component_count > 2."""
-        from topogen.HL3.lp import createThreeTransistorLoadPart
-        from topogen.HL3.l import connectInstanceTerminalsOfLoadPart2
         from topogen.common.circuit import Load
+        from topogen.HL3.l import connectInstanceTerminalsOfLoadPart2
+        from topogen.HL3.lp import createThreeTransistorLoadPart
 
         dt_ts = self._make_dt_wrapped_transistor_stack()
         ts2 = self._get_two_component_ts()
@@ -877,10 +884,12 @@ class TestLoadManagerExtras:
         (one level deeper than the module-level helpers).  Build ts1 as a
         stack wrapping a single-diode VB so it goes ts → vb → dt."""
         from topogen.HL2.vb import VoltageBiasManager
-        from topogen.HL3.lp import (
-            LoadPartManager, createTransistorStack, createThreeTransistorLoadPart,
-        )
         from topogen.HL3.l import createTwoLoadPartLoadWithoutGCC
+        from topogen.HL3.lp import (
+            LoadPartManager,
+            createThreeTransistorLoadPart,
+            createTransistorStack,
+        )
 
         diode_vb = next(vb for vb in
                         VoltageBiasManager().getOneTransistorVoltageBiasesNmos()
@@ -902,10 +911,12 @@ class TestNonInvConnectionsDtPath:
     def _build_lp_with_dt_ts(self):
         """3-tx LoadPart whose ts1 directly wraps a DiodeTransistor."""
         from topogen.common.circuit import (
-            DiodeTransistor, TransistorStack,
+            DiodeTransistor,
+            TransistorStack,
         )
         from topogen.HL3.lp import (
-            LoadPartManager, createThreeTransistorLoadPart,
+            LoadPartManager,
+            createThreeTransistorLoadPart,
         )
         ts1 = TransistorStack(id=1, techtype="?")
         ts1.add_instance(DiodeTransistor(techtype="n"))
@@ -922,11 +933,12 @@ class TestNonInvConnectionsDtPath:
     def test_loadpart1_inner_dt_branch(self):
         """Line 110: stage connects `inner_output_load1` when ts1 directly
         wraps a `dt` and `component_count > 2`."""
+        from topogen.common.circuit import (
+            Load,
+            NonInvertingStage,
+        )
         from topogen.HL4.non_inv_connections import (
             connectInstanceTerminalsOfLoadPart1,
-        )
-        from topogen.common.circuit import (
-            Load, NonInvertingStage,
         )
         lp = self._build_lp_with_dt_ts()
         load = Load(id=1, techtype="?")
@@ -951,11 +963,13 @@ class TestNonInvConnectionsDtPath:
         """Line 146: `loadPart2.instances[0].component_count == 1 and
         loadPart2.instances[0].instances[0].name.startswith("dt")` —
         ts1 must directly wrap a `DiodeTransistor`."""
+        from topogen.common.circuit import (
+            Load,
+            LoadPart,
+            NonInvertingStage,
+        )
         from topogen.HL4.non_inv_connections import (
             connectInstanceTerminalsOfLoadPart2XXX,
-        )
-        from topogen.common.circuit import (
-            Load, NonInvertingStage, LoadPart,
         )
 
         lp = self._build_lp_with_dt_ts()
@@ -993,7 +1007,8 @@ class TestHL3LpVbBranch:
         and ts.OUT, and no `inner` net is wired up."""
         from topogen.HL2.vb import VoltageBiasManager
         from topogen.HL3.lp import (
-            createTransistorStack, createTwoTransistorLoadPartDifferentSources,
+            createTransistorStack,
+            createTwoTransistorLoadPartDifferentSources,
         )
         diode_vb = next(vb for vb in
                         VoltageBiasManager().getOneTransistorVoltageBiasesNmos()
@@ -1014,12 +1029,15 @@ class TestNonInvConnectionsComplementaryLoadNmos:
     235-238) — the `else` (no-GCC) path of the loadPart1.tech == "n" case."""
 
     def test_no_gcc_nmos_first_load_part(self):
+        from topogen.common.circuit import (
+            Load,
+            LoadPart,
+            NonInvertingStage,
+            NormalTransistor,
+            TransistorStack,
+        )
         from topogen.HL4.non_inv_connections import (
             connectInstanceTerminalsOfComplementaryLoad,
-        )
-        from topogen.common.circuit import (
-            Load, LoadPart, TransistorStack, NormalTransistor,
-            NonInvertingStage,
         )
 
         def _make_loadpart(tech):
@@ -1072,9 +1090,9 @@ class TestInvertingStageManagerExtras:
         assert isinstance(nmos, list) and nmos
 
     def test_create_non_inverting_self_bias_stage(self):
-        from topogen.HL4.inv import InvertingStageManager
-        from topogen.HL2.inv import InverterManager
         from topogen.common.circuit import InvertingStage
+        from topogen.HL2.inv import InverterManager
+        from topogen.HL4.inv import InvertingStageManager
         # Use the first analog inverter as the input.
         inv = InverterManager().getAnalogInverters()[0]
         stage = InvertingStageManager().createNonInvertingSelfBiasStage(inv)
@@ -1106,8 +1124,8 @@ class TestNonInvNetdefBranches:
         """`loadPart1 is None` branch — `load.get_instance_by_name("lp")[0]`
         must yield `None` for this to fire.  The bundled `Logger` shim has no
         ``error`` method, so we monkeypatch it before invoking."""
-        from topogen.HL4 import non_inv_netdef
         from topogen.common.circuit import Load, NonInvertingStage
+        from topogen.HL4 import non_inv_netdef
 
         captured = {}
         class _LoggerStub:
@@ -1130,10 +1148,12 @@ class TestNonInvNetdefBranches:
     def test_add_stage_bias_nets_no_instance_id_branch(self):
         """`stageBias.component_count != 1` AND `instance_id == -1`
         adds `inner_stagebias` (line 79)."""
-        from topogen.HL4.non_inv_netdef import addStageBiasNets
         from topogen.common.circuit import (
-            StageBias, NormalTransistor, NonInvertingStage,
+            NonInvertingStage,
+            NormalTransistor,
+            StageBias,
         )
+        from topogen.HL4.non_inv_netdef import addStageBiasNets
         # Build a two-transistor StageBias (component_count == 2) whose
         # `instance_id` is still the default `-1`.
         sb = StageBias(techtype="n")
@@ -1151,10 +1171,11 @@ class TestNonInvNetdefBranches:
         component_count = 3, ts1.instances[0] is a VB with a single dt inside —
         the exact shape required to enter the `name.startswith("dt")` branches
         in `addLoadPart1Nets` (line 39) and `addLoadPart2Nets` (line 60)."""
-        from topogen.HL2.vb import VoltageBiasManager
         from topogen.HL2.cb import CurrentBiasManager
+        from topogen.HL2.vb import VoltageBiasManager
         from topogen.HL3.lp import (
-            createTransistorStack, createThreeTransistorLoadPart,
+            createThreeTransistorLoadPart,
+            createTransistorStack,
         )
         vbs = list(VoltageBiasManager().getOneTransistorVoltageBiasesNmos())
         diode_vb = next(vb for vb in vbs if vb.isSingleDiodeTransistor)
@@ -1165,8 +1186,8 @@ class TestNonInvNetdefBranches:
 
     def test_add_load_part1_nets_with_diode_dt_branch(self):
         """Covers line 39: loadPart1.component_count > 2 + inner dt name."""
-        from topogen.HL4 import non_inv_netdef
         from topogen.common.circuit import Load, NonInvertingStage
+        from topogen.HL4 import non_inv_netdef
 
         lp = self._make_three_tx_loadpart_with_diode_vb_first()
 
@@ -1185,8 +1206,8 @@ class TestNonInvNetdefBranches:
 
     def test_add_load_part2_nets_with_diode_dt_branch(self):
         """Covers line 60: loadPart2.component_count > 2 + inner dt name."""
-        from topogen.HL4 import non_inv_netdef
         from topogen.common.circuit import Load, NonInvertingStage
+        from topogen.HL4 import non_inv_netdef
 
         lp = self._make_three_tx_loadpart_with_diode_vb_first()
 
@@ -1272,8 +1293,9 @@ class TestEveryGateNetNotConnectedHelper:
         """Mixed gate-techs → falls through to the `else` branch (line 812).
         Need ≥2 same-tech drains on the shared net so the inner predicates
         return True."""
-        from topogen.common.circuit import Circuit, NormalTransistor
         from topogen.common.circuit import (
+            Circuit,
+            NormalTransistor,
             everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType,
         )
         circ = Circuit(name="dummy", id=1, techtype="?")

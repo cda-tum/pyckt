@@ -6,7 +6,7 @@ assigns each structure a functional role within the op-amp:
 **undefined**.  The 12-step classifier in :class:`Partitioner` analyses
 net connectivity relative to the user-supplied input/output/bias pins
 and the supply rails (from
-:class:`~pyckt.io.circuit_info_parser.CircuitParameter`).
+:class:`~ckt_io.circuit_info_parser.CircuitParameter`).
 
 Main classes
 ------------
@@ -16,7 +16,7 @@ Main classes
 * :class:`StageType` — enum: FIRST / SECOND (for two-stage op-amps)
 * :class:`PartitionXMLWriter` — XML output writer
 * :class:`~partitioning.analysis.PartitioningAnalysis` — the
-  ``--analysis partitioning`` CLI dispatch endpoint (see :mod:`pyckt.cli`)
+  ``--analysis partitioning`` CLI dispatch endpoint (see :mod:`cli`)
 
 Typical usage
 -------------

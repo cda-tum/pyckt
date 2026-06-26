@@ -16,23 +16,21 @@ All tests use small hand-built circuits (no XML loading required).
 
 import pytest
 
-from pyckt.core.circuit import Circuit
-from pyckt.core.device import Device, DeviceType, TechType, PinType
-from pyckt.core.net import Net, NetId, Supply, SupplyType
-from pyckt.core.terminal import Terminal
-
+from core.circuit import Circuit
+from core.device import Device, DeviceType, PinType, TechType
+from core.net import Net, NetId, Supply, SupplyType
+from core.terminal import Terminal
 from recognition.model import (
-    StructureId,
-    StructurePin,
-    StructureNet,
-    Structure,
+    _PERSISTENCE_MAX,
     ArrayStructure,
     PairStructure,
+    Structure,
     StructureCircuit,
     StructureCircuits,
-    _PERSISTENCE_MAX,
+    StructureId,
+    StructureNet,
+    StructurePin,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════
 #  Helper factories
@@ -756,8 +754,8 @@ class TestMissingBranches:
 
     def test_structure_circuits_circuit_setter(self):
         """StructureCircuits.circuit setter stores the Circuit (line 964)."""
+        from core.circuit import Circuit
         from recognition.model import StructureCircuits
-        from pyckt.core.circuit import Circuit
         sc = StructureCircuits()
         c = Circuit("top")
         sc.circuit = c

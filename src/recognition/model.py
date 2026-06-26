@@ -2,7 +2,7 @@
 
 After the recognition engine matches library templates against a flat
 transistor netlist, the results are stored in this hierarchical model.
-The model overlays the original :class:`~pyckt.core.Circuit` with
+The model overlays the original :class:`~core.Circuit` with
 recognised analog structures (arrays, pairs, compound pairs) organised
 by hierarchy level.
 
@@ -11,7 +11,7 @@ Key classes
 - :class:`StructurePin` — a pin on a recognised structure, linked to a
   :class:`StructureNet`.
 - :class:`StructureNet` — an electrical node in the structure-level
-  view, backed by a :class:`~pyckt.core.Net`.
+  view, backed by a :class:`~core.Net`.
 - :class:`Structure` — abstract base for a recognised analog structure.
 - :class:`ArrayStructure` — leaf structure wrapping grouped devices.
 - :class:`PairStructure` — binary node combining two child structures.
@@ -32,12 +32,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterator, Sequence
 
-from pyckt.core.device import TechType
-from pyckt.core.net import Net, Supply
+from core.device import TechType
+from core.net import Net, Supply
 
 if TYPE_CHECKING:
-    from pyckt.core.circuit import Circuit
-    from pyckt.core.device import Device
+    from core.circuit import Circuit
+    from core.device import Device
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -170,7 +170,7 @@ class StructureNet:
     """An electrical node in the structure-level view.
 
     A :class:`StructureNet` is the structure-circuit analogue of a
-    :class:`~pyckt.core.Net`.  It wraps (optionally) a core net and
+    :class:`~core.Net`.  It wraps (optionally) a core net and
     collects all :class:`StructurePin` objects wired to it.
 
     Key queries
@@ -204,7 +204,7 @@ class StructureNet:
 
     @property
     def core_net(self) -> Net | None:
-        """The underlying :class:`~pyckt.core.Net`, or ``None`` if
+        """The underlying :class:`~core.Net`, or ``None`` if
         this structure net is synthetic (no core counterpart)."""
         return self._core_net
 
@@ -333,7 +333,7 @@ class Structure:
     transistor arrays.  Every structure has:
 
     * A :class:`StructureId` (template name + instance index).
-    * A :class:`~pyckt.core.TechType` (inferred from children).
+    * A :class:`~core.TechType` (inferred from children).
     * Named :class:`StructurePin` objects connected to
       :class:`StructureNet` objects.
     * An optional persistence value controlling how long the structure
@@ -934,7 +934,7 @@ class StructureCircuits:
     """Top-level container holding all hierarchy levels.
 
     This is the main output of the structure recognition engine.
-    It wraps the original :class:`~pyckt.core.Circuit` and overlays it
+    It wraps the original :class:`~core.Circuit` and overlays it
     with a set of :class:`StructureCircuit` instances, one per
     hierarchy level.
 

@@ -13,12 +13,12 @@ Coverage areas
 * ``__len__`` / ``__repr__``
 """
 import json
-import pytest
 from pathlib import Path
 
-from pyckt.core.device import TechType
-from pyckt.synthesis.library import TopologySpec, TopologyLibrary
+import pytest
 
+from core.device import TechType
+from synthesis.library import TopologyLibrary, TopologySpec
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -303,15 +303,15 @@ class TestTopologyConverter:
 
     @pytest.fixture(scope="class")
     def core_circuit(self, sample_opamp):
-        from pyckt.synthesis.converter import TopologyConverter
+        from synthesis.converter import TopologyConverter
         return TopologyConverter().convert(sample_opamp)
 
     def test_converter_imports(self):
-        from pyckt.synthesis.converter import TopologyConverter
+        from synthesis.converter import TopologyConverter
         assert TopologyConverter is not None
 
     def test_convert_returns_core_circuit(self, core_circuit):
-        from pyckt.core.circuit import Circuit as CoreCircuit
+        from core.circuit import Circuit as CoreCircuit
         assert isinstance(core_circuit, CoreCircuit)
 
     def test_convert_has_mosfets(self, core_circuit):
@@ -322,12 +322,12 @@ class TestTopologyConverter:
         assert len(core_circuit.mosfets) >= 4
 
     def test_convert_all_devices_are_mosfets(self, core_circuit):
-        from pyckt.core.device import DeviceType
+        from core.device import DeviceType
         for device in core_circuit.devices:
             assert device.device_type == DeviceType.MOSFET
 
     def test_convert_tech_types_valid(self, core_circuit):
-        from pyckt.core.device import TechType
+        from core.device import TechType
         for device in core_circuit.mosfets:
             assert device.tech_type in (TechType.N, TechType.P)
 
@@ -339,7 +339,8 @@ class TestTopologyConverter:
 
     def test_convert_does_not_mutate_source(self, sample_opamp):
         from copy import deepcopy
-        from pyckt.synthesis.converter import TopologyConverter
+
+        from synthesis.converter import TopologyConverter
         original_instance_count = len(sample_opamp.instances)
         TopologyConverter().convert(sample_opamp)
         # source must still have the same hierarchical structure (not flattened)
@@ -351,22 +352,22 @@ class TestTopologyConverter:
             assert name == f"M{i}"
 
     def test_convert_two_stage_opamp(self):
+        from synthesis.converter import TopologyConverter
         from topogen.HL5.opamps import createSimpleTwoStageOpAmps
-        from pyckt.synthesis.converter import TopologyConverter
         opamp = next(iter(createSimpleTwoStageOpAmps()))
         core_ckt = TopologyConverter().convert(opamp)
         # two-stage has more transistors than one-stage
         assert len(core_ckt.mosfets) >= 6
 
     def test_convert_empty_circuit_raises(self):
+        from synthesis.converter import TopologyConverter
         from topogen.common.circuit import Circuit
-        from pyckt.synthesis.converter import TopologyConverter
         empty = Circuit(name="empty", id=1, techtype="n")
         with pytest.raises(ValueError):
             TopologyConverter().convert(empty)
 
     def test_converter_re_exported_from_synthesis(self):
-        from pyckt.synthesis import TopologyConverter
+        from synthesis import TopologyConverter
         assert TopologyConverter is not None
 
 
@@ -387,13 +388,13 @@ class TestTopologyLibraryGenerator:
     @pytest.fixture(scope="class")
     def generated_lib(self, tmp_path_factory):
         """Generate the full library once and reuse across all tests in this class."""
-        from pyckt.synthesis.generator import TopologyLibraryGenerator
+        from synthesis.generator import TopologyLibraryGenerator
         d = tmp_path_factory.mktemp("generated_lib")
         gen = TopologyLibraryGenerator(output_dir=str(d))
         return gen.generate(), d
 
     def test_generator_imports(self):
-        from pyckt.synthesis.generator import TopologyLibraryGenerator
+        from synthesis.generator import TopologyLibraryGenerator
         assert TopologyLibraryGenerator is not None
 
     def test_generate_returns_topology_library(self, generated_lib):
@@ -451,13 +452,13 @@ class TestTopologyLibraryGenerator:
 
     def test_generate_idempotent(self, tmp_path):
         """Calling generate twice with different output dirs gives same count."""
-        from pyckt.synthesis.generator import TopologyLibraryGenerator
+        from synthesis.generator import TopologyLibraryGenerator
         lib1 = TopologyLibraryGenerator(str(tmp_path / "a")).generate()
         lib2 = TopologyLibraryGenerator(str(tmp_path / "b")).generate()
         assert lib1.size() == lib2.size()
 
     def test_generator_re_exported_from_synthesis(self):
-        from pyckt.synthesis import TopologyLibraryGenerator
+        from synthesis import TopologyLibraryGenerator
         assert TopologyLibraryGenerator is not None
 
     def test_opamp_factory_create_one_stage(self):
@@ -487,7 +488,7 @@ class TestGeneratorConverterExceptionHandlers:
     def raising_converter_class(self):
         """Swap the module-level `TopologyConverter` for a stand-in
         whose `.convert()` always raises."""
-        from pyckt.synthesis import converter as conv_mod
+        from synthesis import converter as conv_mod
 
         class _RaisingConverter:
             def convert(self, _opamp):
@@ -503,8 +504,8 @@ class TestGeneratorConverterExceptionHandlers:
     def test_convert_failures_dont_abort_generation(
         self, raising_converter_class, tmp_path
     ):
-        from pyckt.synthesis.generator import TopologyLibraryGenerator
-        from pyckt.synthesis import converter as conv_mod
+        from synthesis import converter as conv_mod
+        from synthesis.generator import TopologyLibraryGenerator
 
         gen = TopologyLibraryGenerator(output_dir=None)
         # `__init__` already instantiated a converter — re-bind to the

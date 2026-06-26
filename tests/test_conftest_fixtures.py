@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pyckt.core.circuit import Circuit
-from pyckt.core.device import DeviceTypeRegister
-from pyckt.io.hspice_mapping import HSpiceMapping
-from pyckt.io.supply_nets_parser import SupplyNetConfig
-from pyckt.io.technology_parser import TechnologyParams
+from ckt_io.hspice_mapping import HSpiceMapping
+from ckt_io.supply_nets_parser import SupplyNetConfig
+from ckt_io.technology_parser import TechnologyParams
+from core.circuit import Circuit
+from core.device import DeviceTypeRegister
 
 
 def test_inputs_dir_exists_and_has_seven_modes(inputs_dir: Path):
@@ -59,7 +59,7 @@ def test_session_scope_returns_same_instance(simple_ota, inputs_dir):
     """Sanity check: session-scoped fixtures return the same instance."""
     # Re-parsing the same file would create two distinct Circuit objects;
     # the session-scoped fixture must hand out the same one.
-    from pyckt.io.hspice_parser import HSpiceParser
+    from ckt_io.hspice_parser import HSpiceParser
     fresh_parser = HSpiceParser.__new__(HSpiceParser)
     # Just assert simple_ota is a single in-memory object; not None on second call
     assert simple_ota is simple_ota  # tautology by design (session scope)

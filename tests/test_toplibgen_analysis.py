@@ -9,7 +9,7 @@ Coverage areas
 * `write()` before `compute()` raises `RuntimeError`
 * End-to-end: full pipeline writes the expected sub-directory layout
 * Registry guard (Phase 4 expanded scope): NO entry in
-  `pyckt.cli.ANALYSIS_REGISTRY` raises `NotImplementedError` from
+  `cli.ANALYSIS_REGISTRY` raises `NotImplementedError` from
   `initialize()` — all 6 wrapper classes now dispatch to real engines
 """
 from __future__ import annotations
@@ -18,7 +18,6 @@ import argparse
 from pathlib import Path
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -172,7 +171,7 @@ class TestRegistryHasNoStubs:
     """
 
     def test_no_entry_raises_not_implemented(self):
-        from pyckt.cli import ANALYSIS_REGISTRY
+        from cli import ANALYSIS_REGISTRY
 
         empty = argparse.Namespace()
         for name, (module_path, class_name) in ANALYSIS_REGISTRY.items():

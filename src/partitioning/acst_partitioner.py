@@ -29,7 +29,7 @@ from .acst_parts import (
 from .net_index import StructureNetIndex
 
 if TYPE_CHECKING:
-    from pyckt.io.circuit_info_parser import CircuitParameter
+    from ckt_io.circuit_info_parser import CircuitParameter
     from recognition.model import Structure, StructureCircuits
 
 _DP = "MosfetDifferentialPair"
@@ -435,7 +435,7 @@ class AcstPartitioner:
 
     @staticmethod
     def _is_capacitor(s: "Structure") -> bool:
-        from pyckt.core.device import DeviceType
+        from core.device import DeviceType
         if "Capacitor" in s.name:
             return True
         devs = s.devices

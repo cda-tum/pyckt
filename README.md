@@ -64,40 +64,67 @@ pyckt toplibgen --output-dir ./topology_library
 
 For complete per-mode help, run `pyckt <mode> --help`.
 
-## In-process API
+## Python API
 
-The CLI dispatch is also exposed as a direct call so integration tests
-and pipelines can run analyses without a subprocess:
+Every mode is also a typed function under the top-level `pyckt` package, so
+notebooks and pipelines can run analyses in-process — no subprocess, no `argv`:
 
 ```python
-from pyckt.cli import run
+import pyckt
 
-result = run(["structrec", "--circuit", "circuit.hspice", ...])
-assert result.returncode == 0
-overlay = result.data.structure_circuits   # the StructureCircuits result
+overlay = pyckt.recognize(
+    circuit="circuit.hspice",
+    device_types="deviceTypes.xcat",
+    mapping="HSpiceMapping.xcat",
+    supply_nets="supplyNets.xcat",
+)                                          # → StructureCircuits
+
+result = pyckt.size(..., tech_file="TechnologyFile.xml",
+                    circuit_params="...xml", timeout=60, output="sized.xml")
+print(result.performance.gain_db)
 ```
 
-`result.data` is the executed `AbstractAnalysis` instance — read whatever
-attribute is meaningful for the mode (`.structure_circuits` /
-`.rules` / `.partition` / `.result` / `.results` / `.library`).
+Each function (`recognize`, `generate_rules`, `partition`, `size`,
+`synthesize`, `generate_topology_library`) takes `str`/`Path` paths plus
+keyword options and returns the mode's typed result object; writing to disk is
+optional (pass `output=` / `output_dir=`).  See `pyckt.api` for the full
+signatures, or build the Sphinx docs (below).
+
+A lower-level argv dispatcher, `cli.run([...])`, is also available for tests
+that want to drive the CLI in-process.
 
 ## Project layout
+
+The user-facing API lives in the `pyckt` package; the analysis engines are
+sibling top-level packages (so `recognition`, `partitioning`, `core`, … all
+import unprefixed).  `ckt_io` is the netlist/XML IO package — it is **not**
+named `io`, to avoid shadowing the standard-library `io` module.
 
 ```
 pyckt/
 ├── src/
-│   ├── pyckt/                Analysis-side packages
-│   │   ├── cli.py            Subcommand dispatcher (`pyckt <mode>`)
-│   │   ├── core/             Flat circuit + device + net data model
-│   │   ├── io/               HSpice + XML parsers and writers
-│   │   ├── sizing/           CP-SAT sizing solver
-│   │   └── synthesis/        Topology library + synthesis search
+│   ├── pyckt/                Public Python API (facade)
+│   │   ├── __init__.py       Re-exports recognize / partition / size / …
+│   │   └── api.py            Typed per-mode entry points
+│   ├── cli.py                Subcommand dispatcher (`pyckt <mode>`)
+│   ├── core/                 Flat circuit + device + net data model
+│   ├── ckt_io/               HSpice + XML parsers and writers
+│   ├── sizing/               CP-SAT sizing solver
+│   ├── synthesis/            Topology library + synthesis search
 │   ├── topogen/              Topology generation (HL2–HL5 factories)
 │   ├── recognition/          Structure recognition + rule generation
 │   ├── partitioning/         Functional classification of structures
 │   └── data/structrec/       Bundled XML pattern libraries (ships in wheel)
-├── tests/                    pytest suite (~710 tests)
-└── planning/                 Per-week design + progress documents
+├── docs/                     Sphinx documentation (build: see below)
+├── scripts/                  Per-mode standalone run scripts
+└── tests/                    pytest suite
+```
+
+## Documentation
+
+```bash
+pip install -e ".[docs]"
+sphinx-build -b html docs docs/_build/html
 ```
 
 ## Testing

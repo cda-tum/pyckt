@@ -2,22 +2,35 @@ from __future__ import annotations
 
 import pytest
 
-from pyckt.core import DeviceType, PinType, Supply, SupplyType, TechType
-from pyckt.core import Circuit, Device, Net, NetId, Terminal, Port, PortType
-from pyckt.io.device_types_parser import load_device_types
-from pyckt.io.hspice_mapping import HSpiceMapping, _repair_known_mapping_xml_issues
-from pyckt.io.hspice_parser import HSpiceParser
-from pyckt.io.hspice_writer import HSpiceWriter
-from pyckt.io.supply_nets_parser import SupplyNetConfig
-from pyckt.io.technology_parser import TechnologyParams, TransistorTechParams
-from pyckt.io.circuit_info_parser import (
-    CircuitInformation,
-    CircuitParameter,
-    Specifications,
-    load_circuit_information,
-    parse_circuit_parameters,
-    parse_specifications,
+from ckt_io.circuit_info_parser import (
+	CircuitInformation,
+	CircuitParameter,
+	Specifications,
+	load_circuit_information,
+	parse_circuit_parameters,
+	parse_specifications,
 )
+from ckt_io.device_types_parser import load_device_types
+from ckt_io.hspice_mapping import HSpiceMapping, _repair_known_mapping_xml_issues
+from ckt_io.hspice_parser import HSpiceParser
+from ckt_io.hspice_writer import HSpiceWriter
+from ckt_io.supply_nets_parser import SupplyNetConfig
+from ckt_io.technology_parser import TechnologyParams, TransistorTechParams
+from core import (
+	Circuit,
+	Device,
+	DeviceType,
+	Net,
+	NetId,
+	PinType,
+	Port,
+	PortType,
+	Supply,
+	SupplyType,
+	TechType,
+	Terminal,
+)
+
 
 def test_load_device_types_parses_reference_xcat() -> None:
 	register = load_device_types("tests/data/deviceTypes.xcat")
