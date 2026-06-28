@@ -7,4 +7,3 @@ recognize`` are equivalent.
 
 .. automodule:: pyckt.api
    :members:
-   :undoc-members:

@@ -19,21 +19,8 @@ class DeviceSizing:
     """Solved sizing values for one MOSFET.
 
     All values are in integer-scaled units consistent with
-    :mod:`sizing.variables`:
-
-    ======  ============
-    Field   Unit
-    ======  ============
-    width   μm
-    length  μm
-    current nA
-    vgs     mV
-    vds     mV
-    vov     mV
-    gm      nA/V
-    gds     nA/V
-    area    μm²
-    ======  ============
+    :mod:`sizing.variables`: ``width``/``length`` in μm, ``current`` in nA,
+    ``vgs``/``vds``/``vov`` in mV, ``gm``/``gds`` in nA/V, ``area`` in μm².
     """
 
     name: str
