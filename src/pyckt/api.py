@@ -14,7 +14,7 @@ Function                        Wraps                               Returns
 :func:`generate_rules`          ``RuleGenAnalysis``                 ``list`` of ``SizingRule``
 :func:`partition`               ``PartitioningAnalysis``            :class:`~partitioning.result.PartitionResult`
 :func:`size`                    ``AutomaticSizingAnalysis``         :class:`~sizing.result.SizingResult`
-:func:`synthesize`              ``SynthesisAnalysis``               ``list`` of ``(TopologySpec, SizingResult)``
+:func:`synthesize`              ``SynthesisAnalysis``               ``list`` of :class:`SynthesisCandidate`
 :func:`generate_topology_library`  ``TopLibGenAnalysis``            :class:`~synthesis.library.TopologyLibrary`
 ==============================  ==================================  ===========================================
 
@@ -62,6 +62,7 @@ Generate the whole topology library in memory::
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -78,7 +79,30 @@ __all__ = [
     "size",
     "synthesize",
     "generate_topology_library",
+    "SynthesisCandidate",
 ]
+
+
+@dataclass
+class SynthesisCandidate:
+    """One ranked synthesis result, returned by :func:`synthesize`.
+
+    Attributes
+    ----------
+    rank:
+        1-based ranking (1 = best).
+    topology:
+        The candidate's :class:`~synthesis.library.TopologySpec`.
+    sizing:
+        The candidate's solved :class:`~sizing.result.SizingResult`.
+    score:
+        The engine's ranking score (lower is better).
+    """
+
+    rank: int
+    topology: TopologySpec
+    sizing: SizingResult
+    score: float
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +363,7 @@ def synthesize(
     supply_nets: str | Path | None = None,
     library_dir: str | Path | None = None,
     output_dir: str | Path | None = None,
-) -> list[tuple[TopologySpec, Any]]:
+) -> list[SynthesisCandidate]:
     """Synthesise and rank op-amp topologies against a specification.
 
     Loads (or generates) a topology library, structurally filters it by the
@@ -363,8 +387,8 @@ def synthesize(
 
     Returns
     -------
-    list[tuple[TopologySpec, SizingResult]]
-        Ranked ``(topology, sizing)`` pairs, best first.
+    list[SynthesisCandidate]
+        Ranked candidates, best first (``rank`` 1 = best).
     """
     from synthesis.analysis import SynthesisAnalysis
 
@@ -377,7 +401,14 @@ def synthesize(
         library_dir=_path(library_dir),
         output_dir=_path(output_dir),
     )
-    return _run(SynthesisAnalysis, ns, write=output_dir is not None).results
+    analysis = _run(SynthesisAnalysis, ns, write=output_dir is not None)
+    scores = analysis.engine._compute_scores(analysis.results)
+    return [
+        SynthesisCandidate(rank=rank, topology=topology, sizing=sizing, score=score)
+        for rank, ((topology, sizing), score) in enumerate(
+            zip(analysis.results, scores), start=1
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------

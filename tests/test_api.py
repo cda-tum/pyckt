@@ -12,12 +12,46 @@ from __future__ import annotations
 import pytest
 
 import pyckt
+from core.device import TechType
+from synthesis.library import TopologyLibrary, TopologySpec
 from tests.conftest import INPUTS_DIR
 
 _SR = INPUTS_DIR / "StructureRecognition"
 _PART = INPUTS_DIR / "Partitioning"
 _SIZE = INPUTS_DIR / "AutomaticSizing"
 _PARAMS = INPUTS_DIR.parent / "CircuitParameterAndSpecifications.xml"
+
+
+def _topology_spec(**kw) -> TopologySpec:
+    defaults = dict(
+        id=1,
+        name="topo",
+        num_stages=1,
+        is_complementary=False,
+        is_fully_differential=False,
+        input_tech=TechType.N,
+        has_cascode={},
+    )
+    defaults.update(kw)
+    return TopologySpec(**defaults)
+
+
+def _small_library() -> TopologyLibrary:
+    """4-entry library covering all 2x2 category combinations — mirrors
+    ``tests/test_synthesis.py::_lib_4`` so the API test exercises the same
+    fast, pre-built-library path instead of the ~20s in-memory generation."""
+    lib = TopologyLibrary()
+    lib.add(_topology_spec(id=1, name="os_se", num_stages=1,
+                            is_complementary=False, is_fully_differential=False))
+    lib.add(_topology_spec(id=2, name="os_fd", num_stages=1,
+                            is_complementary=True, is_fully_differential=True))
+    lib.add(_topology_spec(id=3, name="ts_se", num_stages=2,
+                            is_complementary=False, is_fully_differential=False,
+                            has_cascode={"tc1": True}))
+    lib.add(_topology_spec(id=4, name="ts_fd", num_stages=2,
+                            is_complementary=True, is_fully_differential=True,
+                            has_cascode={"tc1": True, "load1": True}))
+    return lib
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +170,61 @@ class TestPartition:
         )
         from partitioning.result import PartitionResult
         assert isinstance(result, PartitionResult)
+
+
+# ---------------------------------------------------------------------------
+# synthesize
+# ---------------------------------------------------------------------------
+
+class TestSynthesize:
+    def _synthesize(self, tmp_path, **kw):
+        lib_dir = tmp_path / "lib"
+        _small_library().to_directory(str(lib_dir))
+        return pyckt.synthesize(
+            spec=_PARAMS,
+            tech_file=_SIZE / "TechnologyFile.xml",
+            library_dir=lib_dir,
+            **kw,
+        )
+
+    def test_returns_ranked_synthesis_candidates(self, tmp_path):
+        candidates = self._synthesize(tmp_path)
+        assert isinstance(candidates, list)
+        assert len(candidates) > 0
+
+        from pyckt.api import SynthesisCandidate
+        from sizing.result import SizingResult
+        from synthesis.library import TopologySpec
+
+        for candidate in candidates:
+            assert isinstance(candidate, SynthesisCandidate)
+            assert isinstance(candidate.topology, TopologySpec)
+            assert isinstance(candidate.sizing, SizingResult)
+            assert isinstance(candidate.score, float)
+
+    def test_ranked_best_first_with_sequential_rank(self, tmp_path):
+        candidates = self._synthesize(tmp_path)
+        # rank is 1-based and matches each candidate's position
+        assert [c.rank for c in candidates] == list(range(1, len(candidates) + 1))
+        # scores are non-decreasing (lower is better, best first)
+        scores = [c.score for c in candidates]
+        assert scores == sorted(scores)
+
+    def test_synthesis_candidate_is_importable_from_top_level(self):
+        # the dataclass is part of the public surface, not just an internal detail
+        assert pyckt.SynthesisCandidate is not None
+
+    def test_no_output_dir_writes_nothing(self, tmp_path):
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+        self._synthesize(work_dir)
+        # only the library dir created inside _synthesize should exist
+        assert sorted(p.name for p in work_dir.iterdir()) == ["lib"]
+
+    def test_output_dir_writes_json_summary(self, tmp_path):
+        out = tmp_path / "out"
+        self._synthesize(tmp_path, output_dir=out)
+        assert (out / "synthesis_results.json").exists()
 
 
 # ---------------------------------------------------------------------------

@@ -27,6 +27,7 @@ Example
 """
 
 from pyckt.api import (
+    SynthesisCandidate,
     generate_rules,
     generate_topology_library,
     partition,
@@ -42,4 +43,5 @@ __all__ = [
     "size",
     "synthesize",
     "generate_topology_library",
+    "SynthesisCandidate",
 ]
