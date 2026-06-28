@@ -14,7 +14,9 @@ Pipeline
    and run :meth:`~synthesis.engine.SynthesisEngine.synthesize`.
    Logs a warning if no candidates survive the filter step.
 3. **write()** — serialise ranked results to *output_dir* as one JSON
-   summary file plus one ``.ckt`` HSpice netlist stub per topology.
+   summary file plus one ``.ckt`` HSpice netlist per topology, rendered via
+   :class:`~ckt_io.hspice_writer.AcstNetlistWriter` from each candidate's
+   flat circuit (when the library retains one — see :meth:`write`).
 
 C++ ref: ``Synthesis::Synthesis::initialize / compute / write``
 """
@@ -25,6 +27,7 @@ import json
 import logging
 from pathlib import Path
 
+from ckt_io.hspice_writer import AcstNetlistWriter
 from core.common import AbstractAnalysis
 from synthesis.engine import SynthesisEngine
 from synthesis.library import TopologyLibrary, TopologySpec
@@ -171,7 +174,7 @@ class SynthesisAnalysis(AbstractAnalysis):
             output_dir/
             ├── synthesis_results.json          # ranked summary (JSON array)
             └── candidates/
-                ├── rank_001_topology_0001.ckt  # HSpice netlist stub
+                ├── rank_001_topology_0001.ckt  # HSpice netlist
                 ├── rank_002_topology_0003.ckt
                 └── ...
 
@@ -185,6 +188,25 @@ class SynthesisAnalysis(AbstractAnalysis):
         * ``power_mw``      — estimated power [mW]
         * ``area_um2``      — estimated area [μm²]
         * ``transit_freq_mhz`` — estimated transit frequency [MHz]
+
+        Each candidate's ``.ckt`` is rendered from its flat topology circuit
+        via :class:`~ckt_io.hspice_writer.AcstNetlistWriter` (the same writer
+        ``toplibgen`` uses) — a real, parseable netlist reflecting the
+        candidate's structure, *not* a placeholder.
+
+        .. note::
+           The netlist is unsized (no ``W=``/``L=`` parameters): the
+           candidate's flat circuit only carries device/net structure, and
+           :meth:`~synthesis.engine.SynthesisEngine._size_topology` does not
+           yet populate per-device sizing (it is a stub pending the real
+           CP-SAT integration — a separate, larger item). Once that lands,
+           this writer should switch to embedding the solved W/L values.
+
+           If the topology library was loaded from a pre-built directory
+           (:meth:`~synthesis.library.TopologyLibrary.from_directory` does
+           not retain circuit objects, only metadata), no structural circuit
+           is available for that candidate; its ``.ckt`` falls back to a
+           comment-only placeholder noting why.
 
         Raises
         ------
@@ -201,6 +223,7 @@ class SynthesisAnalysis(AbstractAnalysis):
 
         results = self._require_initialized(self.results, "results")
         engine = self._require_initialized(self.engine, "engine")
+        library = self._require_initialized(self.library, "library")
 
         root = Path(output_dir)
         root.mkdir(parents=True, exist_ok=True)
@@ -231,20 +254,32 @@ class SynthesisAnalysis(AbstractAnalysis):
         json_path.write_text(json.dumps(summary, indent=2))
         _log.info("Wrote synthesis summary → %s", json_path)
 
-        # -- Per-topology CKT stubs -----------------------------------------
-        for rank, ((spec, sizing), score) in enumerate(
-            zip(results, scores), start=1
-        ):
+        # -- Per-topology CKT netlists ---------------------------------------
+        writer = AcstNetlistWriter()
+        missing_circuits = 0
+        for rank, (spec, _sizing) in enumerate(results, start=1):
             ckt_name = f"rank_{rank:03d}_topology_{spec.id:04d}.ckt"
             ckt_path = cand_dir / ckt_name
-            ckt_path.write_text(
-                f"** Rank {rank}: {spec.name}  (id={spec.id})\n"
-                f"** Score: {score:.6f}\n"
-                f".MACRO {spec.name} ibias in1 in2 out sourceNmos sourcePmos\n"
-                f"** (stub — Phase 3)\n"
-                f".EOM {spec.name}\n"
-            )
+            circuit = library.get_circuit(spec.id)
+            if circuit is not None:
+                writer.write(circuit, ckt_path, name=spec.name)
+            else:
+                missing_circuits += 1
+                ckt_path.write_text(
+                    f"** Rank {rank}: {spec.name}  (id={spec.id})\n"
+                    f"** Structural circuit unavailable — the topology "
+                    f"library was loaded from a pre-built directory, which\n"
+                    f"** does not retain circuit objects (metadata only). "
+                    f"Regenerate the library in-memory to get real netlists.\n"
+                )
 
+        if missing_circuits:
+            _log.warning(
+                "SynthesisAnalysis.write(): %d/%d candidate(s) had no "
+                "structural circuit available (library loaded from a "
+                "pre-built directory) — wrote placeholder netlists for them.",
+                missing_circuits, len(results),
+            )
         _log.info("Wrote %d candidate netlist(s) → %s", len(results), cand_dir)
 
     # ------------------------------------------------------------------
