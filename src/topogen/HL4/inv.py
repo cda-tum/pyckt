@@ -23,6 +23,9 @@ GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 def addTransconductanceNets(
     stage: InvertingStage, transconductance: Transconductance
 ) -> InvertingStage:
+    """Add *stage*'s transconductance-side ports: the
+    ``INSOURCE``/``INOUTPUT``/``INNER`` triple for a two-transistor
+    transconductance, or a single ``INTRANSCONDUCTANCE`` otherwise."""
     if transconductance.component_count == 2:
         stage.ports += [
             InvertingStage.INSOURCETRANSCONDUCTANCE,
@@ -35,6 +38,9 @@ def addTransconductanceNets(
 
 
 def addStageBiasNets(stage: InvertingStage, stageBias: StageBias) -> InvertingStage:
+    """Add *stage*'s stage-bias-side ports: the
+    ``INSOURCE``/``INOUTPUT``/``INNER`` triple for a two-transistor stage
+    bias, or a single ``INSTAGEBIAS`` otherwise."""
     if stageBias.component_count == 2:
         stage.ports += [
             InvertingStage.INSOURCESTAGEBIAS,
@@ -49,6 +55,9 @@ def addStageBiasNets(stage: InvertingStage, stageBias: StageBias) -> InvertingSt
 def connectInstanceTerminalsPmosTransconductance(
     invertingStage: InvertingStage, analogInverter: Inverter
 ) -> InvertingStage:
+    """Wire *analogInverter* into *invertingStage* treating its PMOS side as
+    the transconductance and its NMOS side as the stage bias (the
+    ``createInvertingStagePmosTransconductance`` case)."""
     # fmt: off
     for inst in analogInverter.instances:
         if inst.tech == "p":
@@ -78,6 +87,9 @@ def connectInstanceTerminalsPmosTransconductance(
 def connectInstanceTerminalsNmosTransconductance(
     invertingStage: InvertingStage, analogInverter: Inverter
 ) -> InvertingStage:
+    """Wire *analogInverter* into *invertingStage* treating its NMOS side as
+    the transconductance and its PMOS side as the stage bias (the
+    ``createInvertingStageNmosTransconductance`` case)."""
 
     # fmt: off
     for inst in analogInverter.instances:
@@ -109,25 +121,39 @@ def connectInstanceTerminalsNmosTransconductance(
 
 
 class InvertingStageManager:
+    """Factory/cache for HL4 inverting (second/output) stages, built from the
+    HL2 :class:`~topogen.HL2.inv.InverterManager` analog inverters.
+
+    Each analog inverter (a PMOS current bias stacked with an NMOS current
+    bias) yields two candidate stages depending on which side is treated as
+    the transconductance — see :meth:`createInvertingStagePmosTransconductance`
+    / :meth:`createInvertingStageNmosTransconductance`.
+    """
+
     def __init__(self):
+        """Build and cache every valid PMOS- and NMOS-transconductance inverting stage."""
         self.initializeInvertingStages()
 
     def getInvertingStagesPmosTransconductance(self):
+        """Return the cached inverting stages with a PMOS transconductance."""
         return self.invertingStagesPmosTransconductance_
 
     def getInvertingStagesNmosTransconductance(self):
+        """Return the cached inverting stages with an NMOS transconductance."""
         return self.invertingStagesNmosTransconductance_
 
     # def getNonInvertingSelfBiasStages(self):
     #     return self.nonInvertingStagesSelfBias_
 
     def getInvertingStages(self):
+        """Return every cached inverting stage (NMOS-transconductance + PMOS-transconductance)."""
         return (
             self.invertingStagesNmosTransconductance_
             + self.invertingStagesPmosTransconductance_
         )
 
     def initializeInvertingStages(self):
+        """Build the PMOS- and NMOS-transconductance inverting stages and cache them on ``self``."""
         analogInverters = InverterManager().getAnalogInverters()
 
         self.invertingStagesPmosTransconductance_ = list(
@@ -160,6 +186,9 @@ class InvertingStageManager:
     def createInvertingStagesPmosTransconductance(
         self, analogInverters: list[Inverter]
     ) -> Iterator[InvertingStage]:
+        """Yield a PMOS-transconductance inverting stage for each analog
+        inverter whose PMOS current bias isn't diode-sourced, filtered to
+        those passing the same-tech-drain gate-net check."""
         for analogInverter in analogInverters:
 
             currentBiasPmos: CurrentBias = analogInverter.find_cb_with_tech("p")
@@ -177,6 +206,9 @@ class InvertingStageManager:
     def createInvertingStagesNmosTransconductance(
         self, analogInverters: list[Inverter]
     ) -> Iterator[InvertingStage]:
+        """Yield an NMOS-transconductance inverting stage for each analog
+        inverter whose NMOS current bias isn't diode-sourced, filtered to
+        those passing the same-tech-drain gate-net check."""
         for analogInverter in analogInverters:
 
             currentBiasNmos: CurrentBias = analogInverter.find_cb_with_tech("n")
@@ -194,6 +226,8 @@ class InvertingStageManager:
         self,
         analogInverter: Inverter,
     ) -> InvertingStage:
+        """Build an :class:`InvertingStage` from *analogInverter*, treating
+        its PMOS side as the transconductance."""
         stage = InvertingStage(id=1, techtype="p")
         stage.ports = [
             InvertingStage.OUTPUT,
@@ -217,6 +251,11 @@ class InvertingStageManager:
     def createNonInvertingSelfBiasStage(
         self, analogInverter: Inverter
     ) -> InvertingStage:
+        """Build a self-biased :class:`InvertingStage` from *analogInverter*
+        with both sides' single ``IN`` pin exposed directly (one-transistor
+        current biases only). Currently unused — the self-bias enumeration
+        path that would call this is commented out in
+        :meth:`initializeInvertingStages`."""
         stage = InvertingStage(id=1, techtype="p")
         stage.ports = [
             InvertingStage.OUTPUT,
@@ -253,6 +292,8 @@ class InvertingStageManager:
         self,
         analogInverter: Inverter,
     ) -> InvertingStage:
+        """Build an :class:`InvertingStage` from *analogInverter*, treating
+        its NMOS side as the transconductance."""
         stage = InvertingStage(id=1, techtype="n")
         stage.ports = [
             InvertingStage.OUTPUT,

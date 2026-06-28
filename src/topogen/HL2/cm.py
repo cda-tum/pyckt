@@ -37,6 +37,7 @@ class CurrentMirror(Circuit):
     SOURCE = "source"
 
     def __init__(self, *args, **kwargs):
+        """Construct a current mirror; ``name`` is fixed to ``"cm"``."""
         kwargs["name"] = "cm"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -54,16 +55,20 @@ class CurrentMirrorFactory:
     """
 
     def __init__(self):
+        """Build and cache the NMOS and PMOS mirror instances."""
         self.currentMirrorNmos_ = self._createSimpleMirror("n", id_=1)
         self.currentMirrorPmos_ = self._createSimpleMirror("p", id_=2)
 
     def getAllCurrentMirrors(self) -> list[CurrentMirror]:
+        """Return both mirrors, ``[nmos, pmos]``."""
         return [self.currentMirrorNmos_, self.currentMirrorPmos_]
 
     def getCurrentMirrorNmos(self) -> CurrentMirror:
+        """Return the NMOS current mirror."""
         return self.currentMirrorNmos_
 
     def getCurrentMirrorPmos(self) -> CurrentMirror:
+        """Return the PMOS current mirror."""
         return self.currentMirrorPmos_
 
     def _createSimpleMirror(self, techtype: str, id_: int) -> CurrentMirror:
