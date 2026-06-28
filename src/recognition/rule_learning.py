@@ -123,28 +123,93 @@ class RuleLearner:
     # ── one pairing round ─────────────────────────────────────────────
 
     def _pair_round(self, roots: list[_Node]) -> list[_Node]:
-        # candidate pairs ranked by weighted shared-net count (desc), then
-        # preferring equal hierarchy level and equal tech type (acst order).
+        """Form one round of composite pairs, mirroring acst's
+        ``PairLibraryItemCreator::build`` (plus a most-constrained-first
+        tie-break — see below).
+
+        acst groups every connected candidate pair by its weighted shared-net
+        count (``_count_connections``: 3 per signal net, 2 per supply net,
+        Bulk ignored) and processes the buckets from highest count to lowest.
+        Processing *all* of a higher-count bucket before any lower one keeps a
+        weak supply-only pair (e.g. ``CapacitorArray``+``DiodeArray``, sharing
+        only ``gnd!`` → count 2) from forming directly: each base structure is
+        consumed by a stronger signal-net pair (count 3+) first, and the
+        capacitor instead carries over to pair with a composite later.
+
+        Within a single count bucket acst builds in three phases (greedy, a
+        structure is used at most once per round):
+
+        1. ``same level && same tech`` — built first;
+        2. ``same tech`` (different level);
+        3. everything else (different tech, any level).
+
+        (acst keeps a fourth "same level, different tech" list but never fills
+        it — those pairs fall through to phase 3 — so this mirrors it.)
+
+        Within each phase, candidates are ordered by smallest child level, then
+        smallest level difference (acst's
+        ``sortedAndCreatedPairLibraryItemsWithSmallestHierarchyLevelDifference``),
+        and finally by **fewest alternative partners first** ("most
+        constrained first").  acst gets the equivalent effect from re-running
+        recognition each round (``recognizeOnStructuresWithoutParents``); pyckt
+        builds composites directly, so without this tie-break a structure with
+        several possible partners can greedily consume the *only* partner of a
+        more constrained structure, orphaning it into a spurious low-level pair
+        (the ``DiodeArray``/``CapacitorArray`` case from issue #5).  Pairing the
+        constrained structure first reproduces acst's hierarchy levels and
+        per-item persistence exactly on the reference op-amp.
+        """
         net_roots = self._net_to_roots(roots)
-        candidates = []
+
+        # connection-count bucket → candidate (a, b) pairs, in enumeration order
+        buckets: dict[int, list[tuple[_Node, _Node]]] = {}
+        # partner count per node (over all connected candidates) → constraint
+        degree: dict[int, int] = {}
         for a, b in combinations(roots, 2):
             conns = self._count_connections(a, b)
             if conns <= 0:
                 continue
-            same_level = a.level == b.level
-            same_tech = a.tech == b.tech and a.tech not in ("", "undefined")
-            rank = (conns, same_level and same_tech, same_tech,
-                    -abs(a.level - b.level))
-            candidates.append((rank, a, b))
-        candidates.sort(key=lambda c: c[0], reverse=True)
+            buckets.setdefault(conns, []).append((a, b))
+            degree[id(a)] = degree.get(id(a), 0) + 1
+            degree[id(b)] = degree.get(id(b), 0) + 1
 
         used: set[int] = set()
         composites: list[_Node] = []
-        for _rank, a, b in candidates:
+
+        def _build(a: _Node, b: _Node) -> None:
             if id(a) in used or id(b) in used:
-                continue
+                return
             used.add(id(a)); used.add(id(b))
             composites.append(self._make_pair(a, b, net_roots))
+
+        def _same_tech(a: _Node, b: _Node) -> bool:
+            return a.tech == b.tech and a.tech not in ("", "undefined")
+
+        # acst sort (smallest child level, then level difference), then
+        # most-constrained-first (smaller max partner-count of the pair)
+        def _sort_key(pair: tuple[_Node, _Node]) -> tuple[int, int, int]:
+            a, b = pair
+            return (min(a.level, b.level), abs(a.level - b.level),
+                    max(degree[id(a)], degree[id(b)]))
+
+        for conns in sorted(buckets, reverse=True):
+            same_level_tech: list[tuple[_Node, _Node]] = []
+            same_tech: list[tuple[_Node, _Node]] = []
+            other: list[tuple[_Node, _Node]] = []
+            for a, b in buckets[conns]:
+                if a.level == b.level and _same_tech(a, b):
+                    same_level_tech.append((a, b))
+                elif _same_tech(a, b):
+                    same_tech.append((a, b))
+                else:
+                    other.append((a, b))
+
+            for a, b in sorted(same_level_tech, key=_sort_key):  # phase 1
+                _build(a, b)
+            for a, b in sorted(same_tech, key=_sort_key):        # phase 2
+                _build(a, b)
+            for a, b in sorted(other, key=_sort_key):            # phase 3
+                _build(a, b)
 
         if not composites:
             return roots

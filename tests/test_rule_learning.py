@@ -61,6 +61,30 @@ class TestRuleLearner:
                     assert by_name[child].persistence is not None
                     assert by_name[child].persistence >= item.level - by_name[child].level
 
+    def test_levels_and_persistence_match_acst_reference(self, library):
+        # Regression for issue #5: pyckt's learned hierarchy must match acst's
+        # reference (outputs/rulegen/cpp/SymmetricalCascodeOpAmpLibrary.xml)
+        # item-for-item on both hierarchy level and persistence.  Before the
+        # most-constrained-first pairing tie-break, OpAmp5 landed at level 1
+        # (a spurious CapacitorArray+DiodeArray composite) and OpAmp3/4/5
+        # persistence diverged; all three now match acst.
+        # acst values {name: (level, persistence)}; OpAmp10 is the top
+        # structure → persistence None (never pruned).
+        expected = {
+            "SymmetricalCascodeOpAmp1": (3, 1),
+            "SymmetricalCascodeOpAmp2": (2, 1),
+            "SymmetricalCascodeOpAmp3": (2, 1),
+            "SymmetricalCascodeOpAmp4": (2, 2),
+            "SymmetricalCascodeOpAmp5": (2, 1),
+            "SymmetricalCascodeOpAmp6": (4, 1),
+            "SymmetricalCascodeOpAmp7": (3, 2),
+            "SymmetricalCascodeOpAmp8": (3, 3),
+            "SymmetricalCascodeOpAmp9": (5, 1),
+            "SymmetricalCascodeOpAmp10": (6, None),
+        }
+        actual = {i.name: (i.level, i.persistence) for i in library.items}
+        assert actual == expected
+
 
 def library_level_of_parent(library, item):
     # the item's own level (helper for readability)
