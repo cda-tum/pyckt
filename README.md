@@ -144,7 +144,7 @@ self-contained — no host paths required.
 No CI workflow is checked in yet. The repo is set up to run cleanly
 under any standard Python CI: each tool below already has its config
 in `pyproject.toml` (ruff, pytest+cov, mypy), so a CI job only needs to
-shell out to the three commands.
+shell out to the four commands.
 
 The recommended local-equivalent invocations:
 
@@ -152,6 +152,7 @@ The recommended local-equivalent invocations:
 ruff check src/                            # lint (must be clean)
 pytest --cov=src --cov-fail-under=80       # tests + coverage gate (80%)
 mypy src/pyckt/                            # type check (non-blocking)
+sphinx-build -W -b html docs docs/_build/html  # docs (must build warning-free)
 ```
 
 ## Documentation

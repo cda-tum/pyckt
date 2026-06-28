@@ -14,6 +14,7 @@ Algorithm (mirrors ``HSpice::InputFile`` in C++ ACST):
   2. Skip comments (``**``), directives (``.TEMP``, ``.OPTION``, ``+``).
   3. Parse ``.GLOBAL`` → register global nets.
   4. For each device line (first char matches a mapping identifier):
+
      a. Look up the :class:`DeviceLineMapping` for the identifier.
      b. Extract device name, pin nets, and (optional) model name.
      c. Handle optional pins (Bulk auto-connection).

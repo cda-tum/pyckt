@@ -7,16 +7,17 @@ no generic ``Result`` wrapper.  Each function takes file paths (``str`` or
 ``AbstractAnalysis`` lifecycle (``initialize → compute → write``), and returns
 the mode's typed result object directly:
 
-==============================  ==================================  ===========================================
-Function                        Wraps                               Returns
-==============================  ==================================  ===========================================
-:func:`recognize`               ``StructRecAnalysis``               :class:`~recognition.model.StructureCircuits`
-:func:`generate_rules`          ``RuleGenAnalysis``                 ``list`` of ``SizingRule``
-:func:`partition`               ``PartitioningAnalysis``            :class:`~partitioning.result.PartitionResult`
-:func:`size`                    ``AutomaticSizingAnalysis``         :class:`~sizing.result.SizingResult`
-:func:`synthesize`              ``SynthesisAnalysis``               ``list`` of :class:`SynthesisCandidate`
-:func:`generate_topology_library`  ``TopLibGenAnalysis``            :class:`~synthesis.library.TopologyLibrary`
-==============================  ==================================  ===========================================
+* :func:`recognize` (wraps ``StructRecAnalysis``) →
+  :class:`~recognition.model.StructureCircuits`
+* :func:`generate_rules` (wraps ``RuleGenAnalysis``) → ``list`` of ``SizingRule``
+* :func:`partition` (wraps ``PartitioningAnalysis``) →
+  :class:`~partitioning.result.PartitionResult`
+* :func:`size` (wraps ``AutomaticSizingAnalysis``) →
+  :class:`~sizing.result.SizingResult`
+* :func:`synthesize` (wraps ``SynthesisAnalysis``) → ``list`` of
+  :class:`SynthesisCandidate`
+* :func:`generate_topology_library` (wraps ``TopLibGenAnalysis``) →
+  :class:`~synthesis.library.TopologyLibrary`
 
 Writing output to disk is **optional**: pass ``output=...`` (or ``output_dir=...``)
 to also serialise the result, or omit it to get the in-memory object only.

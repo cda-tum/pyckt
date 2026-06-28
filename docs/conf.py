@@ -43,17 +43,14 @@ autodoc_mock_imports = ["ortools"]
 
 autodoc_default_options = {
     "members": True,
-    "undoc-members": True,
     "show-inheritance": True,
 }
-
-# Shared dataclasses (Specifications, CircuitParameter, TransistorTechParams, …)
-# are re-exported across several packages, so autodoc documents them on more
-# than one page and Sphinx flags the cross-references as ambiguous.  These are
-# cosmetic; the build still renders every object.  Suppressing keeps the log
-# readable.  (Collapsing the re-exports onto a single canonical page is a
-# follow-up — see SUPERVISOR_FEEDBACK.md §3.)
-suppress_warnings = ["ref.python"]
+# Deliberately no "undoc-members": most dataclasses here document their
+# fields via a numpydoc "Attributes" section on the class docstring rather
+# than per-field docstrings.  Turning on undoc-members would make autodoc
+# *also* render those same bare annotated fields as separate members,
+# producing "duplicate object description" warnings against the
+# Attributes-section entries of the same name.
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
 

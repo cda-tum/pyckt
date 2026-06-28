@@ -789,10 +789,7 @@ class StructureCircuit:
 
     C++ reference: ``StructRec::StructureCircuit``
 
-    Attributes
-    ----------
-    level : int
-        Hierarchy level this circuit represents.
+    See the :attr:`level` property for the hierarchy level this circuit represents.
     """
 
     def __init__(self, level: int) -> None:
