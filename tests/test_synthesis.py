@@ -28,7 +28,9 @@ from pathlib import Path
 import pytest
 
 from ckt_io.circuit_info_parser import Specifications
-from core.device import TechType
+from core.circuit import Circuit
+from core.device import Device, DeviceType, PinType, TechType
+from core.terminal import Terminal
 from sizing.result import ExpectedPerformance, SizingResult
 from synthesis.engine import SynthesisEngine
 from synthesis.library import TopologyLibrary, TopologySpec
@@ -64,6 +66,38 @@ def _lib_4() -> TopologyLibrary:
                   has_cascode={"tc1": True}))
     lib.add(_spec(id=4, name="ts_fd",  num_stages=2, is_complementary=True,  is_fully_differential=True,
                   has_cascode={"tc1": True, "load1": True}))
+    return lib
+
+
+def _mosfet_circuit(name: str) -> Circuit:
+    """A minimal one-transistor flat circuit, for tests needing a real
+    structural circuit attached to a topology (as the in-memory generator
+    produces, unlike a library reloaded from disk)."""
+    ckt = Circuit(name=name)
+    dev = Device(name="M1", device_type=DeviceType.MOSFET, tech_type=TechType.N)
+    for pin, net_name in (
+        (PinType.DRAIN, "out"), (PinType.GATE, "in1"), (PinType.SOURCE, "source_nmos"),
+    ):
+        net = ckt.find_or_create_net(net_name)
+        dev.add_terminal(Terminal(device=dev, pin_type=pin, net=net))
+    ckt.add_device(dev)
+    return ckt
+
+
+def _lib_4_with_circuits() -> TopologyLibrary:
+    """Same 4 entries as :func:`_lib_4`, each with a real flat circuit
+    attached — exercises ``SynthesisAnalysis.write()``'s real-netlist path."""
+    lib = TopologyLibrary()
+    for spec_kwargs in (
+        dict(id=1, name="os_se", num_stages=1, is_complementary=False, is_fully_differential=False),
+        dict(id=2, name="os_fd", num_stages=1, is_complementary=True, is_fully_differential=True),
+        dict(id=3, name="ts_se", num_stages=2, is_complementary=False, is_fully_differential=False,
+             has_cascode={"tc1": True}),
+        dict(id=4, name="ts_fd", num_stages=2, is_complementary=True, is_fully_differential=True,
+             has_cascode={"tc1": True, "load1": True}),
+    ):
+        spec = _spec(**spec_kwargs)
+        lib.add(spec, circuit=_mosfet_circuit(spec.name))
     return lib
 
 
@@ -449,6 +483,89 @@ class TestSynthesisAnalysis:
 
         ckt_files = list((out_dir / "candidates").rglob("*.ckt"))
         assert len(ckt_files) == len(analysis.results)
+
+    def test_write_emits_real_netlist_when_circuit_available(self, tmp_path):
+        """When the library retains a real circuit, the .ckt body is a
+        parseable netlist (.suckt/.end), not the old .MACRO/.EOM stub."""
+        from synthesis.analysis import SynthesisAnalysis
+
+        args = self._make_args(output_dir=str(tmp_path / "out"))
+        analysis = SynthesisAnalysis(args)
+        analysis.library = _lib_4_with_circuits()
+        analysis.specifications = Specifications()
+        analysis.compute()
+        analysis.write()
+
+        ckt_files = sorted((tmp_path / "out" / "candidates").rglob("*.ckt"))
+        assert len(ckt_files) == len(analysis.results)
+        for ckt_path in ckt_files:
+            text = ckt_path.read_text()
+            assert text.startswith(".suckt")
+            assert ".end" in text
+            assert ".MACRO" not in text
+            assert "stub" not in text.lower()
+
+    def test_write_real_netlist_round_trips_through_hspice_parser(self, tmp_path):
+        """A real candidate netlist must be re-parseable as a device circuit."""
+        from synthesis.analysis import SynthesisAnalysis
+
+        args = self._make_args(output_dir=str(tmp_path / "out"))
+        analysis = SynthesisAnalysis(args)
+        analysis.library = _lib_4_with_circuits()
+        analysis.specifications = Specifications()
+        analysis.compute()
+        analysis.write()
+
+        ckt_path = next((tmp_path / "out" / "candidates").rglob("*.ckt"))
+        text = ckt_path.read_text()
+        # M1's device line carries real drain/gate/source/bulk/model tokens
+        device_lines = [
+            line for line in text.splitlines()
+            if line and not line.startswith((".", "*"))
+        ]
+        assert len(device_lines) == 1
+        assert device_lines[0].split()[0] == "M1"
+        assert device_lines[0].endswith("nmos")
+
+    def test_write_falls_back_to_placeholder_when_circuit_unavailable(self, tmp_path):
+        """Loading the library from a pre-built directory drops circuit
+        objects (metadata only); write() must degrade gracefully, not crash."""
+        from synthesis.analysis import SynthesisAnalysis
+
+        lib_dir = tmp_path / "lib"
+        _lib_4().to_directory(str(lib_dir))
+        out_dir = tmp_path / "out"
+        args = self._make_args(library_dir=str(lib_dir), output_dir=str(out_dir))
+
+        analysis = SynthesisAnalysis(args)
+        analysis.initialize()
+        analysis.compute()
+        analysis.write()
+
+        ckt_files = list((out_dir / "candidates").rglob("*.ckt"))
+        assert len(ckt_files) == len(analysis.results)
+        for ckt_path in ckt_files:
+            assert "Structural circuit unavailable" in ckt_path.read_text()
+
+    def test_write_logs_warning_when_circuits_unavailable(self, tmp_path, caplog):
+        """write() should warn (not silently degrade) when falling back."""
+        from synthesis.analysis import SynthesisAnalysis
+
+        lib_dir = tmp_path / "lib"
+        _lib_4().to_directory(str(lib_dir))
+        out_dir = tmp_path / "out"
+        args = self._make_args(library_dir=str(lib_dir), output_dir=str(out_dir))
+
+        analysis = SynthesisAnalysis(args)
+        analysis.initialize()
+        analysis.compute()
+        with caplog.at_level(logging.WARNING):
+            analysis.write()
+
+        assert any(
+            "structural circuit available" in rec.message
+            for rec in caplog.records
+        )
 
     def test_compute_logs_warning_when_no_candidates(self, tmp_path, caplog):
         """compute() must emit a WARNING when synthesize() finds nothing."""
