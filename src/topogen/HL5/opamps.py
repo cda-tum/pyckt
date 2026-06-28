@@ -26,11 +26,16 @@ GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def createSimpleOneStageOpAmps() -> Iterator[OpAmp]:
+    """Yield one-stage op-amps, one per non-inverting-stage case 16 variant
+    (the last/most-complex ``createSimpleNonInvertingStages`` case), with no
+    second stage."""
     for ninv in list(NonInvertingStageManager().createSimpleNonInvertingStages(16)):
         yield createSimpleOpAmp(firstStage=ninv, secondStage=None)
 
 
 def createSimpleTwoStageOpAmps() -> Iterator[OpAmp]:
+    """Yield two-stage op-amps pairing every non-inverting-stage case 16
+    variant with every available inverting stage (full cross-product)."""
     for first_ninv in list(
         NonInvertingStageManager().createSimpleNonInvertingStages(16)
     ):
@@ -42,6 +47,8 @@ def createSimpleOpAmp(
     firstStage: Union[NonInvertingStage, InvertingStage],
     secondStage: Union[NonInvertingStage, InvertingStage, None],
 ) -> OpAmp:
+    """Assemble an :class:`OpAmp` from a first (non-inverting) stage and an
+    optional second (inverting) stage; one-stage when *secondStage* is ``None``."""
     opamp = OpAmp(id=1, techtype="undef")
     opamp.ports += [
         OpAmp.IN1,
@@ -63,6 +70,9 @@ def connectInstanceTerminalsSimpleOpAmp(
     firstStage: Union[NonInvertingStage, InvertingStage],
     secondStage: Union[NonInvertingStage, InvertingStage, None],
 ):
+    """Wire *firstStage*'s inputs/sources into *opamp*, and either
+    *firstStage*'s ``OUT2`` (one-stage) or *secondStage*'s sources/output
+    (two-stage) into ``OpAmp.OUT``."""
     connect((opamp, OpAmp.IN1), (firstStage, NonInvertingStage.IN1))
     connect((opamp, OpAmp.IN2), (firstStage, NonInvertingStage.IN2))
     connect((opamp, OpAmp.SOURCEPMOS), (firstStage, NonInvertingStage.SOURCEPMOS))

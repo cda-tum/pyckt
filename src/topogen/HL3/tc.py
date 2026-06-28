@@ -17,6 +17,8 @@ GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 tc = Transconductance
 def connectInstanceTerminalsOfSimpleTransconductance(tc: Transconductance, dp: DiffPair) -> Transconductance:
+    """Wire a single :class:`~topogen.HL2.dp.DiffPair` straight through to *tc*'s
+    input/output/source ports (one-to-one, no feedback or complementary pairing)."""
     connect((tc, Transconductance.INPUT1), (dp, DiffPair.INPUT1))
     connect((tc, Transconductance.INPUT2), (dp, DiffPair.INPUT2))
     connect((tc, Transconductance.OUT1), (dp, DiffPair.OUTPUT1))
@@ -25,6 +27,10 @@ def connectInstanceTerminalsOfSimpleTransconductance(tc: Transconductance, dp: D
     return tc
 
 def connectInstanceTerminalsOfFeedbackTransconductance(tc: Transconductance, dp1: DiffPair, dp2: DiffPair) -> Transconductance:
+    """Wire two copies of the same :class:`DiffPair` into a feedback
+    transconductance: each pair's ``INPUT2`` ties to the shared ``INNER``
+    feedback node, and each pair gets an independent source
+    (``SOURCE_1``/``SOURCE_2``)."""
     connect((tc, Transconductance.INPUT1), (dp1, DiffPair.INPUT1))
     connect((tc, Transconductance.INNER), (dp1, DiffPair.INPUT2))
     connect((tc, Transconductance.OUT1), (dp1, DiffPair.OUTPUT1))
@@ -40,6 +46,9 @@ def connectInstanceTerminalsOfFeedbackTransconductance(tc: Transconductance, dp1
     return tc
 
 def connectInstanceTerminalsOfComplementaryTransconductance(tc: Transconductance, dp_nmos: DiffPair, dp_pmos: DiffPair) -> Transconductance:
+    """Wire an NMOS and a PMOS :class:`DiffPair` sharing the same ``INPUT1``/
+    ``INPUT2`` nodes but with independent sources and outputs
+    (``OUT1NMOS``/``OUT2NMOS`` vs. ``OUT1PMOS``/``OUT2PMOS``)."""
     connect((tc, Transconductance.INPUT1), (dp_nmos, DiffPair.INPUT1))
     connect((tc, Transconductance.INPUT2), (dp_nmos, DiffPair.INPUT2))
     connect((tc, Transconductance.OUT1NMOS), (dp_nmos, DiffPair.OUTPUT1))
@@ -55,6 +64,7 @@ def connectInstanceTerminalsOfComplementaryTransconductance(tc: Transconductance
     return tc
 
 def createSimpleTransconductance(differentialPair):
+    """Build a :class:`Transconductance` directly from one differential pair."""
     tc = Transconductance(id=1, techtype="?")
     tc.ports = [
         Transconductance.OUT1,
@@ -68,6 +78,9 @@ def createSimpleTransconductance(differentialPair):
     return tc
 
 def createFeedbackTransconductance(differentialPair)-> Circuit:
+    """Build a feedback :class:`Transconductance` from two deep copies of
+    *differentialPair*, cross-wired via the shared ``INNER`` node
+    (see :func:`connectInstanceTerminalsOfFeedbackTransconductance`)."""
     differentialPair1 = deepcopy(differentialPair)
     differentialPair2 = deepcopy(differentialPair)
     tc = Transconductance(id=1, techtype="?")
@@ -86,6 +99,8 @@ def createFeedbackTransconductance(differentialPair)-> Circuit:
     return tc
 
 def createComplementaryTransconductance(differentialPairPmos, differentialPairNmos) -> Circuit:
+    """Build a complementary :class:`Transconductance` from one PMOS and one
+    NMOS differential pair sharing the same input nodes."""
     tc = Transconductance(id=1, techtype="?")
     tc.ports = [
         Transconductance.OUT1NMOS,
@@ -103,36 +118,52 @@ def createComplementaryTransconductance(differentialPairPmos, differentialPairNm
     return tc
 
 class TransconductanceManager:
+    """Factory for every HL3 transconductance variant, built from HL2 differential pairs.
+
+    Wraps the module-level ``create*Transconductance`` functions, supplying
+    them with the PMOS/NMOS pairs from
+    :class:`~topogen.HL2.dp.DiffPairManager` so callers don't need to wire
+    differential pairs themselves.
+    """
+
     def __init__(self):
+        """Build and cache every transconductance variant."""
         self.initializeTransconductances()
-    
+
     def createSimpleTransconductance(self) -> Iterator[Circuit]:
+        """Return ``[pmos_simple, nmos_simple]`` transconductances, freshly built."""
         differentialPairPmos = DiffPairManager().getDifferentialPairPmos()
         differentialPairNmos = DiffPairManager().getDifferentialPairNmos()
         return iter([createSimpleTransconductance(differentialPairPmos), createSimpleTransconductance(differentialPairNmos)])
-    
+
     def createFeedbackTransconductance(self) -> Iterator[Circuit]:
+        """Return ``[pmos_feedback, nmos_feedback]`` transconductances, freshly built."""
         differentialPairPmos = DiffPairManager().getDifferentialPairPmos()
         differentialPairNmos = DiffPairManager().getDifferentialPairNmos()
         return iter([createFeedbackTransconductance(differentialPairPmos), createFeedbackTransconductance(differentialPairNmos)])
-    
+
     def createComplementaryTransconductance(self) -> Iterator[Circuit]:
+        """Return the single complementary (NMOS+PMOS) transconductance, freshly built."""
         differentialPairPmos = DiffPairManager().getDifferentialPairPmos()
         differentialPairNmos = DiffPairManager().getDifferentialPairNmos()
         return iter([createComplementaryTransconductance(differentialPairPmos, differentialPairNmos)])
 
     def getComplementaryTransconductance(self) -> Iterator[Circuit]:
+        """Alias for :meth:`createComplementaryTransconductance`."""
         return self.createComplementaryTransconductance()
-    
+
     def getSimpleTransconductancePmos(self) -> Iterator[Transconductance]:
+        """Return a freshly-built simple PMOS transconductance."""
         differentialPairPmos = DiffPairManager().getDifferentialPairPmos()
         return createSimpleTransconductance(differentialPairPmos)
 
     def getSimpleTransconductanceNmos(self) -> Iterator[Transconductance]:
+        """Return a freshly-built simple NMOS transconductance."""
         differentialPairNmos = DiffPairManager().getDifferentialPairNmos()
         return createSimpleTransconductance(differentialPairNmos)
-    
+
     def initializeTransconductances(self):
+        """Build the simple, feedback, and complementary variants and cache them on ``self``."""
         differentialPairPmos = DiffPairManager().getDifferentialPairPmos()
         differentialPairNmos = DiffPairManager().getDifferentialPairNmos()
 
@@ -147,9 +178,11 @@ class TransconductanceManager:
         
 
     def getFeedbackTransconductanceNmos(self) -> Iterator[Transconductance]:
+        """Return the cached feedback NMOS transconductance."""
         return self.feedbackTransconductanceNmos_
-    
+
     def getFeedbackTransconductancePmos(self) -> Iterator[Transconductance]:
+        """Return the cached feedback PMOS transconductance."""
         return self.feedbackTransconductancePmos_
 
 

@@ -13,7 +13,21 @@ logger = Logger()
 
 
 class Circuit:
+    """Hierarchical, nested circuit node — the topogen-side data model.
+
+    Unlike the flat :class:`core.Circuit` used downstream by recognition/
+    sizing, this ``Circuit`` is a tree: each node owns a list of child
+    ``instances`` (also ``Circuit`` subclasses) plus a ``connections`` map
+    from this node's port name to the child instance/port it's wired to.
+    Every HL2–HL5 functional block (``DiffPair``, ``CurrentMirror``, ``Load``,
+    ``Transconductance``, ``NonInvertingStage``, ``OpAmp``, …) subclasses this
+    and fixes its own ``name``/port constants. The tree is collapsed to a flat
+    leaf-transistor list via :meth:`flatten` once a topology is complete (see
+    :class:`synthesis.converter.TopologyConverter`).
+    """
+
     def __init__(self, name: str, id: int, techtype: str):
+        """Construct a node with no children, no ports, and no connections."""
 
         # circuit name in abbreviation (e.g., nt, dt, inv, ts, dp, l, lp, vb, cb)
         self.name: str = name
@@ -33,11 +47,19 @@ class Circuit:
         self.instance_id: int = -1
 
     def add_instance(self, instance: Circuit) -> None:
+        """Append *instance* as a child, assigning its ``instance_id`` as its
+        index in :attr:`instances`."""
         # automatically assign instance id as the current index in the instances list
         instance.instance_id = len(self.instances)
         self.instances.append(instance)
 
     def add_connection_xxx(self, port: str, instance_id: int, instance_port: str):
+        """Record a connection from this node's *port* to child
+        ``instances[instance_id]``'s *instance_port*.
+
+        *port* must already be in :attr:`ports`, and *instance_port* must be
+        a valid port of the target child instance.
+        """
         assert port in self.ports, print(self.ports)
         _name, _id, _instance_id = (
             self.instances[instance_id].name,
@@ -54,9 +76,13 @@ class Circuit:
         )
 
     def get_port(self, name):
+        """Return the port named *name* (``self.ports`` is a plain list, so
+        this assumes mapping-like access — see also :attr:`ports`)."""
         return self.ports.get(name)
 
     def get_instance_by_name(self, name: str) -> List[Callable]:
+        """Return every direct child instance whose ``name`` equals *name*
+        (e.g. all ``"lp"`` load-part children of a ``Load``)."""
         return [inst for inst in self.instances if inst.name == name]
 
     # -----------------------------------------------------
@@ -129,6 +155,7 @@ class Circuit:
 
 
         def get_pmos_def(prefix):
+            """Graphviz record-node definition for a PMOS leaf transistor."""
             content = f""" "{prefix}" [
                 rankdir="TB"
                 label = "{{ <S> S↲| <G> G| <D> D }}"
@@ -136,14 +163,17 @@ class Circuit:
             ]"""
             return content
         def get_nmos_def(prefix):
+            """Graphviz record-node definition for an NMOS leaf transistor."""
             content = f""" "{prefix}" [
                 rankdir="TB"
                 label = "{{ <D> D| <G> G| <S> S⭢ }}"
                 shape="record"
             ]"""
             return content
-        
+
         def get_diode_pmos_def(prefix):
+            """Graphviz record-node definition for a diode-connected PMOS
+            leaf transistor (gate/drain marked with ``*``)."""
             content = f""" "{prefix}" [
                 rankdir="TB"
                 label = "{{ <S> S↲| <G> G*| <D> D* }}"
@@ -151,6 +181,8 @@ class Circuit:
             ]"""
             return content
         def get_diode_nmos_def(prefix):
+            """Graphviz record-node definition for a diode-connected NMOS
+            leaf transistor (gate/drain marked with ``*``)."""
             content = f""" "{prefix}" [
                 rankdir="TB"
                 label = "{{ <D> D*| <G> G*| <S> S⭢ }}"
@@ -263,6 +295,14 @@ class Circuit:
             )
 
     def flatten(self):
+        """Collapse this nested circuit into a flat list of leaf transistors.
+
+        Recursively resolves every connection down to the leaf
+        ``NormalTransistor``/``DiodeTransistor`` instances, setting their
+        ``.gate``/``.drain``/``.source`` attributes to the resolved top-level
+        net name, then replaces :attr:`instances` with that flat leaf list and
+        clears :attr:`connections`. Mutates and returns ``self``.
+        """
         from collections import OrderedDict
 
         connections = OrderedDict()
@@ -272,6 +312,9 @@ class Circuit:
         def set_terminal(
             top_current_terminal: str, looking_terminal: str, instance: Circuit
         ):
+            """Recursively resolve *looking_terminal* on *instance* down to a
+            leaf transistor pin, setting that leaf's gate/drain/source to
+            *top_current_terminal* (the originating top-level net name)."""
             if instance.name not in ["dt", "nt"]:
                 for conn in instance.connections[looking_terminal]:
                     obtained_inst_id = int(conn["child"][-1])
@@ -299,7 +342,10 @@ class Circuit:
 
 
 class NormalTransistor(Circuit):
+    """A leaf MOSFET (gate, drain, source independently wired)."""
+
     def __init__(self, *args, **kwargs):
+        """Construct a normal transistor; ``name`` is fixed to ``"nt"``."""
         kwargs["name"] = "nt"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -312,7 +358,10 @@ class NormalTransistor(Circuit):
 
 
 class DiodeTransistor(Circuit):
+    """A leaf MOSFET wired diode-style (gate tied to drain)."""
+
     def __init__(self, *args, **kwargs):
+        """Construct a diode transistor; ``name`` is fixed to ``"dt"``."""
         kwargs["name"] = "dt"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -324,6 +373,9 @@ class DiodeTransistor(Circuit):
 
 
 class VoltageBias(Circuit):
+    """HL2 voltage-bias cell — a one- or two-transistor stack used to
+    establish a reference voltage (see :class:`~topogen.HL2.vb.VoltageBiasManager`)."""
+
     IN = "in"
     SOURCE = "source"
     OUT = "out"
@@ -333,6 +385,7 @@ class VoltageBias(Circuit):
     OUTSOURCE = "out_source"
 
     def __init__(self, *args, **kwargs):
+        """Construct a voltage bias; ``name`` is fixed to ``"vb"``."""
         kwargs["name"] = "vb"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -340,10 +393,14 @@ class VoltageBias(Circuit):
 
     @property
     def isSingleDiodeTransistor(self) -> bool:
+        """``True`` if this bias is exactly one diode-connected transistor."""
         return len(self.instances) == 1 and self.instances[0].name == "dt"
 
 
 class CurrentBias(Circuit):
+    """HL2 current-bias cell — a one- or two-transistor stack used to mirror
+    a reference current (see :class:`~topogen.HL2.cb.CurrentBiasManager`)."""
+
     IN = "in"
     SOURCE = "source"
     OUT = "out"
@@ -353,12 +410,15 @@ class CurrentBias(Circuit):
     INSOURCE = "in_source"
 
     def __init__(self, *args, **kwargs):
+        """Construct a current bias; ``name`` is fixed to ``"cb"``."""
         kwargs["name"] = "cb"
         if "id" not in kwargs:
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
 
     def getGateNetsNotConnectedToADrain(self):
+        """Return this bias's port names whose connection set includes a
+        ``"gate"`` pin but no ``"drain"`` pin — i.e. free (non-diode-style) gate nets."""
         out = []
         # print("connection:", self.connections)
         for circuit_port, conn_list in self.connections.items():
@@ -371,6 +431,9 @@ class CurrentBias(Circuit):
 
 
 class Inverter(Circuit):
+    """HL2 analog inverter — a PMOS current bias stacked on an NMOS current
+    bias sharing one ``OUTPUT`` drain node (see :class:`~topogen.HL2.inv.InverterManager`)."""
+
     OUTPUT = "output"
 
     SOURCE_CURRENTBIASNMOS = "source_nmos"
@@ -388,12 +451,15 @@ class Inverter(Circuit):
     INNER_CURRENTBIASPMOS = "inner_current_bias_pmos"
 
     def __init__(self, *args, **kwargs):
+        """Construct an analog inverter; ``name`` is fixed to ``"inv"``."""
         kwargs["name"] = "inv"
         if "id" not in kwargs:
             kwargs["id"] = 1
         super().__init__(*args, **kwargs)
 
     def find_cb_with_tech(self, tech="p") -> CurrentBias:
+        """Return the first direct child :class:`CurrentBias` instance whose
+        ``tech`` matches *tech*, or ``None`` if not found."""
         cb: CurrentBias = None
         for inst in self.instances:
             if inst.tech == tech:
@@ -403,6 +469,9 @@ class Inverter(Circuit):
 
 
 class TransistorStack(Circuit):
+    """A single-branch wrapper around one bias circuit, used as a
+    :class:`LoadPart` branch (see :func:`createTransistorStack`)."""
+
     IN = "in"
     SOURCE = "source"
     OUT = "out"
@@ -416,6 +485,7 @@ class TransistorStack(Circuit):
     OUTSOURCE = "out_source"
 
     def __init__(self, *args, **kwargs):
+        """Construct a transistor stack; ``name`` is fixed to ``"ts"``."""
         kwargs["name"] = "ts"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -423,6 +493,10 @@ class TransistorStack(Circuit):
 
 
 class LoadPart(Circuit):
+    """HL3 load branch — two :class:`TransistorStack` instances (``ts1``/``ts2``)
+    combined into a two-, three-, or four-transistor branch (see
+    :mod:`topogen.HL3.lp`)."""
+
     OUT1 = "out1"
     OUT2 = "out2"
     SOURCE = "source"
@@ -443,6 +517,7 @@ class LoadPart(Circuit):
     INNERTRANSISTORSTACK2 = "inner_transistorstack2"
 
     def __init__(self, *args, **kwargs):
+        """Construct a load part; ``name`` is fixed to ``"lp"``."""
         kwargs["name"] = "lp"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -450,20 +525,26 @@ class LoadPart(Circuit):
 
     @property
     def ts1(self) -> TransistorStack:
+        """This load part's first branch (``instances[0]``)."""
         return self.instances[0]
 
     @property
     def ts2(self) -> TransistorStack:
+        """This load part's second branch (``instances[1]``)."""
         return self.instances[1]
 
     @property
     def bothTransistorStacksAreVoltageBiases(self) -> bool:
+        """``True`` if both :attr:`ts1` and :attr:`ts2` wrap a voltage bias."""
         return self.ts1.instances[0].name.startswith("vb") and self.ts2.instances[
             0
         ].name.startswith("vb")
 
 
 class Load(Circuit):
+    """HL3 stage load — one or two :class:`LoadPart` branches, optionally with
+    a gain/cross-coupled (GCC) configuration (see :mod:`topogen.HL3.l`)."""
+
     OUT1 = "out1"
     OUT2 = "out2"
 
@@ -495,6 +576,7 @@ class Load(Circuit):
     OUTSOURCE2LOAD1 = "out_source_load2"
 
     def __init__(self, *args, **kwargs):
+        """Construct a load; ``name`` is fixed to ``"l"``."""
         kwargs["name"] = "l"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -502,6 +584,9 @@ class Load(Circuit):
 
 
 class DiffPair(Circuit):
+    """HL2 differential input pair — two transistors sharing one source (see
+    :class:`~topogen.HL2.dp.DiffPairManager`)."""
+
     OUTPUT1 = "out1"
     OUTPUT2 = "out2"
 
@@ -511,6 +596,7 @@ class DiffPair(Circuit):
     SOURCE = "source"
 
     def __init__(self, *args, **kwargs):
+        """Construct a differential pair; ``name`` is fixed to ``"dp"``."""
         kwargs["name"] = "dp"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -518,6 +604,10 @@ class DiffPair(Circuit):
 
 
 class StageBias(Circuit):
+    """HL3 per-stage bias — wraps a :class:`CurrentBias` for use inside a
+    :class:`~topogen.common.circuit.NonInvertingStage`/``InvertingStage``
+    (see :class:`~topogen.HL3.sb.StageBiasManager`)."""
+
     IN = "in"
     SOURCE = "source"
     OUT = "out"
@@ -527,6 +617,7 @@ class StageBias(Circuit):
     INSOURCE = "in_source"
 
     def __init__(self, *args, **kwargs):
+        """Construct a stage bias; ``name`` is fixed to ``"sb"``."""
         kwargs["name"] = "sb"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -534,6 +625,8 @@ class StageBias(Circuit):
 
 
 class Transconductance(Circuit):
+    """HL3 transconductor — wraps a :class:`DiffPair` (simple, feedback, or
+    complementary variant) (see :class:`~topogen.HL3.tc.TransconductanceManager`)."""
 
     INPUT1 = "input1"
     INPUT2 = "input2"
@@ -559,6 +652,7 @@ class Transconductance(Circuit):
     SOURCE_PMOS = "source_pmos"
 
     def __init__(self, *args, **kwargs):
+        """Construct a transconductance; ``name`` is fixed to ``"tc"``."""
         kwargs["name"] = "tc"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -566,6 +660,9 @@ class Transconductance(Circuit):
 
 
 class NonInvertingStage(Circuit):
+    """HL4 first/input amplifier stage — a :class:`Transconductance` + a
+    :class:`Load` + one or two :class:`StageBias` instances (see
+    :class:`~topogen.HL4.non_inv.NonInvertingStageManager`)."""
 
     IN1 = "in1"
     IN2 = "in2"
@@ -633,6 +730,7 @@ class NonInvertingStage(Circuit):
     OUTSOURCE2LOAD1 = "OutSource2Load1"
 
     def __init__(self, *args, **kwargs):
+        """Construct a non-inverting stage; ``name`` is fixed to ``"non_inv"``."""
         kwargs["name"] = "non_inv"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -640,6 +738,8 @@ class NonInvertingStage(Circuit):
 
 
 class InvertingStage(Circuit):
+    """HL4 second/output amplifier stage — wraps an :class:`Inverter` (see
+    :class:`~topogen.HL4.inv.InvertingStageManager`)."""
 
     OUTPUT = "output"
     SOURCEPMOS = "source_pmos"
@@ -656,6 +756,7 @@ class InvertingStage(Circuit):
     INNERSTAGEBIAS = "inner_stage_bias"
 
     def __init__(self, *args, **kwargs):
+        """Construct an inverting stage; ``name`` is fixed to ``"inv"``."""
         kwargs["name"] = "inv"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -663,6 +764,8 @@ class InvertingStage(Circuit):
 
 
 class OpAmp(Circuit):
+    """HL5 complete op-amp — a :class:`NonInvertingStage` and, for two-stage
+    designs, an :class:`InvertingStage` (see :class:`~topogen.HL5.opamps.OpAmpFactory`)."""
 
     IN1 = "in1"
     IN2 = "in2"
@@ -676,6 +779,7 @@ class OpAmp(Circuit):
     SOURCENMOS = "source_nmos"
 
     def __init__(self, *args, **kwargs):
+        """Construct an op-amp; ``name`` is fixed to ``"opamp"``."""
         kwargs["name"] = "opamp"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -683,6 +787,7 @@ class OpAmp(Circuit):
 
 
 def save_graphviz_figure(circuit: Circuit, filename: Path):
+    """Write *circuit*'s :meth:`Circuit.graphviz` representation to *filename* as a ``.dot`` file."""
     with open(filename, "w") as fw:
 
         fw.write("digraph g { \n")
@@ -695,10 +800,13 @@ def save_graphviz_figure(circuit: Circuit, filename: Path):
 
 
 def convert_dot_to_png(dot_filename: Path, png_filename: Path):
+    """Render *dot_filename* to *png_filename* by shelling out to Graphviz's ``dot``."""
     os.system(f"dot -Tpng {dot_filename} > {png_filename}")
 
 
 def createTransistorStack(id=1, instance: Circuit = None):
+    """Wrap *instance* (a bias circuit) in a single-branch :class:`TransistorStack`,
+    passing every one of *instance*'s ports straight through unchanged."""
     ts = TransistorStack(id=id, techtype="?")
     ts.add_instance(instance)
     ts.ports = instance.ports
@@ -711,6 +819,8 @@ def createTransistorStack(id=1, instance: Circuit = None):
 def connectInstanceTerminal(
     sc1: Circuit, sc2: Circuit, sc1_port_or_net: str, sc2_port: str
 ) -> tuple[Circuit, Circuit]:
+    """Record a connection from *sc1*'s *sc1_port_or_net* to *sc2*'s
+    *sc2_port* in *sc1*'s connection map. Returns ``(sc1, sc2)`` unchanged."""
     sc1_port_key = sc1_port_or_net
     sc1.connections[sc1_port_key].append(
         {"child": [sc2.name, sc2.id, sc2.instance_id], "port": sc2_port}
@@ -721,6 +831,7 @@ def connectInstanceTerminal(
 def connectInstanceTerminalInOrder(
     instance1: Tuple[Circuit, str], instance2: Tuple[Circuit, str]
 ) -> Tuple[Circuit, Circuit]:
+    """Unpack ``(circuit, port)`` tuples and delegate to :func:`connectInstanceTerminal`."""
     sc1, sc1_port_or_net = instance1
     sc2, sc2_port = instance2
     return connectInstanceTerminal(sc1, sc2, sc1_port_or_net, sc2_port)
@@ -729,21 +840,31 @@ def connectInstanceTerminalInOrder(
 def connect(
     instance1: Tuple[Circuit, str], instance2: Tuple[Circuit, str]
 ) -> Tuple[Circuit, Circuit]:
+    """Connect ``(circuit, port)`` *instance1* to ``(circuit, port)`` *instance2*.
+
+    Thin alias for :func:`connectInstanceTerminalInOrder` — the call form used
+    throughout the HL2–HL5 factory modules, e.g.
+    ``connect((stage, NonInvertingStage.IN1), (tc, Transconductance.INPUT1))``.
+    """
     return connectInstanceTerminalInOrder(instance1, instance2)
 
 
 def assignInstanceIds(circuits: List[Circuit], start_idx=10):
+    """Assign sequential ``.id`` values to *circuits*, starting at *start_idx*."""
     for circuit in circuits:
         circuit.id = start_idx
         start_idx += 1
 
 
 def hasGCC(load: Load) -> bool:
+    """``True`` if *load* has a gain/cross-coupled (GCC) branch (its
+    ``inner_gcc`` port is present)."""
     assert load.name == "l"
     return "inner_gcc" in load.ports
 
 
 def sourceTransistorIsDiodeTransistor(cb: CurrentBias) -> bool:
+    """``True`` if *cb*'s source (first/only) transistor is diode-connected."""
     if cb.component_count == 1:
         inst = cb.instances[0]
         return inst.name == "dt"
@@ -756,6 +877,15 @@ def sourceTransistorIsDiodeTransistor(cb: CurrentBias) -> bool:
 def everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
     circuit: Circuit,
 ) -> bool:
+    """Validity check used to filter generated topologies.
+
+    Flattens a *copy* of *circuit* and checks every net that is both a gate
+    net and a drain net: if every transistor on that net is the same tech
+    type (all-N or all-P), more than one same-tech drain on it would short
+    two outputs together — that combination is rejected (``False``). Mixed
+    N/P gate nets are rejected only if *either* tech type has more than one
+    drain on the net. Returns ``True`` if no net violates this rule.
+    """
 
     flatCircuit = deepcopy(circuit).flatten()
 
@@ -767,6 +897,7 @@ def everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
         drain_nets[inst.drain].append(inst)
 
     def gatePinsAreOnlyNDoped(inst_list):
+        """``True`` if every transistor in *inst_list* is NMOS."""
         isTrue = True
         for inst in inst_list:
             if inst.tech == "p":
@@ -774,6 +905,7 @@ def everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
         return isTrue
 
     def moreThanOneNDopdedDrainPin(inst_list):
+        """``True`` if *inst_list* contains 2 or more NMOS transistors."""
         isTrue = False
         count = 0
         for inst in inst_list:
@@ -785,6 +917,7 @@ def everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
         return isTrue
 
     def moreThanOnePDopdedDrainPin(inst_list):
+        """``True`` if *inst_list* contains 2 or more PMOS transistors."""
         isTrue = False
         count = 0
         for inst in inst_list:
@@ -796,6 +929,7 @@ def everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
         return isTrue
 
     def gatePinsAreOnlyPDoped(inst_list):
+        """``True`` if every transistor in *inst_list* is PMOS."""
         for inst in inst_list:
             if inst.tech == "n":
                 return False

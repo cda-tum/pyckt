@@ -33,6 +33,7 @@ class CrossCoupledPair(Circuit):
     SOURCE = "source"
 
     def __init__(self, *args, **kwargs):
+        """Construct a cross-coupled pair; ``name`` is fixed to ``"ccp"``."""
         kwargs["name"] = "ccp"
         if "id" not in kwargs:
             kwargs["id"] = 1
@@ -43,16 +44,20 @@ class CrossCoupledPairFactory:
     """Build the NMOS and PMOS variants of a cross-coupled pair."""
 
     def __init__(self):
+        """Build and cache the NMOS and PMOS cross-coupled-pair instances."""
         self.crossCoupledPairNmos_ = self._createCrossCoupledPair("n", id_=1)
         self.crossCoupledPairPmos_ = self._createCrossCoupledPair("p", id_=2)
 
     def getAllCrossCoupledPairs(self) -> list[CrossCoupledPair]:
+        """Return both pairs, ``[nmos, pmos]``."""
         return [self.crossCoupledPairNmos_, self.crossCoupledPairPmos_]
 
     def getCrossCoupledPairNmos(self) -> CrossCoupledPair:
+        """Return the NMOS cross-coupled pair."""
         return self.crossCoupledPairNmos_
 
     def getCrossCoupledPairPmos(self) -> CrossCoupledPair:
+        """Return the PMOS cross-coupled pair."""
         return self.crossCoupledPairPmos_
 
     def _createCrossCoupledPair(self, techtype: str, id_: int) -> CrossCoupledPair:

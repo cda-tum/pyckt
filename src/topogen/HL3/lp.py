@@ -27,6 +27,15 @@ logger = setup_logger(log_level="DEBUG", log_file=None)
 
 
 def connectInstanceTerminalsOfTwoTransistorLoadPart(out: LoadPart, ts1, ts2):
+    """Wire two single-stack :class:`~topogen.common.circuit.TransistorStack`
+    instances into a two-branch :class:`LoadPart` (``OUT1``/``OUT2``).
+
+    Branches built from a current bias (``"cb"``-prefixed instance) connect
+    their ``OUT``/``IN``/``SOURCE`` to ``OUT{1,2}``/``INNER``/``SOURCE``;
+    branches built from anything else (voltage bias) connect their ``IN`` to
+    ``OUT{1,2}``, with the ``OUT`` pin landing on ``OUT{1,2}`` too when *both*
+    branches are voltage biases, or on the shared ``INNER`` node otherwise.
+    """
     num = 1
     # fmt: off
     for transistorStack in [ts1, ts2]:
@@ -60,6 +69,15 @@ def connectInstanceTerminalsOfTwoTransistorLoadPart(out: LoadPart, ts1, ts2):
 
 
 def connectInstanceTerminalsOfFourTransistorLoadPart(out: LoadPart, ts1, ts2):
+    """Wire two two-transistor :class:`~topogen.common.circuit.TransistorStack`
+    instances into a four-transistor :class:`LoadPart`.
+
+    Same branch-type split as :func:`connectInstanceTerminalsOfTwoTransistorLoadPart`,
+    extended with each stack's inner cascode node
+    (``INNERTRANSISTORSTACK{1,2}``) and, for the mixed/cb-mismatched case, the
+    secondary inner port pair (``INNEROUTPUT``/``INNERSOURCE`` or, when both
+    stacks are voltage biases, ``OUTOUTPUT{1,2}``/``OUTSOURCE{1,2}``).
+    """
     num = 1
     # fmt: off
     for transistorStack in [ts1, ts2]:
@@ -104,6 +122,9 @@ def connectInstanceTerminalsOfFourTransistorLoadPart(out: LoadPart, ts1, ts2):
 def connectInstanceTerminalsOfTwoTransistorLoadPartDifferentSources(
     out, ts1: TransistorStack, ts2: TransistorStack
 ):
+    """Like :func:`connectInstanceTerminalsOfTwoTransistorLoadPart`, but each
+    branch keeps its own independent source (``SOURCE1``/``SOURCE2``) instead
+    of sharing one ``SOURCE`` node."""
     num = 1
     # fmt: off
     for transistorStack in [ts1, ts2]:
@@ -137,6 +158,8 @@ def connectInstanceTerminalsOfTwoTransistorLoadPartDifferentSources(
 
 
 def createTwoTransistorLoadPart(ts1: TransistorStack, ts2: TransistorStack):
+    """Build a two-branch :class:`LoadPart` (shared source) from two
+    single-stack branches; see :func:`connectInstanceTerminalsOfTwoTransistorLoadPart`."""
     # if ts1.instances[0].name.startswith("vb") and ts2.instances[0].name.startswith(
     #     "vb"
     # ):
@@ -157,6 +180,8 @@ def createTwoTransistorLoadPart(ts1: TransistorStack, ts2: TransistorStack):
 def createTwoTransistorLoadPartDifferentSources(
     ts1: TransistorStack, ts2: TransistorStack
 ):
+    """Build a two-branch :class:`LoadPart` with independent sources
+    (``SOURCE1``/``SOURCE2``) from two single-stack branches."""
     lp = LoadPart(id=1, techtype="p")
     lp.ports = [LoadPart.OUT1, LoadPart.OUT2, LoadPart.SOURCE1, LoadPart.SOURCE2]
     lp.add_instance(ts1)
@@ -172,7 +197,14 @@ def createTwoTransistorLoadPartDifferentSources(
 def connectInstanceTerminalsOfThreeTransistorLoadPart(
     out, ts1: TransistorStack, ts2: TransistorStack
 ):
-    
+    """Wire a one-transistor stack (*ts1*) and a two-transistor stack (*ts2*)
+    into an asymmetric three-transistor :class:`LoadPart`.
+
+    *ts1*'s output feeds the shared ``INNERSOURCE`` node; *ts2*'s gate-input
+    chains from either *ts1*'s ``INNEROUTPUT`` (when *ts1* is a single diode
+    transistor) or directly from ``OUT1``.
+    """
+
     connect((out, LoadPart.OUT1), (ts1, TransistorStack.IN))
     connect((out, LoadPart.INNERSOURCE), (ts1, TransistorStack.OUT))
     connect((out, LoadPart.SOURCE), (ts1, TransistorStack.SOURCE))
@@ -191,6 +223,8 @@ def connectInstanceTerminalsOfThreeTransistorLoadPart(
 
 
 def createThreeTransistorLoadPart(ts1: TransistorStack, ts2: TransistorStack):
+    """Build an asymmetric three-transistor :class:`LoadPart` from a
+    one-transistor branch (*ts1*) and a two-transistor branch (*ts2*)."""
     lp = LoadPart(id=1, techtype="p")
     lp.ports = [ LoadPart.OUT1, LoadPart.OUT2, LoadPart.SOURCE, LoadPart.INNERTRANSISTORSTACK2, LoadPart.INNERSOURCE]
     lp.add_instance(ts1)
@@ -206,6 +240,8 @@ def createThreeTransistorLoadPart(ts1: TransistorStack, ts2: TransistorStack):
 def createTwoTransistorLoadPartsVoltageBiases(
     oneTransistorVoltageBiases: list[VoltageBias],
 ):
+    """Build one two-branch :class:`LoadPart` per one-transistor voltage bias,
+    pairing it with itself as both branches (skips multi-transistor biases)."""
     out: list[Circuit] = []
     for voltageBias in oneTransistorVoltageBiases:
 
@@ -224,6 +260,8 @@ def createTwoTransistorLoadPartsVoltageBiases(
 def createTwoTransistorLoadPartsMixed(
     oneTransistorVoltageBiases: list[VoltageBias], oneTransistorCurrentBiases: list[CurrentBias]
 ) -> List[LoadPart]:
+    """Build one two-branch :class:`LoadPart` per (voltage bias, current bias)
+    pair across the full cross-product of the two input lists."""
     out = []
     for voltageBias in oneTransistorVoltageBiases:
         for currentBias in oneTransistorCurrentBiases:
@@ -240,6 +278,9 @@ def createTwoTransistorLoadPartsMixed(
 def createThreeTransistorLoadPartsMixed(
     oneTransistorVoltageBiases: list[VoltageBias], twoTransistorCurrentBiases: list[CurrentBias]
 )-> list[LoadPart]:
+    """Build one three-transistor :class:`LoadPart` per (one-transistor
+    voltage bias, two-transistor current bias) pair across the full
+    cross-product of the two input lists."""
     out = []
     for voltageBias in oneTransistorVoltageBiases:
         for currentBias in twoTransistorCurrentBiases:
@@ -254,6 +295,9 @@ def createThreeTransistorLoadPartsMixed(
 
 
 def createFourTransistorLoadPart(ts1, ts2)-> LoadPart:
+    """Build a four-transistor :class:`LoadPart` from two two-transistor
+    branches; see :func:`connectInstanceTerminalsOfFourTransistorLoadPart`
+    for the port layout, which differs when both branches are voltage biases."""
     lp = LoadPart(id=1, techtype="p")
     lp.ports = [
         LoadPart.OUT1,
@@ -279,6 +323,9 @@ def createFourTransistorLoadPart(ts1, ts2)-> LoadPart:
 def createFourTransistorLoadPartsMixed(
     twoTransistorVoltageBiases, twoTransistorCurrentBiases
 ):
+    """Build one four-transistor :class:`LoadPart` per (two-transistor
+    voltage bias, two-transistor current bias) pair across the full
+    cross-product of the two input lists."""
     out = []
     for voltageBias in twoTransistorVoltageBiases:
         for currentBias in twoTransistorCurrentBiases:
@@ -291,6 +338,8 @@ def createFourTransistorLoadPartsMixed(
 
 
 def createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases):
+    """Build one four-transistor :class:`LoadPart` per two-transistor voltage
+    bias, pairing it with itself as both branches."""
     out = []
     for voltageBias in twoTransistorVoltageBiases:
         ts1 = createTransistorStack(1, voltageBias)
@@ -303,6 +352,8 @@ def createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases):
 def createTwoTransistorLoadPartsCurrentBiasesDifferentSources(
     oneTransistorCurrentBiases,
 ):
+    """Build one independent-source, two-branch :class:`LoadPart` per
+    one-transistor current bias, pairing it with itself as both branches."""
     out = []
     for currentBias in oneTransistorCurrentBiases:
         ts1 = createTransistorStack(1, currentBias)
@@ -313,6 +364,8 @@ def createTwoTransistorLoadPartsCurrentBiasesDifferentSources(
 
 
 def createFourTransistorLoadPartsCurrentBiases(twoTransistorCurrentBiases):
+    """Build one four-transistor :class:`LoadPart` per two-transistor current
+    bias, pairing it with itself as both branches."""
     out = []
     for currentBias in twoTransistorCurrentBiases:
         ts1 = createTransistorStack(1, currentBias)
@@ -324,6 +377,8 @@ def createFourTransistorLoadPartsCurrentBiases(twoTransistorCurrentBiases):
 
 
 def createTwoTransistorLoadPartsCurrentBiases(oneTransistorCurrentBiases):
+    """Build one shared-source, two-branch :class:`LoadPart` per one-transistor
+    current bias, pairing it with itself as both branches."""
     out = []
     for currentBias in oneTransistorCurrentBiases:
         ts1 = createTransistorStack(1, currentBias)
@@ -335,13 +390,25 @@ def createTwoTransistorLoadPartsCurrentBiases(oneTransistorCurrentBiases):
 
 
 class LoadPartManager:
+    """Factory/cache for HL3 ``LoadPart`` branches, combining HL2 voltage and
+    current biases into two-, three-, and four-transistor branches.
+
+    Most ``create*`` methods are thin convenience wrappers fetching the
+    relevant :class:`~topogen.HL2.vb.VoltageBiasManager`/
+    :class:`~topogen.HL2.cb.CurrentBiasManager` lists and delegating to the
+    matching module-level ``create*LoadParts*`` function. ``case N`` comments
+    mark the enumeration cases used by the ``if __name__ == "__main__"``
+    gallery-generation block at the bottom of this file.
+    """
 
     def __init__(self):
+        """Build and cache the PMOS and NMOS voltage-bias load parts."""
         self.initializeLoadPartsPmos()
         self.initializeLoadPartsNmos()
 
     # case 1
     def createTwoTransistorsLoadPartsLoadPartsPmosVoltageBiases(self):
+        """Return two-branch PMOS load parts built from one-transistor voltage biases."""
         oneTransistorVoltageBiases = (
             VoltageBiasManager().getOneTransistorVoltageBiasesPmos()
         )
@@ -352,6 +419,7 @@ class LoadPartManager:
 
     # case 2
     def createFourTransistorsLoadPartsLoadPartsPmosVoltageBiases(self):
+        """Return four-transistor PMOS load parts built from two-transistor voltage biases."""
         twoTransistorVoltageBiases = (
             VoltageBiasManager().getTwoTransistorVoltageBiasesPmos()
         )
@@ -360,6 +428,7 @@ class LoadPartManager:
 
     # case 3
     def createFourTransistorsLoadPartsLoadPartsNmosVoltageBiases(self):
+        """Return four-transistor NMOS load parts built from two-transistor voltage biases."""
         twoTransistorVoltageBiases = (
             VoltageBiasManager().getTwoTransistorVoltageBiasesNmos()
         )
@@ -368,6 +437,7 @@ class LoadPartManager:
 
     # case 4
     def createTwoTransistorsLoadPartsLoadPartsNmosVoltageBiases(self):
+        """Return two-branch NMOS load parts built from one-transistor voltage biases."""
         oneTransistorVoltageBiases = (
             VoltageBiasManager().getOneTransistorVoltageBiasesNmos()
         )
@@ -378,6 +448,8 @@ class LoadPartManager:
 
     # case 5
     def createLoadPartsPmosTwoTransistorCurrentBiasesDifferentSources(self):
+        """Return independent-source, two-branch PMOS load parts built from
+        one-transistor current biases."""
         oneTransistorCurrentBiases = (
             CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
         )
@@ -388,6 +460,8 @@ class LoadPartManager:
 
     # case 6
     def createLoadPartsNmosTwoTransistorCurrentBiasesDifferentSources(self):
+        """Return independent-source, two-branch NMOS load parts built from
+        one-transistor current biases."""
         oneTransistorCurrentBiases = (
             CurrentBiasManager().getOneTransistorCurrentBiasesNmos()
         )
@@ -398,6 +472,7 @@ class LoadPartManager:
 
     # case 7
     def createLoadPartsPmosFourTransistorCurrentBiases(self):
+        """Return four-transistor PMOS load parts built from two-transistor current biases."""
         twoTransistorCurrentBiases = (
             CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
         )
@@ -408,6 +483,7 @@ class LoadPartManager:
 
     # case 8
     def createLoadPartsNmosFourTransistorCurrentBiases(self):
+        """Return four-transistor NMOS load parts built from two-transistor current biases."""
         twoTransistorCurrentBiases = (
             CurrentBiasManager().getTwoTransistorCurrentBiasesNmos()
         )
@@ -418,6 +494,8 @@ class LoadPartManager:
 
     # case 9
     def createLoadPartsPmosCurrentBiases(self):
+        """Return all PMOS current-bias load parts: two-branch (one-transistor
+        biases) plus four-transistor (two-transistor biases)."""
         oneTransistorCurrentBiases = (
             CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
         )
@@ -430,6 +508,8 @@ class LoadPartManager:
 
     # case 10
     def createLoadPartsNmosCurrentBiases(self):
+        """Return all NMOS current-bias load parts: two-branch (one-transistor
+        biases) plus four-transistor (two-transistor biases)."""
         oneTransistorCurrentBiases = (
             CurrentBiasManager().getOneTransistorCurrentBiasesNmos()
         )
@@ -441,6 +521,8 @@ class LoadPartManager:
         ) + createFourTransistorLoadPartsCurrentBiases(twoTransistorCurrentBiases)
 
     def createLoadPartsPmosVoltageBiases(self):
+        """Return all PMOS voltage-bias load parts: two-branch (one-transistor
+        biases) plus four-transistor (two-transistor biases)."""
         oneTransistorVoltageBiases = (
             VoltageBiasManager().getOneTransistorVoltageBiasesPmos()
         )
@@ -452,6 +534,8 @@ class LoadPartManager:
         ) + createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases)
 
     def createLoadPartsNmosVoltageBiases(self):
+        """Return all NMOS voltage-bias load parts: two-branch (one-transistor
+        biases) plus four-transistor (two-transistor biases)."""
         oneTransistorVoltageBiases = (
             VoltageBiasManager().getOneTransistorVoltageBiasesNmos()
         )
@@ -463,6 +547,8 @@ class LoadPartManager:
         ) + createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases)
 
     def createLoadPartsPmosMixed(self):
+        """Return all mixed PMOS voltage+current-bias load parts: two-, three-,
+        and four-transistor variants combined."""
         oneTransistorVoltageBiases = (
             VoltageBiasManager().getOneTransistorVoltageBiasesPmos()
         )
@@ -488,6 +574,8 @@ class LoadPartManager:
         )
 
     def createLoadPartsNmosMixed(self):
+        """Return all mixed NMOS voltage+current-bias load parts: two-, three-,
+        and four-transistor variants combined."""
         oneTransistorVoltageBiases = (
             VoltageBiasManager().getOneTransistorVoltageBiasesNmos()
         )
@@ -514,6 +602,8 @@ class LoadPartManager:
         )
 
     def createLoadPartsPmosFourTransistorMixed(self):
+        """Return four-transistor PMOS load parts mixing two-transistor
+        voltage and current biases."""
         twoTransistorVoltageBiases = (
             VoltageBiasManager().getTwoTransistorVoltageBiasesPmos()
         )
@@ -525,6 +615,8 @@ class LoadPartManager:
         )
 
     def createLoadPartsNmosFourTransistorMixed(self):
+        """Return four-transistor NMOS load parts mixing two-transistor
+        voltage and current biases."""
         twoTransistorVoltageBiases = (
             VoltageBiasManager().getTwoTransistorVoltageBiasesNmos()
         )
@@ -536,6 +628,7 @@ class LoadPartManager:
         )
 
     def initializeLoadPartsPmos(self):
+        """Build the two- and four-transistor PMOS voltage-bias load parts and cache them on ``self``."""
         oneTransistorVoltageBiases = VoltageBiasManager().getOneTransistorVoltageBiasesPmos()
         twoTransistorVoltageBiases = VoltageBiasManager().getTwoTransistorVoltageBiasesPmos()
         # oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
@@ -545,6 +638,7 @@ class LoadPartManager:
         self.fourTransistorsLoadPartsPmosVoltageBiases_ = createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases)
 
     def initializeLoadPartsNmos(self):
+        """Build the two- and four-transistor NMOS voltage-bias load parts and cache them on ``self``."""
         oneTransistorVoltageBiases = VoltageBiasManager().getOneTransistorVoltageBiasesNmos()
         twoTransistorVoltageBiases = VoltageBiasManager().getTwoTransistorVoltageBiasesNmos()
         # oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesNmos();
@@ -554,6 +648,7 @@ class LoadPartManager:
         self.fourTransistorsLoadPartsNmosVoltageBiases_ = createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases)
 
     def getLoadPartsPmosVoltageBiases(self):
+        """Return the cached PMOS voltage-bias load parts (two- + four-transistor)."""
         assert self.twoTransistorsLoadPartsPmosVoltageBiases_ != None
         assert self.fourTransistorsLoadPartsPmosVoltageBiases_ != None
 
@@ -561,18 +656,21 @@ class LoadPartManager:
 
 
     def getLoadPartsNmosVoltageBiases(self):
+        """Return the cached NMOS voltage-bias load parts (two- + four-transistor)."""
         assert self.twoTransistorsLoadPartsNmosVoltageBiases_ is not None
         assert self.fourTransistorsLoadPartsNmosVoltageBiases_ is not None
         return self.twoTransistorsLoadPartsNmosVoltageBiases_  + self.fourTransistorsLoadPartsNmosVoltageBiases_
-       
+
 
 
 def print_json(data):
+    """Debug helper: pretty-print *data* as JSON plus its length."""
     print(json.dumps(data, indent=4))
     print("length: ", len(data))
 
 
 def print_json_v2(data: list, print_graphviz=False):
+    """Debug helper: optionally print each circuit's graphviz source, then its count."""
     for d in data:
         if print_graphviz:
             print(d.graphviz())
