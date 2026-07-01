@@ -322,8 +322,9 @@ class TestTopologyConverter:
 
     def test_convert_all_devices_are_mosfets(self, core_circuit):
         from core.device import DeviceType
+        # a complete op-amp is MOSFETs plus the load capacitor(s) added by 2c
         for device in core_circuit.devices:
-            assert device.device_type == DeviceType.MOSFET
+            assert device.device_type in (DeviceType.MOSFET, DeviceType.CAPACITOR)
 
     def test_convert_tech_types_valid(self, core_circuit):
         from core.device import TechType
@@ -377,6 +378,17 @@ class TestTopologyConverter:
         assert any(is_ibias_diode(d) for d in core_circuit.mosfets), (
             "no diode-connected MainBias reference on ibias"
         )
+
+    def test_convert_adds_load_capacitor(self, core_circuit):
+        """Regression (issue #3, Fix 2c): a single-output op-amp gets one load
+        capacitor wired ``out ↔ source_nmos`` (acst's Load_Capacitor)."""
+        from core.device import DeviceType, PinType
+
+        caps = [d for d in core_circuit.devices if d.device_type == DeviceType.CAPACITOR]
+        assert len(caps) == 1
+        cap = caps[0]
+        nets = {cap.get_net(PinType.PLUS).name, cap.get_net(PinType.MINUS).name}
+        assert nets == {"out", "source_nmos"}
 
     def test_convert_bias_can_be_disabled(self, sample_opamp):
         """With ``complete_bias=False`` the raw flattened transistors are kept

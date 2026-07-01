@@ -318,14 +318,20 @@ class AcstNetlistWriter:
         Path(filepath).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def _format_device_line(self, device: Device) -> str:
-        """Format one device as ``name drain gate source bulk model``.
+        """Format one device line.
 
-        The bulk column defaults to the source net (the topogen model has no
-        bulk pin).  Missing pins are skipped — the same graceful behaviour as
-        :meth:`HSpiceWriter._format_device_line`.
+        MOSFETs render as ``name drain gate source bulk model`` (bulk defaults
+        to the source net — the topogen model has no bulk pin); capacitors as
+        ``name plus minus`` (no model token), matching acst's
+        ``c_…_Capacitor_N out sourceNmos``.  Missing pins are skipped — the same
+        graceful behaviour as :meth:`HSpiceWriter._format_device_line`.
         """
         def net_of(pin: PinType) -> str | None:
             return device.get_net(pin).name if pin in device.terminals else None
+
+        if device.device_type == DeviceType.CAPACITOR:
+            plus, minus = net_of(PinType.PLUS), net_of(PinType.MINUS)
+            return " ".join([device.name, *(c for c in (plus, minus) if c is not None)])
 
         drain = net_of(PinType.DRAIN)
         gate = net_of(PinType.GATE)

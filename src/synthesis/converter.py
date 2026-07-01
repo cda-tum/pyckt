@@ -133,7 +133,36 @@ class TopologyConverter:
                 device.add_terminal(terminal)
                 core_circuit.add_terminal(terminal)
 
+        if self.complete_bias:
+            self._add_load_capacitors(core_circuit)
+
         return core_circuit
+
+    def _add_load_capacitors(self, core_circuit: CoreCircuit) -> None:
+        """Add the load capacitor(s) acst attaches at the op-amp output(s).
+
+        Single-output op-amps get one cap ``out ↔ source_nmos``; fully
+        differential op-amps get one on each of ``out1``/``out2`` (acst
+        ``connectInstanceTerminalsCapacitors``).  No-op when the expected nets
+        are absent.
+        """
+        net_names = {n.name for n in core_circuit.nets}
+        minus = "source_nmos"
+        if minus not in net_names:
+            return
+        outputs = [o for o in ("out", "out1", "out2") if o in net_names]
+        for i, out in enumerate(outputs, start=1):
+            cap = Device(
+                name=f"Cap_load_{i}",
+                device_type=DeviceType.CAPACITOR,
+                tech_type=TechType.N,
+            )
+            core_circuit.add_device(cap)
+            for pin_type, net_name in ((PinType.PLUS, out), (PinType.MINUS, minus)):
+                net = core_circuit.find_or_create_net(net_name)
+                terminal = Terminal(device=cap, pin_type=pin_type, net=net)
+                cap.add_terminal(terminal)
+                core_circuit.add_terminal(terminal)
 
     # ------------------------------------------------------------------
     # Private helpers
