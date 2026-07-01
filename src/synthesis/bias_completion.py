@@ -95,6 +95,10 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
     new_devs: list = []
     idx = 0
     ibias_node: dict[str, str] = {}
+    # rail-connected reference gate for each tech's source bias (the node a
+    # cross-tech current mirror must sense): the node itself for a single-diode
+    # reference, the *bottom* (rail) node for a cascode reference.
+    rail_ref: dict[str, str] = {}
 
     for tech in ("n", "p"):
         # single-tech floating gates only (mixed-tech gates are a more complex
@@ -120,6 +124,7 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
             for g in output_gates:
                 rename[g] = top
             ibias_node[tech] = top
+            rail_ref[tech] = bottom
         else:
             for gates_subset, is_src in ((output_gates, False), (source_gates, True)):
                 if not gates_subset:
@@ -131,6 +136,7 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                     rename[g] = node
                 if is_src:
                     ibias_node[tech] = node
+                    rail_ref[tech] = node
 
     # tie the master source reference to the ibias pin
     if ibias_node:
@@ -140,14 +146,17 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
             master_tech = input_tech if input_tech in ibias_node else next(iter(ibias_node))
         rename[ibias_node[master_tech]] = _IBIAS
 
-        # Complementary op-amps have a rail bias of *both* techs; acst drives the
-        # non-ibias tech's reference from ibias through an opposite-tech current
-        # mirror (MainBias_1: gate=ibias, drain=other-reference-node) rather than
-        # leaving it self-biased (acst addCurrentBiasesToCircuit).
+        # Complementary op-amps (and cascode single-output stages with a both-tech
+        # bias) drive the non-ibias tech's reference from the master reference
+        # through an opposite-tech current mirror (acst MainBias_1).  Its gate
+        # senses the master's *rail-connected* reference node — ibias for a
+        # single-diode master, the bottom cascode node for a two-transistor one
+        # (resolved through the rename map below).
+        master_gate = rail_ref[master_tech]
         for tech, node in ibias_node.items():
             if tech != master_tech:
                 mirror = NormalTransistor(techtype=master_tech, id=1)
-                mirror.gate = _IBIAS
+                mirror.gate = master_gate
                 mirror.drain = node
                 mirror.source = _RAIL_OF[master_tech]
                 new_devs.append(mirror)

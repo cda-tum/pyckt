@@ -351,3 +351,33 @@ structural re-port of acst's HL3 load construction (`Loads.cpp` /
 *exact* loads.  That is a large, methodical, multi-part effort — the remaining
 body of issue #3 — and it is the single blocker between the (verified-correct)
 composition/bias pipeline and full 2940 / 936 / 36 parity.
+
+## 11. Issue #20 progress — bias fix + per-case load-family map
+
+Per-case match diagnostic (simple single-output, one-stage) pinpoints where the
+remaining gap is. A cross-mirror bias fix (the cross current mirror must sense
+the master reference's *rail-connected* node — ibias for a single-diode master,
+the bottom cascode node for a two-transistor one) unlocked the
+two-transistor-stage-bias cascode cases: **overlap 34 → 54** (SingleOutput
+30 → 48, Complementary 0 → 2).
+
+Current per-case match rate (simple one-stage):
+
+| case | family | match |
+|---|---|---|
+| 1–2 | MixedLoad | 4/8 |
+| 3–4 | MixedLoad + 2T-bias | 4/16 |
+| 5–6 | FoldedGCC | 4/16 |
+| 7–8 | FoldedGCC + 2T-bias | 4/32 |
+| 9–12 | CascodeGCC | **0** |
+| 13–14 | MixedCurrentBias | 8/24 |
+| 15–16 | MixedCurrentBias + 2T-bias | 8/48 |
+
+The remaining non-matches are now confirmed **load-structure** divergences, not
+bias: e.g. CascodeGCC (cases 9–12) — pyckt builds a *telescopic cascode* (cascode
+on the signal path) where acst's 9-transistor topologies are *cascode-mirror
+loads* (cascode inside the load, simple diff pair).  The partial cases' misses
+are likewise the complex (3–4-transistor) mixed-load variants whose wiring
+differs from acst's.  Next: re-port the HL3 load construction family-by-family
+(`createLoadsTwoLoadParts*` in `src/topogen/HL3/l.py` / `lp.py`) against acst's
+`Loads.cpp` / `LoadParts.cpp`, verifying each with the per-case diagnostic.
