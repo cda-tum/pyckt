@@ -30,7 +30,7 @@ equivalent results.
 | **rulegen** — sizing-rule generation | ✅ | **10/10 library items — level AND persistence exact match acst** | ✅ Done |
 | **automaticsizing** — CP-SAT sizing | ✅ | schema + performance models match; W/L not yet converged | ◑ Functional, tuning |
 | **synthesis** — topology synthesis | ✅ pipeline | ranked list (4 914 candidates); real `AcstNetlistWriter` netlists per candidate | ◑ Netlist done, solver stub |
-| **toplibgen** — topology library gen | ✅ enumeration + acst-format emitter | 7 020 topologies; real ACST-format netlists; FullyDifferential count exact match (936/936) | ◑ Emitter done, topology-set parity open |
+| **toplibgen** — topology library gen | ✅ enumeration + acst-format emitter | 7 020 topologies; real ACST-format netlists. FD file-count matches (936/936) but **structural** parity is 0 pending the flatten/composition fixes (Fix 1 landed) — see §4.6 | ◑ Netlists now well-formed, set-parity open |
 
 **Headline:** all six modes run end-to-end. The three deterministic
 *recognition* modes (structrec, partitioning, rulegen) now reproduce acst's
@@ -182,18 +182,28 @@ Searches a discrete grid of W/L values for an assignment that satisfies all circ
 - Per-category counts vs the acst reference (`acst/InputFileExamples/
   TopologyLibraryGeneration/Netlists/`):
 
-  | Category | acst | pyckt | Match? |
-  |----------|-----:|------:|:--:|
-  | FullyDifferentialOpAmps | 936 | 936 | ✅ exact |
-  | SingleOutputOpAmps | 2 940 | 4 914 | ✗ |
-  | ComplementaryOpAmps | 36 | 1 170 | ✗ |
+  | Category | acst files | pyckt files | Count match? | **Structural** match? |
+  |----------|-----:|------:|:--:|:--:|
+  | FullyDifferentialOpAmps | 936 | 936 | ✅ exact | **✗ 0/936** |
+  | SingleOutputOpAmps | 2 940 | 4 914 | ✗ | **✗ 0/2940** |
+  | ComplementaryOpAmps | 36 | 1 170 | ✗ | **✗ 0/36** |
 
-  FullyDifferential is an **exact count match**. SingleOutput and
-  Complementary diverge — the two generators don't yet enumerate the identical
-  topology set (acst additionally distinguishes a two-stage op-amp's first/
-  second-stage indices and a `symmetrical_op_amp` sub-family that pyckt's
-  `TopologySpec` doesn't carry yet). Reconciling that enumeration is the
-  remaining "topology-set parity" item — see §6.
+  **Important correction (issue #3):** the FullyDifferential "936/936" is only a
+  *file-count* coincidence, **not** structural fidelity. A canonical
+  name-independent topology-signature diff
+  ([`comparison/topology_signature.py`](comparison/topology_signature.py)) shows
+  **zero** of pyckt's generated topologies matched any acst topology in *any*
+  category. Root cause: `Circuit.flatten()` did not resolve internal
+  instance-to-instance nets, so every generated transistor was emitted with a
+  single connected pin — the whole 7 020-file library collapsed to **3**
+  structurally-distinct (hollow) circuits.
+
+  **Fix 1 landed:** `flatten()` rewritten as a union-find over the full
+  connection graph; MOSFETs are now fully wired and structural diversity went
+  from 3 → ~4 300 distinct topologies. Remaining for true set-parity: port
+  acst's OpAmp-level bias/capacitor composition (`buildAndConnectedBias`), then
+  reconcile the enumeration counts. Full analysis + staged plan in
+  [`comparison/TOPLIBGEN_PARITY_ANALYSIS.md`](comparison/TOPLIBGEN_PARITY_ANALYSIS.md).
 - Driven by [`scripts/run_toplibgen.sh`](scripts/run_toplibgen.sh)
   (pyckt-only; acst's toplibgen run is a multi-minute benchmark, not exercised
   per-invocation). 23 new tests in `tests/test_toplibgen_acst.py`.
@@ -258,8 +268,8 @@ Changes in this period are tracked as GitHub Issues and Pull Requests on
   per package plus a Python-API quick-start. Addresses supervisor feedback §3.
 - **toplibgen acst-format emitter** — `AcstNetlistWriter`, `acst_category()` /
   `acst_name_prefix()`, `to_acst_directory()`. `toplibgen --output-format acst`
-  writes real per-topology netlists; FullyDifferential count matches acst
-  exactly (936/936).
+  writes real per-topology netlists; FullyDifferential file count matches acst
+  (936/936) — though structural parity is a separate, open item (§4.6).
 - **Per-mode run scripts** — `scripts/run_{structrec,partitioning,rulegen,
   toplibgen}.sh` + `scripts/SCRIPTS.md`.
 - **partitioning** re-implemented to acst's gm-path/stage semantics → 19/19.
