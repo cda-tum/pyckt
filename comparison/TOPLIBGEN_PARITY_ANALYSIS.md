@@ -117,3 +117,52 @@ proving true set parity, not just equal counts.
 
 **Verification target:** 2940 / 936 / 36 exactly, per category, plus a
 signature-set match, with the existing suite still green.
+
+## 5. CRITICAL FINDING — the netlists are structurally broken (blocks parity)
+
+Building the canonical-signature harness (`comparison/topology_signature.py`)
+and running it against both sets surfaced a far more fundamental problem than
+count divergence:
+
+| Category | acst distinct sigs | pyckt distinct sigs | common |
+|---|---:|---:|---:|
+| SingleOutput | 2940 | **3** | **0** |
+| FullyDifferential | 936 | **1** | **0** |
+| Complementary | 36 | **1** | **0** |
+| **global** | 3912 | 3 | **0** |
+
+pyckt emits 7020 files but only **3 structurally-distinct topologies**, and
+**none** of them matches any acst topology — *including FullyDifferential,
+where the file count matches 936/936 exactly.* That "936/936 match" is therefore
+a coincidence of enumeration cardinality, **not** structural fidelity.
+
+**Root cause:** pyckt's generated flat circuits are hollow. A converted MOSFET
+carries **one** terminal instead of four:
+
+```
+pyckt   one_stage_single_output_op_amp100.ckt:
+    M1 in1 pmos                         ← only the gate net; no drain/source/bulk
+    M3 source_nmos source_nmos nmos     ← two nets; missing gate/drain
+acst    one_stage_single_output_op_amp1.ckt:
+    m_..._Transconductor_4 FirstStageYout1 in1 FirstStageYsourceTransconductance
+                           FirstStageYsourceTransconductance pmos   ← fully wired
+```
+
+The hierarchical HL4/HL5 objects *do* carry connectivity (a `NonInvertingStage`
+has 3 sub-instances, 9 ports, 9 connections), but
+`topogen.common.circuit.Circuit.flatten()` / `synthesis.converter.TopologyConverter`
+does **not** recursively resolve those instance-port connections down to leaf
+transistor terminals.  The `AcstNetlistWriter` then faithfully writes transistors
+that have almost no pins connected (it skips missing pins by design).
+
+**Consequence for issue #3:** exact topology-set parity is *blocked* on fixing
+the hierarchical→flat flattening (pyckt's equivalent of acst's
+`Core::FlatCircuitRecursion`).  Reconciling enumeration counts (§3–4) is moot
+until the generated circuits are structurally valid — matching counts of
+structurally-broken netlists is not parity.  This is a larger, more fundamental
+fix than the enumeration reconciliation the issue anticipated, and it should be
+its own work item (the converter/flatten bug) that #3's set-parity check then
+sits on top of.
+
+The signature harness added here is the tool that will verify real parity once
+the flattening is fixed: `signatures_in_dir(acst_cat) == signatures_in_dir(pyckt_cat)`.
