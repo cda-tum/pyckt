@@ -43,6 +43,11 @@ def parse_ckt(path: str | Path) -> tuple[list[tuple], set[str]]:
     MOSFET lines are ``name drain gate source bulk model``; capacitor lines
     (``c_…``) are ``name n1 n2``.
     """
+    def norm(net: str) -> str:
+        # normalise so pyckt's ``source_nmos`` and acst's ``sourceNmos`` collapse
+        # to the same boundary token; internal nets are anonymised anyway.
+        return net.lower().replace("_", "")
+
     devices: list[tuple] = []
     nets: set[str] = set()
     for raw in Path(path).read_text().splitlines():
@@ -54,14 +59,14 @@ def parse_ckt(path: str | Path) -> tuple[list[tuple], set[str]]:
         if name.startswith("m"):  # MOSFET: name d g s b model
             if len(tok) < 6:
                 continue
-            d, g, s, b, model = tok[1].lower(), tok[2].lower(), tok[3].lower(), tok[4].lower(), tok[5].lower()
+            d, g, s, b, model = norm(tok[1]), norm(tok[2]), norm(tok[3]), norm(tok[4]), tok[5].lower()
             terms = [("d", d), ("g", g), ("s", s), ("b", b)]
             devices.append(("mos", model, terms))
             nets.update([d, g, s, b])
         elif name.startswith("c"):  # capacitor: name n1 n2
             if len(tok) < 3:
                 continue
-            n1, n2 = tok[1].lower(), tok[2].lower()
+            n1, n2 = norm(tok[1]), norm(tok[2])
             devices.append(("cap", "cap", [("c", n1), ("c", n2)]))
             nets.update([n1, n2])
     return devices, nets

@@ -60,8 +60,18 @@ def connectInstanceTerminalsOfTwoTransistorLoadPart(out: LoadPart, ts1, ts2):
                 else:
                     connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))
             else:
+                # Current-mirror load: the voltage-bias branch is the mirror
+                # *reference* and must be diode-connected (gate = its own drain),
+                # so the shared INNER mirror-gate node lands on the reference
+                # drain (matching acst, where Load_1 is a diode transistor). The
+                # extra OUT{1,2} connection ties this branch's gate to its drain;
+                # without it the reference gate floats (issue #3, Fix 2a).
                 connect((out, LoadPart.INNER), (transistorStack, TransistorStack.OUT))
-            
+                if num == 1:
+                    connect((out, LoadPart.OUT1), (transistorStack, TransistorStack.OUT))
+                else:
+                    connect((out, LoadPart.OUT2), (transistorStack, TransistorStack.OUT))
+
             connect((out, LoadPart.SOURCE), (transistorStack, TransistorStack.SOURCE))
         num += 1
     # fmt: on

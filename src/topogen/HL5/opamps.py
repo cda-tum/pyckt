@@ -88,6 +88,51 @@ def connectInstanceTerminalsSimpleOpAmp(
     return opamp
 
 
+def createFullyDifferentialOpAmp(
+    firstStage: NonInvertingStage,
+    feedbackStage: NonInvertingStage,
+) -> OpAmp:
+    """Assemble a one-stage fully-differential op-amp from a differential
+    *firstStage* and a common-mode *feedbackStage* (acst
+    ``OpAmps::createFullyDifferentialOpAmp`` + ``connectInstanceTerminals``).
+
+    The first stage drives the two differential outputs ``out1``/``out2``; the
+    feedback stage senses them (``IN1←out2``, ``IN2←out1``), references
+    ``vref`` on its inner transconductance, and its output (``outfeedback``)
+    drives the first stage's current-mirror load gate (``InnerLoad1``) — the
+    common-mode feedback that biases the first stage's load.
+    """
+    opamp = OpAmp(id=1, techtype="undef")
+    opamp.ports += [
+        OpAmp.IN1, OpAmp.IN2, OpAmp.IBIAS,
+        OpAmp.OUT1, OpAmp.OUT2, OpAmp.VREF,
+        OpAmp.SOURCEPMOS, OpAmp.SOURCENMOS,
+    ]
+    opamp.add_instance(firstStage)
+    opamp.add_instance(feedbackStage)
+
+    # first (differential) stage
+    connect((opamp, OpAmp.IN1), (firstStage, NonInvertingStage.IN1))
+    connect((opamp, OpAmp.IN2), (firstStage, NonInvertingStage.IN2))
+    connect((opamp, OpAmp.SOURCEPMOS), (firstStage, NonInvertingStage.SOURCEPMOS))
+    connect((opamp, OpAmp.SOURCENMOS), (firstStage, NonInvertingStage.SOURCENMOS))
+    connect((opamp, OpAmp.OUT1), (firstStage, NonInvertingStage.OUT1))
+    connect((opamp, OpAmp.OUT2), (firstStage, NonInvertingStage.OUT2))
+
+    # feedback (common-mode) stage
+    connect((opamp, OpAmp.OUT2), (feedbackStage, NonInvertingStage.IN1))
+    connect((opamp, OpAmp.OUT1), (feedbackStage, NonInvertingStage.IN2))
+    connect((opamp, OpAmp.VREF), (feedbackStage, NonInvertingStage.INNERTRANSCONDUCTANCE))
+    connect((opamp, OpAmp.SOURCEPMOS), (feedbackStage, NonInvertingStage.SOURCEPMOS))
+    connect((opamp, OpAmp.SOURCENMOS), (feedbackStage, NonInvertingStage.SOURCENMOS))
+
+    # common-mode feedback node: feedback-stage output drives the first stage's
+    # mirror-load gate (acst connectedLoadInstanceTerminalToFeedbackStage)
+    connect((opamp, OpAmp.OUTFEEDBACK), (feedbackStage, NonInvertingStage.OUT2))
+    connect((opamp, OpAmp.OUTFEEDBACK), (firstStage, NonInvertingStage.INNERLOAD1))
+    return opamp
+
+
 class OpAmpFactory:
     """Thin wrapper around the module-level op-amp creation functions.
 

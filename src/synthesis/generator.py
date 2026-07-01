@@ -90,27 +90,36 @@ class TopologyLibraryGenerator:
         for first_stage, is_complementary, is_fd, input_tech in (
             self._iter_first_stages()
         ):
-            # ---- one-stage ------------------------------------------------
-            opamp_1s = createSimpleOpAmp(
-                firstStage=deepcopy(first_stage), secondStage=None
-            )
-            spec_1s = TopologySpec(
-                id=topology_id,
-                name=self._make_name(1, is_complementary, is_fd, input_tech),
-                num_stages=1,
-                is_complementary=is_complementary,
-                is_fully_differential=is_fd,
-                input_tech=TechType.P if input_tech == "p" else TechType.N,
-                has_cascode={},
-            )
-            try:
-                core_circuit = self._converter.convert(opamp_1s)
-            except Exception:  # noqa: BLE001 — tolerate flatten errors per topology
-                core_circuit = None
-            self.library.add(spec_1s, core_circuit)
-            topology_id += 1
+            tech = TechType.P if input_tech == "p" else TechType.N
 
-            # ---- two-stage ------------------------------------------------
+            # ---- one-stage ------------------------------------------------
+            # Fully-differential op-amps compose the first stage with a
+            # common-mode feedback stage (acst createFullyDifferentialOneStageOpAmps);
+            # single-output/complementary use the first stage alone.
+            for opamp_1s in self._one_stage_opamps(first_stage, is_fd, input_tech):
+                spec_1s = TopologySpec(
+                    id=topology_id,
+                    name=self._make_name(1, is_complementary, is_fd, input_tech),
+                    num_stages=1,
+                    is_complementary=is_complementary,
+                    is_fully_differential=is_fd,
+                    input_tech=tech,
+                    has_cascode={},
+                )
+                try:
+                    core_circuit = self._converter.convert(opamp_1s)
+                except Exception:  # noqa: BLE001 — tolerate flatten errors per topology
+                    core_circuit = None
+                self.library.add(spec_1s, core_circuit)
+                topology_id += 1
+
+            # ---- two-stage (single-output only) ---------------------------
+            # acst emits two-stage variants for single-output only: complementary
+            # and fully-differential op-amps are one-stage (acst createOpAmps
+            # guards two-stage with ``if(!isComplementary)``, and its FD path
+            # is one-stage here — FD two-stage is not yet ported).
+            if is_fd or is_complementary:
+                continue
             for second_stage in inv_stages:
                 opamp_2s = createSimpleOpAmp(
                     firstStage=deepcopy(first_stage),
@@ -122,7 +131,7 @@ class TopologyLibraryGenerator:
                     num_stages=2,
                     is_complementary=is_complementary,
                     is_fully_differential=is_fd,
-                    input_tech=TechType.P if input_tech == "p" else TechType.N,
+                    input_tech=tech,
                     has_cascode={},
                 )
                 try:
@@ -144,6 +153,35 @@ class TopologyLibraryGenerator:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _one_stage_opamps(self, first_stage, is_fd: bool, input_tech: str) -> list:
+        """Build the one-stage op-amp(s) for *first_stage*.
+
+        Single-output/complementary → one op-amp (first stage alone).
+        Fully-differential → one op-amp per common-mode feedback stage of the
+        matching transconductance tech (acst pairs a p-input first stage with
+        the PMOS-transconductance feedback stages, an n-input one with the NMOS
+        feedback stages).
+        """
+        from topogen.HL4.non_inv import NonInvertingStageManager
+        from topogen.HL5.opamps import (
+            createFullyDifferentialOpAmp,
+            createSimpleOpAmp,
+        )
+
+        if not is_fd:
+            return [createSimpleOpAmp(firstStage=deepcopy(first_stage), secondStage=None)]
+
+        mgr = NonInvertingStageManager()
+        feedback_stages = (
+            mgr.getFeedbackNonInvertingStagesPmosTransconductance()
+            if input_tech == "p"
+            else mgr.getFeedbackNonInvertingStagesNmosTransconductance()
+        )
+        return [
+            createFullyDifferentialOpAmp(deepcopy(first_stage), deepcopy(fb))
+            for fb in feedback_stages
+        ]
 
     def _iter_first_stages(self) -> Iterator[tuple]:
         """Yield ``(NonInvertingStage, is_complementary, is_fd, input_tech)``

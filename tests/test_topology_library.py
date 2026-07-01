@@ -322,8 +322,9 @@ class TestTopologyConverter:
 
     def test_convert_all_devices_are_mosfets(self, core_circuit):
         from core.device import DeviceType
+        # a complete op-amp is MOSFETs plus the load capacitor(s) added by 2c
         for device in core_circuit.devices:
-            assert device.device_type == DeviceType.MOSFET
+            assert device.device_type in (DeviceType.MOSFET, DeviceType.CAPACITOR)
 
     def test_convert_tech_types_valid(self, core_circuit):
         from core.device import TechType
@@ -349,6 +350,84 @@ class TestTopologyConverter:
             assert {PinType.DRAIN, PinType.GATE, PinType.SOURCE} <= pins, (
                 f"{device.name} is under-wired: only {sorted(p.name for p in pins)}"
             )
+
+    def test_convert_completes_bias_network(self, core_circuit):
+        """Regression (issue #3, Fix 2b): the converted op-amp's bias reference
+        gates must not float — every gate net is either driven by a drain, an
+        input, or the ``ibias`` reference, and a diode-connected MainBias
+        transistor sits on ``ibias``."""
+        drains, gates = set(), set()
+        for d in core_circuit.mosfets:
+            for pt, t in d.terminals.items():
+                if pt.name == "DRAIN":
+                    drains.add(t.net.name)
+                elif pt.name == "GATE":
+                    gates.add(t.net.name)
+        from core.device import PinType
+
+        floating = {g for g in gates if g not in drains and g not in ("in1", "in2")}
+        assert floating <= {"ibias"}, f"floating bias gates remain: {floating}"
+        # a diode-connected reference (gate == drain == ibias) must exist
+        def is_ibias_diode(d):
+            t = d.terminals
+            return (
+                PinType.GATE in t and PinType.DRAIN in t
+                and d.get_net(PinType.GATE).name == "ibias"
+                and d.get_net(PinType.DRAIN).name == "ibias"
+            )
+        assert any(is_ibias_diode(d) for d in core_circuit.mosfets), (
+            "no diode-connected MainBias reference on ibias"
+        )
+
+    def test_convert_adds_load_capacitor(self, core_circuit):
+        """Regression (issue #3, Fix 2c): a single-output op-amp gets one load
+        capacitor wired ``out ↔ source_nmos`` (acst's Load_Capacitor)."""
+        from core.device import DeviceType, PinType
+
+        caps = [d for d in core_circuit.devices if d.device_type == DeviceType.CAPACITOR]
+        assert len(caps) == 1
+        cap = caps[0]
+        nets = {cap.get_net(PinType.PLUS).name, cap.get_net(PinType.MINUS).name}
+        assert nets == {"out", "source_nmos"}
+
+    def test_convert_bias_can_be_disabled(self, sample_opamp):
+        """With ``complete_bias=False`` the raw flattened transistors are kept
+        (no synthesised bias reference)."""
+        from synthesis.converter import TopologyConverter
+        raw = TopologyConverter(complete_bias=False).convert(sample_opamp)
+        full = TopologyConverter(complete_bias=True).convert(sample_opamp)
+        assert len(full.mosfets) > len(raw.mosfets)
+
+    def test_fd_load_has_distinct_differential_outputs(self):
+        """Regression (issue #3, Fix 2d): the fully-differential ``cb+cb`` load's
+        two branches must reach distinct outputs ``out1``/``out2``.  They shared
+        one aliased transistor object, which the union-find flatten collapsed
+        onto a single net (fixed by deep-copying each transistor stack)."""
+        from copy import deepcopy
+
+        from topogen.HL3.l import LoadManager
+
+        load = next(iter(LoadManager().createLoadsNmosForFullyDifferentialNonInvertingStage()))
+        drains = {t.drain for t in deepcopy(load).flatten().instances}
+        assert {"out1", "out2"} <= drains
+
+    def test_fd_opamp_is_differential(self):
+        """Regression (issue #3, Fix 2d): a composed fully-differential op-amp
+        drives two distinct outputs and senses them through a feedback stage."""
+        from copy import deepcopy
+
+        from synthesis.converter import TopologyConverter
+        from topogen.HL4.non_inv import NonInvertingStageManager
+        from topogen.HL5.opamps import createFullyDifferentialOpAmp
+
+        mgr = NonInvertingStageManager()
+        fs = next(iter(mgr.createFullyDifferentialNonInvertingStages(2)))
+        fb = next(iter(mgr.getFeedbackNonInvertingStagesNmosTransconductance()))
+        ckt = TopologyConverter().convert(
+            createFullyDifferentialOpAmp(deepcopy(fs), deepcopy(fb))
+        )
+        nets = {n.name for n in ckt.nets}
+        assert {"out1", "out2", "vref"} <= nets
 
     def test_convert_produces_multiple_distinct_structures(self):
         """Regression (issue #3): distinct first-stage cases must yield

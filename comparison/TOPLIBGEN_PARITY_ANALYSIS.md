@@ -209,3 +209,145 @@ terminal not already driven by a drain and synthesises the bias network
 (main bias, improved-Wilson / cascode-GCC current biases, voltage biases).
 Porting that HL5 composition is Fix 2; enumeration-count reconciliation (§3–4)
 is Fix 3, on top of it.  The signature harness verifies each step.
+
+### 7.1 Fix 2 is bigger than "port one function" — findings
+
+Starting Fix 2 showed the composition gaps are **pervasive**, not confined to a
+bias network.  In pyckt's simplest generated op-amp the floating gate inventory
+is:
+
+```
+gate nets:  in1, in2, net_2, net_3
+drain nets: net_0, net_1, out
+floating (gate not driven by a drain): net_2, net_3
+```
+
+* `net_3` = tail stage-bias gate → acst wires it to `ibias` and adds the
+  diode-connected **MainBias** reference (a mirror of the stage-bias stack).
+* `net_2` = **current-mirror load** gate.  acst's load reference is
+  diode-connected (gate = its own reference drain = `FirstStageYout1`), so this
+  gate is *not* floating in acst.  In pyckt the load exposes `InnerLoad1`
+  (mirror gate) and `out1` (reference drain) as separate first-stage ports and
+  **never connects them** — the diode is missing.
+
+So exact device-for-device parity needs three composition pieces, each present
+across the HL2–HL5 cells and case-dependent (simple / cascode / folded-GCC):
+
+1. **Current-mirror diode connections** — tie each mirror's reference gate to
+   its reference drain (missing in pyckt's load/stage composition).
+2. **Bias network** — `buildAndConnectedBias`: main bias + Wilson/cascode-GCC
+   current biases + voltage biases wiring every remaining floating gate to
+   `ibias` (~1200 LOC of dense C++ in acst, plus its `CurrentBiases`/
+   `VoltageBiases` cell libraries that pyckt lacks).
+3. **Load / compensation capacitors** — `connectInstanceTerminalsCapacitors`.
+
+This is a substantial, multi-part model-completion effort — realistically its
+own multi-PR project — rather than a single function port.  Fix 1 (flatten) is
+its prerequisite and stands on its own.  The signature harness remains the
+oracle: after each composition piece lands, `common` signatures should climb
+from 0 toward the full 2940 / 936 / 36.
+
+## 8. Composition fixes landed — signature overlap climbing
+
+Each fix is verified device-for-device against acst via the signature harness:
+
+| Fix | What | acst matches (common signatures) |
+|---|---|---:|
+| 2a | current-mirror load diode connections | prerequisite |
+| 2b | simple diode voltage-bias network | 0 → 6 (SingleOutput) |
+| 2c | load capacitor(s) | 6 full-signature |
+| 2b+ | two-transistor cascode voltage bias | 6 → 12 |
+| 2d | FD composition (feedback stage) + sub-instance de-aliasing | +4 FD → 16 |
+| 2-x | complementary cross-mirror current bias (both-tech references) | +18 SingleOutput → **34 total** |
+
+**Fix 2d notes.** pyckt's fully-differential op-amps were structurally
+single-output-shaped: the generator composed FD first stages with the
+single-output `createSimpleOpAmp` and never built acst's common-mode feedback
+stage.  Two problems were fixed:
+
+1. **Sub-instance aliasing** — the FD `cb+cb` load built both differential
+   branches from *one* shared `CurrentBias` object, so the union-find flatten
+   (keyed by object identity) collapsed `out1`/`out2` onto a single net.
+   `createTransistorStack` now deep-copies its bias cell, so each branch owns
+   independent transistors.
+2. **FD composition** — new `createFullyDifferentialOpAmp` wires the first
+   stage's differential outputs `out1`/`out2`, a common-mode feedback stage
+   (sensing `out1`/`out2`, referencing `vref`), and drives the first-stage
+   mirror-load gate from the feedback output (acst
+   `connectInstanceTerminalsFullyDifferentialOpAmp` +
+   `connectedLoadInstanceTerminalToFeedbackStage`).  The generator pairs each FD
+   first stage with the matching-tech feedback stages.
+
+The simplest FD op-amp now matches acst's `one_stage_fully_differential_op_amp`
+device-for-device.
+
+## 9. Bias network is complete — remaining gap is enumeration (Fix 3)
+
+Measured after the composition fixes: **0 / 4914** single-output op-amps have
+any floating (unbiased) gate — every generated op-amp already carries a
+complete, valid bias network, and for the topologies acst also generates it
+matches acst device-for-device (34 total).  So there is **no remaining bias
+work** ("Wilson / cascode-GCC bias") for single-output: the earlier hypothesis
+that cascode topologies needed more bias paths was wrong.  The remaining
+single-output mismatch is entirely **enumeration divergence** — pyckt generates
+*different cascode topologies* than acst (e.g. pyckt's 9-transistor case is a
+telescopic cascode: pmos cascode + nmos mirror; acst's 9-transistor topologies
+are cascode-current-mirror loads).  Confirmed case-by-case: single-output cases
+1–6, 13–14 match; 7–12, 15–16 are structurally different topologies, not
+different biasing of the same one.
+
+## 10. Fix 3 — enumeration reconciliation (in progress)
+
+**Landed:** complementary op-amps are now one-stage only (acst rule) —
+Complementary 1170 → 90 (toward 36); generated total 6516 → 5436.
+
+**Remaining — deep HL3 cardinality port (the dominant blocker).** pyckt's
+HL3 `LoadPart` / `StageBias` / feedback factories enumerate *different-sized
+sets* than acst's, so pyckt generates different topologies, not just more.
+Measured divergences:
+
+| Family | pyckt | acst | where |
+|---|---:|---:|---|
+| simple one-stage first-stages | 336 | 210 | HL3 load/bias cardinalities per case |
+| complementary first-stages | 90 | 36 | HL3 four-transistor-mixed load parts |
+| FD one-stage | 432 (72 fs × 6 fb) | 72 (~36 fs × 2 fb) | FD first-stage **and** feedback-stage counts both over-generate |
+
+acst's per-family `create*NonInvertingStages` **structure** is a faithful port
+already (same case switch, same load-group composition); the gap is the HL3
+`LoadParts.cpp` / `StageBias` / `CurrentBias` / feedback enumeration
+**cardinalities** (e.g. acst's feedback stage applies a
+`everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType`
+filter and yields ~2 per tech vs pyckt's 6).  Reconciling requires porting
+those HL2/HL3 factory counts factory-by-factory against acst — a large,
+methodical effort, and the last blocker before the already-correct
+compositions count as matches.
+
+**Also remaining (composition, orthogonal to enumeration):**
+- **FD two-stage** (`createFullyDifferentialTwoStageOpAmps`).
+- **Complementary load composition** — bias now matches acst, but the
+  complementary *load* still differs (pyckt's mixed load vs acst's `Load_2–9`).
+- **Symmetrical op-amp family** (its own one-stage composition).
+
+### 10.1 The HL3 gap is structural, not count-matching (measured)
+
+Audited the HL2/HL3 factories bottom-up:
+
+- **Fixed two real latent bugs**: the two-transistor PMOS `VoltageBias` and
+  both two-transistor `CurrentBias` factories cached a `chain()` iterator that
+  the first consumer exhausted (later callers saw 0).  Materialised to lists.
+  (Single-pass generation was unchanged — the loads are built once at init —
+  but repeated factory access was wrong.)
+- **Where the counts *do* line up**: mixed load-parts (12 = 2+4+6),
+  current-bias load-parts (3), the two-load-part mixed-current-bias loads
+  (12 × 3 = 36) all match acst's factory cardinalities.
+
+**But the sets don't**: of acst's **210** simple one-stage op-amps, pyckt
+generates only **30** (14 %).  pyckt's simple first-stage set is *not* a
+superset of acst's — it builds *structurally different* loads (e.g. telescopic
+cascode vs cascode-current-mirror) for ~85 % of topologies.  So the remaining
+enumeration work is **not** count-trimming or a filter; it is a faithful
+structural re-port of acst's HL3 load construction (`Loads.cpp` /
+`LoadParts.cpp` cascode/GCC/four-transistor wiring) so pyckt builds acst's
+*exact* loads.  That is a large, methodical, multi-part effort — the remaining
+body of issue #3 — and it is the single blocker between the (verified-correct)
+composition/bias pipeline and full 2940 / 936 / 36 parity.
