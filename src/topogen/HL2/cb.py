@@ -89,8 +89,13 @@ class CurrentBiasManager:
         """Build both two-transistor PMOS bias variants and cache them on ``self``."""
         normalTransistorPmos = NormalTransistor(techtype="p")
         diodeTransistorPmos = DiodeTransistor(techtype="p")
-        self.twoTransistorCurrentBiasesPmos_ = self.createTwoTransistorCurrentBias(
-            normalTransistorPmos, diodeTransistorPmos
+        # materialise to a list — the ``chain`` iterator is otherwise exhausted
+        # by the first load-part factory that consumes it during init, leaving
+        # every later one with 0 two-transistor current biases (issue #3).
+        self.twoTransistorCurrentBiasesPmos_ = list(
+            self.createTwoTransistorCurrentBias(
+                normalTransistorPmos, diodeTransistorPmos
+            )
         )
 
     def initializeOneTransistorCurrentBiasesNmos(self):
@@ -104,8 +109,10 @@ class CurrentBiasManager:
         """Build both two-transistor NMOS bias variants and cache them on ``self``."""
         normalTransistorNmos = NormalTransistor(techtype="n")
         diodeTransistorNmos = DiodeTransistor(techtype="n")
-        self.twoTransistorCurrentBiasesNmos_ = self.createTwoTransistorCurrentBias(
-            normalTransistorNmos, diodeTransistorNmos
+        self.twoTransistorCurrentBiasesNmos_ = list(
+            self.createTwoTransistorCurrentBias(
+                normalTransistorNmos, diodeTransistorNmos
+            )
         )
 
     def createTwoTransistorCurrentBias(

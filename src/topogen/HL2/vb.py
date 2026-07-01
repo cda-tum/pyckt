@@ -81,16 +81,24 @@ class VoltageBiasManager:
         """Build the one-transistor PMOS bias variants and cache them on ``self``."""
         normalTransistorPmos = NormalTransistor(techtype="p")
         diodeTransistorPmos = DiodeTransistor(techtype="p")
-        self.oneTransistorVoltageBiasesPmos_ = self.createOneTransistorVoltageBiases(
-            normalTransistorPmos, diodeTransistorPmos
+        # materialise to a list — the ``chain`` iterator is otherwise exhausted
+        # after the first consumer, leaving every later caller with 0 PMOS
+        # voltage biases (the NMOS path already wraps in list()); this asymmetry
+        # corrupted every load factory that mirrors a PMOS voltage bias (issue #3).
+        self.oneTransistorVoltageBiasesPmos_ = list(
+            self.createOneTransistorVoltageBiases(
+                normalTransistorPmos, diodeTransistorPmos
+            )
         )
 
     def initializeTwoTransistorVoltageBiasesPmos(self) -> None:
         """Build the two-transistor PMOS bias variants and cache them on ``self``."""
         normalTransistorPmos = NormalTransistor(techtype="p")
         diodeTransistorPmos = DiodeTransistor(techtype="p")
-        self.twoTransistorVoltageBiasesPmos_ = self.createTwoTransistorVoltageBiases(
-            normalTransistorPmos, diodeTransistorPmos
+        self.twoTransistorVoltageBiasesPmos_ = list(
+            self.createTwoTransistorVoltageBiases(
+                normalTransistorPmos, diodeTransistorPmos
+            )
         )
 
     def initializeOneTransistorVoltageBiasesNmos(self) -> None:
