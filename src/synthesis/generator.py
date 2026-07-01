@@ -215,13 +215,11 @@ class TopologyLibraryGenerator:
             for stage in mgr.createSymmetricalNonInvertingStages(case_id):
                 yield stage, False, False, input_tech
 
-        # Feedback — PMOS transconductance
-        for stage in mgr.getFeedbackNonInvertingStagesPmosTransconductance():
-            yield stage, False, False, "p"
-
-        # Feedback — NMOS transconductance
-        for stage in mgr.getFeedbackNonInvertingStagesNmosTransconductance():
-            yield stage, False, False, "n"
+        # NOTE: feedback non-inverting stages are *not* single-output first
+        # stages — acst uses them only as the common-mode feedback stage of a
+        # fully-differential op-amp (see generator._one_stage_opamps).  They were
+        # previously folded in here, over-generating 12 × 13 = 156 spurious
+        # single-output topologies (issue #20).
 
     @staticmethod
     def _make_name(
