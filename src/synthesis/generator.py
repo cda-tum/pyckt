@@ -113,10 +113,12 @@ class TopologyLibraryGenerator:
                 self.library.add(spec_1s, core_circuit)
                 topology_id += 1
 
-            # ---- two-stage (single-output / complementary only) -----------
-            # FD two-stage (createFullyDifferentialTwoStageOpAmps) is not yet
-            # ported; FD stays one-stage for now.
-            if is_fd:
+            # ---- two-stage (single-output only) ---------------------------
+            # acst emits two-stage variants for single-output only: complementary
+            # and fully-differential op-amps are one-stage (acst createOpAmps
+            # guards two-stage with ``if(!isComplementary)``, and its FD path
+            # is one-stage here — FD two-stage is not yet ported).
+            if is_fd or is_complementary:
                 continue
             for second_stage in inv_stages:
                 opamp_2s = createSimpleOpAmp(
