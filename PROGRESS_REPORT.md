@@ -2,7 +2,7 @@
 
 **Project:** Python re-implementation of **acst** (Analog Circuit Synthesis Tool, TU München)
 **Author:** Firas
-**Date:** 2026-06-26
+**Date:** 2026-07-01
 **Repositories:**
 - pyckt (Python, this work): `https://github.com/cda-tum/pyckt`
 - acst (C++, reference): `https://github.com/inga000/acst`
@@ -27,20 +27,20 @@ equivalent results.
 |---------------|:--:|----------------|-------|
 | **structrec** — structure recognition | ✅ | **16/16 devices + full hierarchy match** | ✅ Done |
 | **partitioning** — circuit partitioning | ✅ | **19/19 devices same section** | ✅ Done |
-| **rulegen** — sizing-rule generation | ✅ | **10/10 library items, 9/10 same level** | ✅ Done |
+| **rulegen** — sizing-rule generation | ✅ | **10/10 library items — level AND persistence exact match acst** | ✅ Done |
 | **automaticsizing** — CP-SAT sizing | ✅ | schema + performance models match; W/L not yet converged | ◑ Functional, tuning |
-| **synthesis** — topology synthesis | ✅ pipeline | ranked list (4 914 candidates); netlist bodies are placeholders | ◑ Framework done |
+| **synthesis** — topology synthesis | ✅ pipeline | ranked list (4 914 candidates); real `AcstNetlistWriter` netlists per candidate | ◑ Netlist done, solver stub |
 | **toplibgen** — topology library gen | ✅ enumeration + acst-format emitter | 7 020 topologies; real ACST-format netlists; FullyDifferential count exact match (936/936) | ◑ Emitter done, topology-set parity open |
 
 **Headline:** all six modes run end-to-end. The three deterministic
 *recognition* modes (structrec, partitioning, rulegen) now reproduce acst's
-output essentially **exactly**. Sizing reproduces acst's output *format* and
-*performance models*; the optimiser is not yet tuned to the same operating
-point. **toplibgen** now has a real ACST-format netlist writer (`--output-format
-acst`) instead of placeholder bodies — FullyDifferential topology counts match
-the acst benchmark exactly; SingleOutput/Complementary counts still diverge
-(open item, see §6). Synthesis still emits placeholder netlist bodies — that
-mode's emitter is the next piece in this vein.
+output **exactly** — rulegen's hierarchy levels and per-item persistence now
+match the acst reference item-for-item (10/10). Sizing reproduces acst's
+output *format* and *performance models*; the optimiser is not yet tuned to the
+same operating point. Both **toplibgen** and **synthesis** now use
+`AcstNetlistWriter` to emit real, parseable ACST-format `.ckt` netlists instead
+of placeholder stubs. FullyDifferential topology counts match the acst benchmark
+exactly; SingleOutput/Complementary counts still diverge (open item, see §6).
 
 ---
 
@@ -69,7 +69,9 @@ from a typed **Python API** (`pyckt.recognize`, `pyckt.partition`, `pyckt.size`,
 `pyckt.generate_rules`, `pyckt.synthesize`, `pyckt.generate_topology_library`) —
 each a thin, documented wrapper over the same analysis pipeline that returns the
 mode's typed result object and writes to disk only when an output path is given
-(see `src/pyckt/api.py`).
+(see `src/pyckt/api.py`). `pyckt.synthesize()` returns a
+`list[SynthesisCandidate]` (a dataclass with `rank`, `topology`, `sizing`,
+`score` fields) rather than a raw `list[tuple]`.
 
 **Documentation:** a Sphinx site (`docs/`, `autodoc` + `napoleon` + `furo`,
 built via `pip install -e ".[docs]"` then `sphinx-build -b html docs
@@ -117,10 +119,17 @@ Same input bundle on both tools; acst is the reference. Comparison driven by
   partitioner was re-implemented to acst's stage logic and now matches fully.
 - Sample: [`samples/partitioning/`](samples/partitioning/).
 
-### 4.3 rulegen — ✅ near-exact match
+### 4.3 rulegen — ✅ exact match
 - Emits the same `pairLibrary` artifact (top-level library + per-item XML with
   full `pairConnection` / `characteristicConnection` / `recognitionRules`).
-- **10/10** library items; **9/10** at the same hierarchy level.
+- **10/10** library items at the same hierarchy level with the same persistence
+  value — exact match against the acst reference (`SymmetricalCascodeOpAmpLibrary.xml`).
+- Root cause of the previous 1-item level mismatch (OpAmp5 at level 1 instead
+  of level 2): greedy matching consumed DiodeArray's only shared-signal partner
+  before the more-constrained pair was formed. Fixed by a most-constrained-first
+  tie-break (`_pair_round` in `src/recognition/rule_learning.py`), mirroring
+  acst's `PairLibraryItemCreator::build()` bucket/phase logic.
+- Regression test: `tests/test_rule_learning.py::TestRuleLearner::test_levels_and_persistence_match_acst_reference`.
 - Sample: [`samples/rulegen/`](samples/rulegen/).
 
 ### 4.4 automaticsizing — ◑ format & models match, optimiser tuning open
@@ -145,13 +154,19 @@ Searches a discrete grid of W/L values for an assignment that satisfies all circ
 - pyckt **does** produce a valid, fully sized HSPICE netlist —
   [`samples/sizing/sized_netlist_pyckt.hspice`](samples/sizing/sized_netlist_pyckt.hspice).
 
-### 4.5 synthesis — ◑ framework complete, netlist bodies still placeholders
+### 4.5 synthesis — ◑ real netlists done, solver stub pending
 - Enumerates and ranks **4 914** candidate topologies (rank/score/gain/power/
   area/ft) →
   [`samples/synthesis/synthesis_ranking_pyckt.json`](samples/synthesis/synthesis_ranking_pyckt.json).
-- The ranking, scoring and file-emission framework is complete; the
-  **per-topology netlist bodies are still placeholders** (next phase — same
-  treatment toplibgen just got, see below).
+- The ranking, scoring and file-emission framework is complete. Each candidate
+  now gets a **real `AcstNetlistWriter` `.ckt` netlist** (same writer as
+  toplibgen) reflecting the topology's structural circuit — no longer a
+  placeholder stub. The netlist is unsized (no W/L parameters): the
+  `SynthesisEngine._size_topology()` solver is still a stub pending the real
+  CP-SAT integration (the "automaticsizing" tuning item, see §6).
+- When the topology library is loaded from a pre-built directory (metadata only,
+  no circuit objects retained), the emitter gracefully falls back to a
+  comment-only placeholder noting why, and logs a warning.
 - acst's synthesis is a combinatorial generator that exceeds the short run
   budget (minutes), so a direct output diff is deferred until acst is run to
   completion offline.
@@ -187,62 +202,105 @@ Searches a discrete grid of W/L values for an assignment that satisfies all circ
 
 ## 5. What changed recently (this reporting period)
 
+Changes in this period are tracked as GitHub Issues and Pull Requests on
+[`Firas-Jrad/pyckt`](https://github.com/Firas-Jrad/pyckt). Branches cut from
+`jrad`, PRs target `jrad` (not `main`, which is the stale cda-tum snapshot).
+
+**Issues closed this period (PRs merged into `jrad`):**
+
+- **[#11](https://github.com/Firas-Jrad/pyckt/issues/11) — typed return for
+  `synthesize()`** (PR #13) — introduced a `SynthesisCandidate` dataclass
+  (`rank`, `topology`, `sizing`, `score`) and updated `pyckt.synthesize()` to
+  return `list[SynthesisCandidate]` instead of a raw `list[tuple]`.
+  `SynthesisCandidate` is exported from `pyckt` alongside the existing typed
+  results. 4 new tests in `tests/test_api.py`.
+
+- **[#10](https://github.com/Firas-Jrad/pyckt/issues/10) — docstring gaps in
+  topogen HL2–HL5** (PR #12) — filled module-level and class-level docstrings
+  for the 15 previously-bare `topogen` sub-packages and factory classes
+  (`common/`, `hl2/`–`hl5/`). `sphinx-build -W` now passes clean (0 warnings)
+  without `suppress_warnings`.
+
+- **[#9](https://github.com/Firas-Jrad/pyckt/issues/9) — Sphinx duplicate-
+  object warnings** (PR #14) — root cause: `undoc-members` + Napoleon's
+  Attributes section double-documented bare dataclass field annotations (72 of
+  77 warnings). Fix: removed `undoc-members` from `conf.py`. A second root
+  cause (two distinct `Circuit` classes sharing the same short name) fixed via
+  `:no-index:` on the topogen variant. Build now passes `sphinx-build -W`
+  with zero warnings.
+
+- **[#4](https://github.com/Firas-Jrad/pyckt/issues/4) — synthesis real
+  netlist emitter** (PR #15) — `SynthesisAnalysis.write()` now uses
+  `AcstNetlistWriter` to emit a real `.ckt` per ranked candidate, matching the
+  treatment toplibgen already had. Graceful fallback (comment-only placeholder
+  + warning log) when the library was loaded from a pre-built directory and
+  carries no circuit objects. 4 new tests in `tests/test_synthesis.py`.
+
+- **[#5](https://github.com/Firas-Jrad/pyckt/issues/5) — rulegen level/
+  persistence mismatch** (PR #16) — reverse-engineered acst's
+  `PairLibraryItemCreator::build()` bucket/phase logic; added a
+  most-constrained-first tie-break to `_pair_round()` in
+  `src/recognition/rule_learning.py`. Result: 10/10 items at the correct
+  hierarchy level, all persistence values match the acst reference. Regression
+  test pinned in `tests/test_rule_learning.py`.
+
+**Earlier in the session (pre-Issues workflow):**
+
 - **Package layout flattened** — the engines (`core`, `io`→`ckt_io`, `sizing`,
   `synthesis`, `utils`, `cli`) moved out of `src/pyckt/` to the `src/` top level
   alongside `topogen`/`recognition`/`partitioning`; `pyckt/` now holds only the
   public API facade. ~372 imports across 69 files rewritten; full suite still
-  857-green. Addresses supervisor feedback §2. Also added module docstrings to
-  the previously-bare `topogen` HL2–HL5 / `common` sub-packages.
+  867-green. Addresses supervisor feedback §2.
 - **Python API** (`src/pyckt/api.py`, re-exported from `pyckt/__init__.py`) —
-  one typed function per mode (`recognize` / `generate_rules` / `partition` /
-  `size` / `synthesize` / `generate_topology_library`), each a thin wrapper over
-  the existing analysis lifecycle with optional file output. 13 new tests in
-  `tests/test_api.py`. Addresses supervisor feedback §4.
+  one typed function per mode, each a thin wrapper over the existing analysis
+  lifecycle with optional file output. Addresses supervisor feedback §4.
 - **Sphinx documentation** (`docs/`) — `autodoc` + `napoleon` + `furo`, one page
-  per package plus a Python-API quick-start; `docs` extra added to
-  `pyproject.toml`. Addresses supervisor feedback §3.
-- **toplibgen acst-format emitter** — new `AcstNetlistWriter`
-  (`src/pyckt/io/hspice_writer.py`), `TopologySpec.acst_category()` /
-  `.acst_name_prefix()`, and `TopologyLibrary.to_acst_directory()`
-  (`src/pyckt/synthesis/library.py`). `toplibgen --output-format acst` now
-  writes real per-topology netlists into acst's `SingleOutputOpAmps` /
-  `FullyDifferentialOpAmps` / `ComplementaryOpAmps` layout instead of
-  placeholder stubs. FullyDifferential count now matches acst exactly (936/936).
-- **Per-mode run scripts** added (`scripts/run_{structrec,partitioning,rulegen,
-  toplibgen}.sh` + `scripts/SCRIPTS.md`) — each mode runnable standalone,
-  repo-relative, pyckt-only where the acst reference is too slow to run
-  routinely (toplibgen).
-- Added the **acst-compatible output writer** across all deterministic modes —
-  enabling tag-for-tag validation.
-- **partitioning** re-implemented to acst's gm-path/stage semantics → 1/6 → 19/19.
-- **structrec** composite grouping fixed → full hierarchy now matches (16/16).
-- **structrec** symmetric-pin-label bug fixed (differential-pair `Input1`/`Input2`
-  now match acst's convention).
-- **automaticsizing** performance models (Ft, slew rate, phase margin) implemented
-  (previously returned 0).
-- Parser robustness fixes unblocked clean runs on the standard input bundle.
+  per package plus a Python-API quick-start. Addresses supervisor feedback §3.
+- **toplibgen acst-format emitter** — `AcstNetlistWriter`, `acst_category()` /
+  `acst_name_prefix()`, `to_acst_directory()`. `toplibgen --output-format acst`
+  writes real per-topology netlists; FullyDifferential count matches acst
+  exactly (936/936).
+- **Per-mode run scripts** — `scripts/run_{structrec,partitioning,rulegen,
+  toplibgen}.sh` + `scripts/SCRIPTS.md`.
+- **partitioning** re-implemented to acst's gm-path/stage semantics → 19/19.
+- **structrec** composite grouping + symmetric-pin-label fixed → 16/16.
+- **automaticsizing** performance models (Ft, slew rate, phase margin)
+  implemented (previously returned 0).
 
 ---
 
 ## 6. Remaining work (current stopping point — pick up here)
 
-1. **Sizing optimiser tuning (main item):** make the CP-SAT solver converge to
-   acst's operating point (objective/constraints currently under-size the design);
-   reconcile Ft and phase-margin models. Add the few still-missing emit fields
-   (net voltages, capacitor dimensions, CMRR/PSRR).
-2. **toplibgen topology-set parity (next, in progress):** pyckt's
-   SingleOutputOpAmps (4 914 vs acst 2 940) and ComplementaryOpAmps (1 170 vs
-   acst 36) counts don't match the benchmark — only FullyDifferential does
-   (936/936). Define a name-independent topology signature and reconcile the
-   generation rules (cascode variants, the `symmetrical_op_amp` sub-family,
-   stage-index naming) until the sets align, or document the residual gap if
-   exact parity proves infeasible. See `scripts/SCRIPTS.md` and the
-   `outputs/toplibgen/py_acst/` counts for the measurable baseline.
-3. **synthesis netlist bodies:** still placeholders — give it the same
-   `AcstNetlistWriter`-based treatment toplibgen just got.
-4. **rulegen:** reconcile the one mis-leveled library item + per-item persistence.
-5. **partitioning ergonomics:** derive input/output/bias nets from the recognized
-   structure tree (as acst does) to drop the extra `--circuit-params` input.
+Open GitHub Issues on [`Firas-Jrad/pyckt`](https://github.com/Firas-Jrad/pyckt):
+
+**Ready for agent (self-contained, no decision needed):**
+
+- **[#1](https://github.com/Firas-Jrad/pyckt/issues/1) — automaticsizing: missing
+  XML emit fields** — net voltages, capacitor dimensions, CMRR/PSRR are not yet
+  written to the output XML. Add the missing fields; verify schema against acst.
+- **[#7](https://github.com/Firas-Jrad/pyckt/issues/7) — FUBOCO gallery
+  comparison** — run pyckt's structrec and sizing against the `s-1-2` and
+  `fd-1-2` reference circuits from `analog-ml/fuboco-gallery`; report exact
+  diffs (same format as `COMPARISON_REPORT.md`).
+- **[#8](https://github.com/Firas-Jrad/pyckt/issues/8) — per-category op-amp
+  count table** — add a stage × output-type count table to this report (data
+  already computed by `TopologyLibraryGenerator`; needs a small reporting
+  script/notebook cell).
+
+**Need your judgment call first (labeled `ready-for-human`):**
+
+- **[#2](https://github.com/Firas-Jrad/pyckt/issues/2) — automaticsizing: CP-SAT
+  solver convergence** — the solver doesn't yet reach acst's operating point
+  (under-sizes most transistors). Needs a decision on the Ft/phase-margin model
+  tuning approach before agent work resumes.
+- **[#3](https://github.com/Firas-Jrad/pyckt/issues/3) — toplibgen: topology-set
+  parity** — SingleOutputOpAmps (4 914 pyckt vs 2 940 acst) and
+  ComplementaryOpAmps (1 170 vs 36) still diverge. Needs a decision on whether
+  to reconcile the enumeration rules or document the residual gap.
+- **[#6](https://github.com/Firas-Jrad/pyckt/issues/6) — partitioning ergonomics**
+  — derive input/output/bias nets from the recognized structure tree (as acst
+  does) so `--circuit-params` is no longer required. Needs a decision on the
+  net-inference strategy.
 
 ---
 
