@@ -13,7 +13,6 @@ Coverage areas
 * ``__len__`` / ``__repr__``
 """
 import json
-from pathlib import Path
 
 import pytest
 
@@ -337,8 +336,42 @@ class TestTopologyConverter:
     def test_convert_terminals_created(self, core_circuit):
         assert len(core_circuit._terminals) > 0
 
-    def test_convert_does_not_mutate_source(self, sample_opamp):
+    def test_convert_transistors_are_fully_wired(self, core_circuit):
+        """Regression (issue #3): every generated MOSFET must have drain, gate
+        and source all connected.  A broken ``Circuit.flatten()`` used to leave
+        internal instance-to-instance nets unresolved, emitting transistors
+        with a single connected pin (e.g. ``M1 in1 pmos``) and collapsing the
+        whole library to 3 structurally-distinct topologies."""
+        from core.device import PinType
+
+        for device in core_circuit.mosfets:
+            pins = set(device.terminals)  # dict keyed by PinType
+            assert {PinType.DRAIN, PinType.GATE, PinType.SOURCE} <= pins, (
+                f"{device.name} is under-wired: only {sorted(p.name for p in pins)}"
+            )
+
+    def test_convert_produces_multiple_distinct_structures(self):
+        """Regression (issue #3): distinct first-stage cases must yield
+        structurally distinct circuits, not near-identical hollow shells.
+        Compares the (tech, net-degree) multiset across two different cases."""
         from copy import deepcopy
+
+        from synthesis.converter import TopologyConverter
+        from topogen.HL4.non_inv import NonInvertingStageManager
+        from topogen.HL5.opamps import createSimpleOpAmp
+
+        mgr = NonInvertingStageManager()
+        conv = TopologyConverter()
+
+        def shape(case):
+            fs = next(iter(mgr.createSimpleNonInvertingStages(case)))
+            ckt = conv.convert(createSimpleOpAmp(firstStage=deepcopy(fs), secondStage=None))
+            return len(ckt.mosfets), sum(len(d.terminals) for d in ckt.mosfets)  # dict len
+
+        # case 1 (simple mixed load) and case 9 (cascode-GCC load) differ in size
+        assert shape(1) != shape(9)
+
+    def test_convert_does_not_mutate_source(self, sample_opamp):
 
         from synthesis.converter import TopologyConverter
         original_instance_count = len(sample_opamp.instances)

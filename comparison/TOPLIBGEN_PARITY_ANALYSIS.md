@@ -166,3 +166,46 @@ sits on top of.
 
 The signature harness added here is the tool that will verify real parity once
 the flattening is fixed: `signatures_in_dir(acst_cat) == signatures_in_dir(pyckt_cat)`.
+
+## 6. Fix 1 — `Circuit.flatten()` rewritten as union-find (DONE)
+
+`topogen.common.circuit.Circuit.flatten()` now resolves nets with a union-find
+over **every** connection in the hierarchy (parent-port ↔ child-port), instead
+of only propagating the root's own ports downward.  Each equivalence class is
+one net; classes containing a top-level net keep that boundary name, the rest
+get fresh internal names; diode transistors get gate tied to drain.  Pre-set
+leaf net attributes are honoured (seeded into the union-find) so hand-wired test
+circuits keep working.
+
+Result — generated MOSFETs are now fully wired (drain/gate/source/bulk), and
+structural diversity explodes:
+
+| Category | distinct sigs before | distinct sigs after |
+|---|---:|---:|
+| SingleOutput | 3 | 2970 |
+| FullyDifferential | 1 | 648 |
+| Complementary | 1 | 702 |
+
+Full suite green (869 passed).  Regression tests added:
+`test_convert_transistors_are_fully_wired`,
+`test_convert_produces_multiple_distinct_structures`.
+
+## 7. Remaining gap to structural parity (`common` still 0) — next layer
+
+The generated one-stage netlist is now well-formed but still differs from acst
+by the **OpAmp-level composition** that pyckt's `createSimpleOpAmp` omits.
+Comparing pyckt's case-1 first stage to `one_stage_single_output_op_amp1.ckt`:
+
+| acst has | pyckt has |
+|---|---|
+| load **Capacitor** (`out`→`sourceNmos`) | — |
+| compensation capacitor (two-stage) | — |
+| **MainBias** + full bias network wiring every floating gate to `ibias` | dangling internal net on stage-bias gate |
+
+acst builds these in `OpAmps::createSimpleOpAmp` via
+`connectInstanceTerminalsCapacitors` (load/compensation caps) and
+`buildAndConnectedBias` (`OpAmps.cpp:975`) — the latter finds every gate
+terminal not already driven by a drain and synthesises the bias network
+(main bias, improved-Wilson / cascode-GCC current biases, voltage biases).
+Porting that HL5 composition is Fix 2; enumeration-count reconciliation (§3–4)
+is Fix 3, on top of it.  The signature harness verifies each step.

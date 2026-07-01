@@ -280,63 +280,103 @@ class Circuit:
 
         return obj
 
-    def _add_instances_to_flat_circuit(self, connections={}, instances=[]) -> None:
-
-        if self.__class__.__name__ == "NormalTransistor":
-            instances.append(self)
-
-        if self.__class__.__name__ == "DiodeTransistor":
-            instances.append(self)
-
+    def _collect_leaf_transistors(self, leaves: list) -> None:
+        """Depth-first collect every leaf ``nt``/``dt`` transistor into *leaves*."""
+        if self.__class__.__name__ in ("NormalTransistor", "DiodeTransistor"):
+            leaves.append(self)
         for inst in self.instances:
-            inst._add_instances_to_flat_circuit(
-                connections,
-                instances,
-            )
+            inst._collect_leaf_transistors(leaves)
 
     def flatten(self):
-        """Collapse this nested circuit into a flat list of leaf transistors.
+        """Collapse this nested circuit into a flat list of fully-wired leaf
+        transistors.
 
-        Recursively resolves every connection down to the leaf
-        ``NormalTransistor``/``DiodeTransistor`` instances, setting their
-        ``.gate``/``.drain``/``.source`` attributes to the resolved top-level
-        net name, then replaces :attr:`instances` with that flat leaf list and
-        clears :attr:`connections`. Mutates and returns ``self``.
+        Every connection in the whole hierarchy is a wire between a parent
+        node's port and a child instance's port; electrically-connected pins
+        therefore form equivalence classes over the ``(node, port)`` graph.
+        This resolves those classes with a union-find over **all** connections
+        (not just the ones reachable from a top-level port — the previous
+        implementation only propagated the root's own ports downward, leaving
+        every internal instance-to-instance net, e.g. current-mirror and
+        cascode nodes, unassigned).  Each class becomes one net: classes that
+        contain a top-level (root) net keep that boundary name (``in1``,
+        ``out``, ``source_nmos`` …); all others get a fresh internal name.
+
+        Each leaf transistor's ``.gate``/``.drain``/``.source`` is set to its
+        class's net name (diode transistors have gate tied to drain).
+        :attr:`instances` is then replaced by the flat leaf list and
+        :attr:`connections` cleared.  Mutates and returns ``self``.
         """
-        from collections import OrderedDict
+        # ---- union-find over (id(node), port) -----------------------------
+        parent: dict = {}
 
-        connections = OrderedDict()
-        instances = []
-        self._add_instances_to_flat_circuit(connections, instances)
+        def find(x):
+            parent.setdefault(x, x)
+            root = x
+            while parent[root] != root:
+                root = parent[root]
+            while parent[x] != root:  # path compression
+                parent[x], x = root, parent[x]
+            return root
 
-        def set_terminal(
-            top_current_terminal: str, looking_terminal: str, instance: Circuit
-        ):
-            """Recursively resolve *looking_terminal* on *instance* down to a
-            leaf transistor pin, setting that leaf's gate/drain/source to
-            *top_current_terminal* (the originating top-level net name)."""
-            if instance.name not in ["dt", "nt"]:
-                for conn in instance.connections[looking_terminal]:
-                    obtained_inst_id = int(conn["child"][-1])
-                    obtained_inst = instance.instances[obtained_inst_id]
-                    set_terminal(top_current_terminal, conn["port"], obtained_inst)
-            else:
-                if looking_terminal == "gate":
-                    instance.gate = top_current_terminal
-                if looking_terminal == "drain":
-                    instance.drain = top_current_terminal
-                if looking_terminal == "source":
-                    instance.source = top_current_terminal
+        def union(a, b):
+            ra, rb = find(a), find(b)
+            if ra != rb:
+                parent[ra] = rb
 
-        for top_current_terminal, conn_list in self.connections.items():
-            for conn in conn_list:
-                obtained_inst_id = int(conn["child"][-1])
-                obtained_inst = self.instances[obtained_inst_id]
-                set_terminal(top_current_terminal, conn["port"], obtained_inst)
+        def walk(node):
+            for port, conn_list in node.connections.items():
+                for conn in conn_list:
+                    child = node.instances[int(conn["child"][-1])]
+                    union((id(node), port), (id(child), conn["port"]))
+            for inst in node.instances:
+                walk(inst)
 
-        from copy import deepcopy
+        walk(self)
 
-        self.instances = deepcopy(instances)
+        leaves: list = []
+        self._collect_leaf_transistors(leaves)
+
+        # diode transistors: gate is tied to drain -> same net
+        for leaf in leaves:
+            if leaf.__class__.__name__ == "DiodeTransistor":
+                union((id(leaf), "gate"), (id(leaf), "drain"))
+
+        # Honour any net names pre-set directly on leaves (leaves built through
+        # the connection graph start out as ``None``; only circuits wired by
+        # poking ``.gate``/``.drain``/``.source`` by hand carry values here).
+        # Pins sharing a pre-set string are the same net, named by that string.
+        preset: dict = {}
+        for leaf in leaves:
+            for pin in ("drain", "gate", "source"):
+                val = getattr(leaf, pin, None)
+                if val is not None:
+                    key = ("__preset__", val)
+                    union((id(leaf), pin), key)
+                    preset[find(key)] = val
+
+        # ---- name the equivalence classes ---------------------------------
+        # root connection keys are the boundary (port) net names
+        net_name: dict = dict(preset)
+        for boundary in self.connections:
+            net_name[find((id(self), boundary))] = boundary
+
+        internal_idx = 0
+
+        def name_of(pin) -> str:
+            nonlocal internal_idx
+            root = find(pin)
+            if root not in net_name:
+                net_name[root] = f"net_{internal_idx}"
+                internal_idx += 1
+            return net_name[root]
+
+        for leaf in leaves:
+            leaf.drain = name_of((id(leaf), "drain"))
+            leaf.gate = name_of((id(leaf), "gate"))
+            leaf.source = name_of((id(leaf), "source"))
+
+        self.instances = leaves
         self.connections = {}
         return self
 
