@@ -296,16 +296,34 @@ are cascode-current-mirror loads).  Confirmed case-by-case: single-output cases
 1–6, 13–14 match; 7–12, 15–16 are structurally different topologies, not
 different biasing of the same one.
 
-## 10. Remaining for full 2940 / 936 / 36 parity — all enumeration/composition
+## 10. Fix 3 — enumeration reconciliation (in progress)
 
-- **Fix 3 — enumeration reconciliation (the dominant blocker)**: pyckt
-  over-generates (SingleOutput 4914 vs 2940, Complementary 1170 vs 36) and
-  enumerates different cascode/GCC cores.  Reconciling the HL3/HL4 case
-  factories to acst's stage set is what lets the already-correct compositions
-  count as matches.
-- **FD two-stage** (`createFullyDifferentialTwoStageOpAmps`) — FD is one-stage
-  only so far.
-- **Complementary load composition** — the bias now matches acst, but the
-  complementary *load* structure still differs (pyckt's mixed load vs acst's
-  `Load_2–9`), so complementary is 0 matches pending a load-composition fix.
+**Landed:** complementary op-amps are now one-stage only (acst rule) —
+Complementary 1170 → 90 (toward 36); generated total 6516 → 5436.
+
+**Remaining — deep HL3 cardinality port (the dominant blocker).** pyckt's
+HL3 `LoadPart` / `StageBias` / feedback factories enumerate *different-sized
+sets* than acst's, so pyckt generates different topologies, not just more.
+Measured divergences:
+
+| Family | pyckt | acst | where |
+|---|---:|---:|---|
+| simple one-stage first-stages | 336 | 210 | HL3 load/bias cardinalities per case |
+| complementary first-stages | 90 | 36 | HL3 four-transistor-mixed load parts |
+| FD one-stage | 432 (72 fs × 6 fb) | 72 (~36 fs × 2 fb) | FD first-stage **and** feedback-stage counts both over-generate |
+
+acst's per-family `create*NonInvertingStages` **structure** is a faithful port
+already (same case switch, same load-group composition); the gap is the HL3
+`LoadParts.cpp` / `StageBias` / `CurrentBias` / feedback enumeration
+**cardinalities** (e.g. acst's feedback stage applies a
+`everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType`
+filter and yields ~2 per tech vs pyckt's 6).  Reconciling requires porting
+those HL2/HL3 factory counts factory-by-factory against acst — a large,
+methodical effort, and the last blocker before the already-correct
+compositions count as matches.
+
+**Also remaining (composition, orthogonal to enumeration):**
+- **FD two-stage** (`createFullyDifferentialTwoStageOpAmps`).
+- **Complementary load composition** — bias now matches acst, but the
+  complementary *load* still differs (pyckt's mixed load vs acst's `Load_2–9`).
 - **Symmetrical op-amp family** (its own one-stage composition).
