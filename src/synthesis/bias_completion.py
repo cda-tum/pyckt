@@ -135,10 +135,22 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
     # tie the master source reference to the ibias pin
     if ibias_node:
         if len(ibias_node) == 1:
-            master = next(iter(ibias_node.values()))
+            master_tech = next(iter(ibias_node))
         else:
-            master = ibias_node.get(input_tech, next(iter(ibias_node.values())))
-        rename[master] = _IBIAS
+            master_tech = input_tech if input_tech in ibias_node else next(iter(ibias_node))
+        rename[ibias_node[master_tech]] = _IBIAS
+
+        # Complementary op-amps have a rail bias of *both* techs; acst drives the
+        # non-ibias tech's reference from ibias through an opposite-tech current
+        # mirror (MainBias_1: gate=ibias, drain=other-reference-node) rather than
+        # leaving it self-biased (acst addCurrentBiasesToCircuit).
+        for tech, node in ibias_node.items():
+            if tech != master_tech:
+                mirror = NormalTransistor(techtype=master_tech, id=1)
+                mirror.gate = _IBIAS
+                mirror.drain = node
+                mirror.source = _RAIL_OF[master_tech]
+                new_devs.append(mirror)
 
     def resolve(net):
         seen: set = set()
