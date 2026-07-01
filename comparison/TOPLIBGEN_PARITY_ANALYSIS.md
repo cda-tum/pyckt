@@ -381,3 +381,67 @@ are likewise the complex (3–4-transistor) mixed-load variants whose wiring
 differs from acst's.  Next: re-port the HL3 load construction family-by-family
 (`createLoadsTwoLoadParts*` in `src/topogen/HL3/l.py` / `lp.py`) against acst's
 `Loads.cpp` / `LoadParts.cpp`, verifying each with the per-case diagnostic.
+
+## 12. Issue #20 progress — enumeration aligning
+
+Two verified increments (PR #21), suite green throughout:
+
+1. **Cross-mirror bias fix** — the cross current mirror now senses the master
+   reference's rail-connected node (ibias for a 1-transistor master, the bottom
+   cascode node for a 2-transistor one).  Overlap **34 → 54**.
+2. **Load-part validity filter** — ported acst's `create*LoadPartsMixed`
+   validity check (`everyGateNet` + floating-gate policy).  pyckt kept every
+   voltage/current-bias combination; acst drops the invalid ones.  Result:
+   **simple one-stage first-stages 336 → exactly 210** (acst's count); generated
+   total 5436 → 3753, no match regression.
+
+Note: the current-bias/voltage-bias 4-transistor load parts do **not** need this
+filter — applying it there over-shoots (SingleOutput 2418 < 2940), because those
+feed the GCC loads that are already correct.
+
+### Precise remaining decomposition (measured)
+
+`SingleOutput` is now 3276 vs acst 2940; the 336 excess is **not** load parts —
+it is the symmetrical/feedback folding:
+
+```
+pyckt single_output first-stages = simple 210 + symmetrical 30 + feedback 12 = 252
+  x13 (1 one-stage + 12 two-stage) = 3276
+acst SingleOutput 2940 = simple 210 x13 (2730) + symmetrical 210 (one-stage only)
+```
+
+So the remaining SingleOutput work is a **composition** change, not enumeration:
+
+- **Symmetrical family** — acst emits a separate one-stage-only `symmetrical_op_amp`
+  family (210, built by `OpAmps::createSymmetricalOpAmp`: symmetrical first-stage
+  × filtered inverting 2nd-stage × complementary bias).  pyckt folds its 30
+  symmetrical first-stages into single-output and two-stages them.  Needs the
+  acst composition + its own category (−390 wrong, +210 right).
+- **Feedback stages** must not be folded into single-output (they belong to FD):
+  −156.
+- **CascodeGCC load structure** (cases 9–12, still 0 matches) — pyckt builds a
+  telescopic cascode; acst builds cascode-mirror loads.  Load-wiring re-port.
+
+Plus (unchanged from §10): **FD** one-stage count (432 → 72) + FD two-stage;
+**complementary** load composition.
+
+## 13. Symmetrical family + inverting-stage fix (issue #20)
+
+- **Inverting-stage bug**: `connectInstanceTerminalsNmosTransconductance` wired
+  the *internal* `INNERTRANSCONDUCTANCE`/`INNERSTAGEBIAS` nodes for the
+  single-transistor case, leaving the input gates unexposed (the PMOS case did
+  it right).  Fixed — the prerequisite for composing the symmetrical 2nd stage.
+- **Symmetrical composition** (`createSymmetricalOpAmp` / `createSymmetricalOpAmps`)
+  builds acst's symmetrical OTA: differential first stage → two current mirrors,
+  an inverting second stage on `out1`, and a complementary second stage (a copy
+  of the 2nd-stage transconductance + a diode voltage bias) mirroring `out2`
+  through `innercomp`.  Wired into the generator as a **separate one-stage-only
+  `symmetrical_op_amp` family** (own naming/category via `TopologySpec.is_symmetrical`),
+  and symmetrical stages are no longer folded into single-output.
+- **Status**: the simplest (single-transistor transconductance + diode bias)
+  symmetrical op-amps now match acst **device-for-device** (overlap 54 → 58).
+  The remaining ~206 need the **two-transistor cascode** transconductance/bias
+  variants — acst's `connectInstanceTerminalsSymmetricalOpAmp` multi-case wiring
+  (INSOURCE/INOUTPUT terminals, size-keyed sub-cases) — plus the complementary
+  bias variety (`findComplementarySecondStageStageBiases`).  That cascode
+  multi-case wiring is the remaining symmetrical work.
