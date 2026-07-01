@@ -257,7 +257,8 @@ Each fix is verified device-for-device against acst via the signature harness:
 | 2b | simple diode voltage-bias network | 0 → 6 (SingleOutput) |
 | 2c | load capacitor(s) | 6 full-signature |
 | 2b+ | two-transistor cascode voltage bias | 6 → 12 |
-| 2d | FD composition (feedback stage) + sub-instance de-aliasing | +4 FD → **16 total** |
+| 2d | FD composition (feedback stage) + sub-instance de-aliasing | +4 FD → 16 |
+| 2-x | complementary cross-mirror current bias (both-tech references) | +18 SingleOutput → **34 total** |
 
 **Fix 2d notes.** pyckt's fully-differential op-amps were structurally
 single-output-shaped: the generator composed FD first stages with the
@@ -280,16 +281,31 @@ stage.  Two problems were fixed:
 The simplest FD op-amp now matches acst's `one_stage_fully_differential_op_amp`
 device-for-device.
 
-## 9. Remaining for full 2940 / 936 / 36 parity
+## 9. Bias network is complete — remaining gap is enumeration (Fix 3)
 
-- **Single-output bias**: Wilson-current-mirror and cascode-GCC voltage-bias
-  paths for the cascode-load topologies (acst
-  `connectCurrentBiasOfImprovedWilsonCurrentMirror` / `connectCascodeGCC`).
+Measured after the composition fixes: **0 / 4914** single-output op-amps have
+any floating (unbiased) gate — every generated op-amp already carries a
+complete, valid bias network, and for the topologies acst also generates it
+matches acst device-for-device (34 total).  So there is **no remaining bias
+work** ("Wilson / cascode-GCC bias") for single-output: the earlier hypothesis
+that cascode topologies needed more bias paths was wrong.  The remaining
+single-output mismatch is entirely **enumeration divergence** — pyckt generates
+*different cascode topologies* than acst (e.g. pyckt's 9-transistor case is a
+telescopic cascode: pmos cascode + nmos mirror; acst's 9-transistor topologies
+are cascode-current-mirror loads).  Confirmed case-by-case: single-output cases
+1–6, 13–14 match; 7–12, 15–16 are structurally different topologies, not
+different biasing of the same one.
+
+## 10. Remaining for full 2940 / 936 / 36 parity — all enumeration/composition
+
+- **Fix 3 — enumeration reconciliation (the dominant blocker)**: pyckt
+  over-generates (SingleOutput 4914 vs 2940, Complementary 1170 vs 36) and
+  enumerates different cascode/GCC cores.  Reconciling the HL3/HL4 case
+  factories to acst's stage set is what lets the already-correct compositions
+  count as matches.
 - **FD two-stage** (`createFullyDifferentialTwoStageOpAmps`) — FD is one-stage
   only so far.
-- **Complementary composition** (`createComplementaryOpAmp`) — still
-  single-output-shaped, 0 matches.
+- **Complementary load composition** — the bias now matches acst, but the
+  complementary *load* structure still differs (pyckt's mixed load vs acst's
+  `Load_2–9`), so complementary is 0 matches pending a load-composition fix.
 - **Symmetrical op-amp family** (its own one-stage composition).
-- **Fix 3 — enumeration reconciliation**: pyckt over-generates
-  (SingleOutput 4914 vs 2940, Complementary 1170 vs 36); each category's stage
-  counts must be reconciled to acst's, independent of the composition fixes.
