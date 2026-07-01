@@ -29,14 +29,31 @@ _IBIAS = "ibias"
 _RAIL_OF = {"n": "source_nmos", "p": "source_pmos"}
 
 
-def _diode_reference(tech: str, node: str) -> NormalTransistor:
+def _diode_reference(tech: str, node: str, source: str | None = None) -> NormalTransistor:
     """A diode-connected voltage-bias reference transistor (gate = drain = *node*,
-    source on *tech*'s supply rail)."""
+    source on *source* — defaulting to *tech*'s supply rail)."""
     t = NormalTransistor(techtype=tech, id=1)
     t.drain = node
     t.gate = node
-    t.source = _RAIL_OF[tech]
+    t.source = source if source is not None else _RAIL_OF[tech]
     return t
+
+
+def _forms_cascode(source_gates: list, output_gates: list, leaves: list) -> bool:
+    """True if the *output* (cascode) floating gates stack on the *source*
+    (rail) floating gates — every output-gate transistor's source sits on a
+    source-gate transistor's drain, one-to-one.  This is acst's
+    ``allInstanceTerminalsArePartOfNotGateDrainConnectedTwoTransistorStacks``
+    condition selecting a two-transistor cascode voltage bias.
+    """
+    if not source_gates or len(source_gates) != len(output_gates):
+        return False
+    src_drains = {t.drain for t in leaves if t.gate in source_gates}
+    for g in output_gates:
+        devs = [t for t in leaves if t.gate == g]
+        if not all(t.source in src_drains for t in devs):
+            return False
+    return True
 
 
 def complete_bias_network(leaves: list, input_tech: str) -> list:
@@ -86,16 +103,34 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
         source_gates = [g for g in group if is_source(g)]
         output_gates = [g for g in group if not is_source(g)]
 
-        for gates_subset, is_src in ((output_gates, False), (source_gates, True)):
-            if not gates_subset:
-                continue
+        if _forms_cascode(source_gates, output_gates, leaves):
+            # Two-transistor cascode voltage bias: a stacked diode reference —
+            # bottom diode on the rail, top diode on the bottom's node. The
+            # cascode (output) gates take the top node (which becomes ibias);
+            # the rail (source) gates take the intermediate node.  Matches acst
+            # StageBias_3(gate=ibias)/StageBias_4(gate=inner) + the paired
+            # MainBias cascode (connectRemainingGateTerminals two-transistor path).
             idx += 1
-            node = f"bias_{tech}_{idx}"
-            new_devs.append(_diode_reference(tech, node))
-            for g in gates_subset:
-                rename[g] = node
-            if is_src:
-                ibias_node[tech] = node
+            bottom = f"bias_{tech}_{idx}b"
+            top = f"bias_{tech}_{idx}t"
+            new_devs.append(_diode_reference(tech, bottom))
+            new_devs.append(_diode_reference(tech, top, source=bottom))
+            for g in source_gates:
+                rename[g] = bottom
+            for g in output_gates:
+                rename[g] = top
+            ibias_node[tech] = top
+        else:
+            for gates_subset, is_src in ((output_gates, False), (source_gates, True)):
+                if not gates_subset:
+                    continue
+                idx += 1
+                node = f"bias_{tech}_{idx}"
+                new_devs.append(_diode_reference(tech, node))
+                for g in gates_subset:
+                    rename[g] = node
+                if is_src:
+                    ibias_node[tech] = node
 
     # tie the master source reference to the ibias pin
     if ibias_node:
