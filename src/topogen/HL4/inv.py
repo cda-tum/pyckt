@@ -108,14 +108,18 @@ def connectInstanceTerminalsNmosTransconductance(
         connect((invertingStage, InvertingStage.INNERTRANSCONDUCTANCE), (analogInverter, Inverter.INNER_CURRENTBIASNMOS))
 
     else:
-        connect((invertingStage, InvertingStage.INNERTRANSCONDUCTANCE), (analogInverter, Inverter.IN_CURRENTBIASNMOS))
+        # expose the transconductor input gate as INTRANSCONDUCTANCE (the PMOS
+        # case does this; the NMOS case wrongly wired the *internal*
+        # INNERTRANSCONDUCTANCE node, leaving the input gate unexposed — which
+        # blocked the symmetrical op-amp composition, issue #20).
+        connect((invertingStage, InvertingStage.INTRANSCONDUCTANCE), (analogInverter, Inverter.IN_CURRENTBIASNMOS))
 
     if stageBias.component_count == 2:
         connect((invertingStage, InvertingStage.INSOURCESTAGEBIAS), (analogInverter, Inverter.INSOURCE_CURRENTBIASPMOS))
         connect((invertingStage, InvertingStage.INOUTPUTSTAGEBIAS), (analogInverter, Inverter.INOUTPUT_CURRENTBIASPMOS))
         connect((invertingStage, InvertingStage.INNERSTAGEBIAS), (analogInverter, Inverter.INNER_CURRENTBIASPMOS))
     else:
-        connect((invertingStage, InvertingStage.INNERSTAGEBIAS), (analogInverter, Inverter.IN_CURRENTBIASPMOS))
+        connect((invertingStage, InvertingStage.INSTAGEBIAS), (analogInverter, Inverter.IN_CURRENTBIASPMOS))
 
     return invertingStage
 
