@@ -327,3 +327,27 @@ compositions count as matches.
 - **Complementary load composition** — bias now matches acst, but the
   complementary *load* still differs (pyckt's mixed load vs acst's `Load_2–9`).
 - **Symmetrical op-amp family** (its own one-stage composition).
+
+### 10.1 The HL3 gap is structural, not count-matching (measured)
+
+Audited the HL2/HL3 factories bottom-up:
+
+- **Fixed two real latent bugs**: the two-transistor PMOS `VoltageBias` and
+  both two-transistor `CurrentBias` factories cached a `chain()` iterator that
+  the first consumer exhausted (later callers saw 0).  Materialised to lists.
+  (Single-pass generation was unchanged — the loads are built once at init —
+  but repeated factory access was wrong.)
+- **Where the counts *do* line up**: mixed load-parts (12 = 2+4+6),
+  current-bias load-parts (3), the two-load-part mixed-current-bias loads
+  (12 × 3 = 36) all match acst's factory cardinalities.
+
+**But the sets don't**: of acst's **210** simple one-stage op-amps, pyckt
+generates only **30** (14 %).  pyckt's simple first-stage set is *not* a
+superset of acst's — it builds *structurally different* loads (e.g. telescopic
+cascode vs cascode-current-mirror) for ~85 % of topologies.  So the remaining
+enumeration work is **not** count-trimming or a filter; it is a faithful
+structural re-port of acst's HL3 load construction (`Loads.cpp` /
+`LoadParts.cpp` cascode/GCC/four-transistor wiring) so pyckt builds acst's
+*exact* loads.  That is a large, methodical, multi-part effort — the remaining
+body of issue #3 — and it is the single blocker between the (verified-correct)
+composition/bias pipeline and full 2940 / 936 / 36 parity.
