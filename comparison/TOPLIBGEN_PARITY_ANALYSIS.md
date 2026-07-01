@@ -246,3 +246,50 @@ own multi-PR project — rather than a single function port.  Fix 1 (flatten) is
 its prerequisite and stands on its own.  The signature harness remains the
 oracle: after each composition piece lands, `common` signatures should climb
 from 0 toward the full 2940 / 936 / 36.
+
+## 8. Composition fixes landed — signature overlap climbing
+
+Each fix is verified device-for-device against acst via the signature harness:
+
+| Fix | What | acst matches (common signatures) |
+|---|---|---:|
+| 2a | current-mirror load diode connections | prerequisite |
+| 2b | simple diode voltage-bias network | 0 → 6 (SingleOutput) |
+| 2c | load capacitor(s) | 6 full-signature |
+| 2b+ | two-transistor cascode voltage bias | 6 → 12 |
+| 2d | FD composition (feedback stage) + sub-instance de-aliasing | +4 FD → **16 total** |
+
+**Fix 2d notes.** pyckt's fully-differential op-amps were structurally
+single-output-shaped: the generator composed FD first stages with the
+single-output `createSimpleOpAmp` and never built acst's common-mode feedback
+stage.  Two problems were fixed:
+
+1. **Sub-instance aliasing** — the FD `cb+cb` load built both differential
+   branches from *one* shared `CurrentBias` object, so the union-find flatten
+   (keyed by object identity) collapsed `out1`/`out2` onto a single net.
+   `createTransistorStack` now deep-copies its bias cell, so each branch owns
+   independent transistors.
+2. **FD composition** — new `createFullyDifferentialOpAmp` wires the first
+   stage's differential outputs `out1`/`out2`, a common-mode feedback stage
+   (sensing `out1`/`out2`, referencing `vref`), and drives the first-stage
+   mirror-load gate from the feedback output (acst
+   `connectInstanceTerminalsFullyDifferentialOpAmp` +
+   `connectedLoadInstanceTerminalToFeedbackStage`).  The generator pairs each FD
+   first stage with the matching-tech feedback stages.
+
+The simplest FD op-amp now matches acst's `one_stage_fully_differential_op_amp`
+device-for-device.
+
+## 9. Remaining for full 2940 / 936 / 36 parity
+
+- **Single-output bias**: Wilson-current-mirror and cascode-GCC voltage-bias
+  paths for the cascode-load topologies (acst
+  `connectCurrentBiasOfImprovedWilsonCurrentMirror` / `connectCascodeGCC`).
+- **FD two-stage** (`createFullyDifferentialTwoStageOpAmps`) — FD is one-stage
+  only so far.
+- **Complementary composition** (`createComplementaryOpAmp`) — still
+  single-output-shaped, 0 matches.
+- **Symmetrical op-amp family** (its own one-stage composition).
+- **Fix 3 — enumeration reconciliation**: pyckt over-generates
+  (SingleOutput 4914 vs 2940, Complementary 1170 vs 36); each category's stage
+  counts must be reconciled to acst's, independent of the composition fixes.

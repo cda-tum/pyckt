@@ -24,7 +24,7 @@ from __future__ import annotations
 from topogen.common.circuit import NormalTransistor
 
 _RAILS = {"source_nmos", "source_pmos"}
-_INPUTS = {"in1", "in2"}
+_INPUTS = {"in1", "in2", "vref"}
 _IBIAS = "ibias"
 _RAIL_OF = {"n": "source_nmos", "p": "source_pmos"}
 

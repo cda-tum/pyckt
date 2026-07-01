@@ -398,6 +398,37 @@ class TestTopologyConverter:
         full = TopologyConverter(complete_bias=True).convert(sample_opamp)
         assert len(full.mosfets) > len(raw.mosfets)
 
+    def test_fd_load_has_distinct_differential_outputs(self):
+        """Regression (issue #3, Fix 2d): the fully-differential ``cb+cb`` load's
+        two branches must reach distinct outputs ``out1``/``out2``.  They shared
+        one aliased transistor object, which the union-find flatten collapsed
+        onto a single net (fixed by deep-copying each transistor stack)."""
+        from copy import deepcopy
+
+        from topogen.HL3.l import LoadManager
+
+        load = next(iter(LoadManager().createLoadsNmosForFullyDifferentialNonInvertingStage()))
+        drains = {t.drain for t in deepcopy(load).flatten().instances}
+        assert {"out1", "out2"} <= drains
+
+    def test_fd_opamp_is_differential(self):
+        """Regression (issue #3, Fix 2d): a composed fully-differential op-amp
+        drives two distinct outputs and senses them through a feedback stage."""
+        from copy import deepcopy
+
+        from synthesis.converter import TopologyConverter
+        from topogen.HL4.non_inv import NonInvertingStageManager
+        from topogen.HL5.opamps import createFullyDifferentialOpAmp
+
+        mgr = NonInvertingStageManager()
+        fs = next(iter(mgr.createFullyDifferentialNonInvertingStages(2)))
+        fb = next(iter(mgr.getFeedbackNonInvertingStagesNmosTransconductance()))
+        ckt = TopologyConverter().convert(
+            createFullyDifferentialOpAmp(deepcopy(fs), deepcopy(fb))
+        )
+        nets = {n.name for n in ckt.nets}
+        assert {"out1", "out2", "vref"} <= nets
+
     def test_convert_produces_multiple_distinct_structures(self):
         """Regression (issue #3): distinct first-stage cases must yield
         structurally distinct circuits, not near-identical hollow shells.

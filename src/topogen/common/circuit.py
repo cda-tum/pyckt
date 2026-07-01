@@ -814,6 +814,7 @@ class OpAmp(Circuit):
     OUT2 = "out2"
     IBIAS = "ibias"
     VREF = "vref"
+    OUTFEEDBACK = "outfeedback"
 
     SOURCEPMOS = "source_pmos"
     SOURCENMOS = "source_nmos"
@@ -846,7 +847,14 @@ def convert_dot_to_png(dot_filename: Path, png_filename: Path):
 
 def createTransistorStack(id=1, instance: Circuit = None):
     """Wrap *instance* (a bias circuit) in a single-branch :class:`TransistorStack`,
-    passing every one of *instance*'s ports straight through unchanged."""
+    passing every one of *instance*'s ports straight through unchanged.
+
+    *instance* is deep-copied so each stack owns independent transistors — a
+    caller that builds two branches from the same bias object (e.g. the
+    fully-differential ``cb+cb`` load) would otherwise alias one transistor into
+    both branches, collapsing the two differential outputs onto one net when the
+    hierarchy is flattened (issue #3)."""
+    instance = deepcopy(instance)
     ts = TransistorStack(id=id, techtype="?")
     ts.add_instance(instance)
     ts.ports = instance.ports
