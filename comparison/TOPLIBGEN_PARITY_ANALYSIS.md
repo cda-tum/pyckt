@@ -209,3 +209,40 @@ terminal not already driven by a drain and synthesises the bias network
 (main bias, improved-Wilson / cascode-GCC current biases, voltage biases).
 Porting that HL5 composition is Fix 2; enumeration-count reconciliation (§3–4)
 is Fix 3, on top of it.  The signature harness verifies each step.
+
+### 7.1 Fix 2 is bigger than "port one function" — findings
+
+Starting Fix 2 showed the composition gaps are **pervasive**, not confined to a
+bias network.  In pyckt's simplest generated op-amp the floating gate inventory
+is:
+
+```
+gate nets:  in1, in2, net_2, net_3
+drain nets: net_0, net_1, out
+floating (gate not driven by a drain): net_2, net_3
+```
+
+* `net_3` = tail stage-bias gate → acst wires it to `ibias` and adds the
+  diode-connected **MainBias** reference (a mirror of the stage-bias stack).
+* `net_2` = **current-mirror load** gate.  acst's load reference is
+  diode-connected (gate = its own reference drain = `FirstStageYout1`), so this
+  gate is *not* floating in acst.  In pyckt the load exposes `InnerLoad1`
+  (mirror gate) and `out1` (reference drain) as separate first-stage ports and
+  **never connects them** — the diode is missing.
+
+So exact device-for-device parity needs three composition pieces, each present
+across the HL2–HL5 cells and case-dependent (simple / cascode / folded-GCC):
+
+1. **Current-mirror diode connections** — tie each mirror's reference gate to
+   its reference drain (missing in pyckt's load/stage composition).
+2. **Bias network** — `buildAndConnectedBias`: main bias + Wilson/cascode-GCC
+   current biases + voltage biases wiring every remaining floating gate to
+   `ibias` (~1200 LOC of dense C++ in acst, plus its `CurrentBiases`/
+   `VoltageBiases` cell libraries that pyckt lacks).
+3. **Load / compensation capacitors** — `connectInstanceTerminalsCapacitors`.
+
+This is a substantial, multi-part model-completion effort — realistically its
+own multi-PR project — rather than a single function port.  Fix 1 (flatten) is
+its prerequisite and stands on its own.  The signature harness remains the
+oracle: after each composition piece lands, `common` signatures should climb
+from 0 toward the full 2940 / 936 / 36.
