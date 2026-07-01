@@ -1,0 +1,120 @@
+"""Bias-network completion for generated op-amp topologies (issue #3, Fix 2b).
+
+After :meth:`topogen.common.circuit.Circuit.flatten`, a generated op-amp's
+current-source / cascode reference gates are left *floating* — they are gate
+nets that no transistor drain drives (the tail current source, cascode biases,
+…).  acst's ``OpAmps::buildAndConnectedBias`` synthesises a bias network for
+these: it groups the floating gates by tech and by whether their transistors sit
+on a supply rail (*source* biases) or an internal node (*output*/cascode
+biases), attaches a diode-connected voltage-bias reference to each group, and
+ties the master reference to the ``ibias`` pin.
+
+This ports the **simple** path of that algorithm (a single diode-connected
+reference per source/output group, `connectRemainingGateTerminals`'s ``else``
+branch + `connectIbiasTerminal`), operating directly on the flat leaf
+transistors.  The two-transistor cascode voltage bias and the improved-Wilson
+current-mirror path are not yet reproduced — those topologies keep their
+floating references for now and simply won't match acst until a later pass.
+
+C++ ref: ``Synthesis::OpAmps::buildAndConnectedBias`` /
+``connectRemainingGateTerminals`` / ``connectIbiasTerminal``.
+"""
+from __future__ import annotations
+
+from topogen.common.circuit import NormalTransistor
+
+_RAILS = {"source_nmos", "source_pmos"}
+_INPUTS = {"in1", "in2"}
+_IBIAS = "ibias"
+_RAIL_OF = {"n": "source_nmos", "p": "source_pmos"}
+
+
+def _diode_reference(tech: str, node: str) -> NormalTransistor:
+    """A diode-connected voltage-bias reference transistor (gate = drain = *node*,
+    source on *tech*'s supply rail)."""
+    t = NormalTransistor(techtype=tech, id=1)
+    t.drain = node
+    t.gate = node
+    t.source = _RAIL_OF[tech]
+    return t
+
+
+def complete_bias_network(leaves: list, input_tech: str) -> list:
+    """Return *leaves* augmented with a bias network for its floating gates.
+
+    Parameters
+    ----------
+    leaves:
+        Flat leaf transistors (``.drain``/``.gate``/``.source`` net-name strings,
+        ``.techtype`` ``"n"``/``"p"``).
+    input_tech:
+        Tech of the differential input pair (``"n"``/``"p"``) — decides which
+        rail's bias reference receives ``ibias`` when both techs have one.
+
+    Notes
+    -----
+    Mutates the leaves' net names in place (they belong to a flattened copy) and
+    appends the new reference transistors.
+    """
+    drains = {t.drain for t in leaves}
+    gates = {t.gate for t in leaves}
+    floating = [
+        g for g in gates
+        if g is not None and g not in drains and g not in _INPUTS and g != _IBIAS
+    ]
+    if not floating:
+        return leaves
+
+    def devs_of(g):
+        return [t for t in leaves if t.gate == g]
+
+    def techs_of(g):
+        return {t.techtype for t in devs_of(g)}
+
+    def is_source(g):
+        return all(t.source in _RAILS for t in devs_of(g))
+
+    rename: dict[str, str] = {}
+    new_devs: list = []
+    idx = 0
+    ibias_node: dict[str, str] = {}
+
+    for tech in ("n", "p"):
+        # single-tech floating gates only (mixed-tech gates are a more complex
+        # case handled by acst's Wilson/cascode paths, not yet ported)
+        group = [g for g in floating if techs_of(g) == {tech}]
+        source_gates = [g for g in group if is_source(g)]
+        output_gates = [g for g in group if not is_source(g)]
+
+        for gates_subset, is_src in ((output_gates, False), (source_gates, True)):
+            if not gates_subset:
+                continue
+            idx += 1
+            node = f"bias_{tech}_{idx}"
+            new_devs.append(_diode_reference(tech, node))
+            for g in gates_subset:
+                rename[g] = node
+            if is_src:
+                ibias_node[tech] = node
+
+    # tie the master source reference to the ibias pin
+    if ibias_node:
+        if len(ibias_node) == 1:
+            master = next(iter(ibias_node.values()))
+        else:
+            master = ibias_node.get(input_tech, next(iter(ibias_node.values())))
+        rename[master] = _IBIAS
+
+    def resolve(net):
+        seen: set = set()
+        while net in rename and net not in seen:
+            seen.add(net)
+            net = rename[net]
+        return net
+
+    for t in [*leaves, *new_devs]:
+        t.drain = resolve(t.drain)
+        t.gate = resolve(t.gate)
+        t.source = resolve(t.source)
+
+    return [*leaves, *new_devs]

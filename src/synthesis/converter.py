@@ -24,6 +24,7 @@ from typing import Any
 from core.circuit import Circuit as CoreCircuit
 from core.device import Device, DeviceType, PinType, TechType
 from core.terminal import Terminal
+from synthesis.bias_completion import complete_bias_network
 
 
 class TopologyConverter:
@@ -55,6 +56,19 @@ class TopologyConverter:
 
     Maps conceptually to the C++ ``Synthesis::TopologyConverter``.
     """
+
+    def __init__(self, complete_bias: bool = True) -> None:
+        """Create a converter.
+
+        Parameters
+        ----------
+        complete_bias:
+            When ``True`` (default), synthesise the op-amp bias network for the
+            flattened circuit's floating reference gates (acst
+            ``buildAndConnectedBias``).  Set ``False`` to get the raw flattened
+            transistors only.
+        """
+        self.complete_bias = complete_bias
 
     # ------------------------------------------------------------------
     # Public API
@@ -92,10 +106,18 @@ class TopologyConverter:
                 f"Flattened circuit '{topogen_circuit.name}' has no transistors."
             )
 
+        # Step 2b — synthesise the bias network for the flat op-amp's floating
+        # current-source / reference gates (acst ``buildAndConnectedBias``).
+        leaves = flat.instances
+        if self.complete_bias:
+            input_pair = [t for t in leaves if getattr(t, "gate", None) == "in1"]
+            input_tech = input_pair[0].techtype if input_pair else "n"
+            leaves = complete_bias_network(leaves, input_tech)
+
         # Step 3 — build core.Circuit
         core_circuit = CoreCircuit(name=topogen_circuit.name)
 
-        for idx, transistor in enumerate(flat.instances, start=1):
+        for idx, transistor in enumerate(leaves, start=1):
             device = self._make_device(f"M{idx}", transistor)
             core_circuit.add_device(device)
 

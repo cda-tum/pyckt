@@ -350,6 +350,42 @@ class TestTopologyConverter:
                 f"{device.name} is under-wired: only {sorted(p.name for p in pins)}"
             )
 
+    def test_convert_completes_bias_network(self, core_circuit):
+        """Regression (issue #3, Fix 2b): the converted op-amp's bias reference
+        gates must not float — every gate net is either driven by a drain, an
+        input, or the ``ibias`` reference, and a diode-connected MainBias
+        transistor sits on ``ibias``."""
+        drains, gates = set(), set()
+        for d in core_circuit.mosfets:
+            for pt, t in d.terminals.items():
+                if pt.name == "DRAIN":
+                    drains.add(t.net.name)
+                elif pt.name == "GATE":
+                    gates.add(t.net.name)
+        from core.device import PinType
+
+        floating = {g for g in gates if g not in drains and g not in ("in1", "in2")}
+        assert floating <= {"ibias"}, f"floating bias gates remain: {floating}"
+        # a diode-connected reference (gate == drain == ibias) must exist
+        def is_ibias_diode(d):
+            t = d.terminals
+            return (
+                PinType.GATE in t and PinType.DRAIN in t
+                and d.get_net(PinType.GATE).name == "ibias"
+                and d.get_net(PinType.DRAIN).name == "ibias"
+            )
+        assert any(is_ibias_diode(d) for d in core_circuit.mosfets), (
+            "no diode-connected MainBias reference on ibias"
+        )
+
+    def test_convert_bias_can_be_disabled(self, sample_opamp):
+        """With ``complete_bias=False`` the raw flattened transistors are kept
+        (no synthesised bias reference)."""
+        from synthesis.converter import TopologyConverter
+        raw = TopologyConverter(complete_bias=False).convert(sample_opamp)
+        full = TopologyConverter(complete_bias=True).convert(sample_opamp)
+        assert len(full.mosfets) > len(raw.mosfets)
+
     def test_convert_produces_multiple_distinct_structures(self):
         """Regression (issue #3): distinct first-stage cases must yield
         structurally distinct circuits, not near-identical hollow shells.
