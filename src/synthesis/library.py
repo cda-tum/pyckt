@@ -54,6 +54,7 @@ class TopologySpec:
     is_fully_differential: bool
     input_tech: TechType
     has_cascode: dict[str, bool] = field(default_factory=dict)
+    is_symmetrical: bool = False
 
     # ------------------------------------------------------------------
     # Serialisation helpers
@@ -69,6 +70,7 @@ class TopologySpec:
             "is_fully_differential": self.is_fully_differential,
             "input_tech": self.input_tech.value,
             "has_cascode": self.has_cascode,
+            "is_symmetrical": self.is_symmetrical,
         }
 
     @classmethod
@@ -82,6 +84,7 @@ class TopologySpec:
             is_fully_differential=d["is_fully_differential"],
             input_tech=TechType(d["input_tech"]),
             has_cascode=d.get("has_cascode", {}),
+            is_symmetrical=d.get("is_symmetrical", False),
         )
 
     # ------------------------------------------------------------------
@@ -139,6 +142,8 @@ class TopologySpec:
         """
         if self.is_complementary:
             return "complementary_op_amp"
+        if self.is_symmetrical:
+            return "symmetrical_op_amp"
         stage = "one_stage" if self.num_stages == 1 else "two_stage"
         kind = "fully_differential" if self.is_fully_differential else "single_output"
         return f"{stage}_{kind}_op_amp"

@@ -141,6 +141,9 @@ class TopologyLibraryGenerator:
                 self.library.add(spec_2s, core_circuit_2s)
                 topology_id += 1
 
+        # ---- symmetrical family (own one-stage-only sub-family) -----------
+        topology_id = self._generate_symmetrical_family(topology_id)
+
         # Write to disk only when an output directory was supplied.
         if self.output_dir:
             Path(self.output_dir).mkdir(parents=True, exist_ok=True)
@@ -153,6 +156,33 @@ class TopologyLibraryGenerator:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _generate_symmetrical_family(self, topology_id: int) -> int:
+        """Add the one-stage-only symmetrical op-amp family (acst's
+        ``symmetrical_op_amp`` sub-family under ``SingleOutputOpAmps``).
+
+        Returns the next free ``topology_id``.
+        """
+        from topogen.HL5.opamps import createSymmetricalOpAmps
+
+        for opamp in createSymmetricalOpAmps():
+            spec = TopologySpec(
+                id=topology_id,
+                name=f"symmetrical_op_amp_{topology_id}",
+                num_stages=1,
+                is_complementary=False,
+                is_fully_differential=False,
+                input_tech=TechType.N,
+                has_cascode={},
+                is_symmetrical=True,
+            )
+            try:
+                core_circuit = self._converter.convert(opamp)
+            except Exception:  # noqa: BLE001
+                core_circuit = None
+            self.library.add(spec, core_circuit)
+            topology_id += 1
+        return topology_id
 
     def _one_stage_opamps(self, first_stage, is_fd: bool, input_tech: str) -> list:
         """Build the one-stage op-amp(s) for *first_stage*.
@@ -209,11 +239,9 @@ class TopologyLibraryGenerator:
             for stage in mgr.createComplementaryNonInvertingStages(case_id):
                 yield stage, True, False, "n"
 
-        # Symmetrical: cases 1–8
-        for case_id in range(1, 9):
-            input_tech = "p" if case_id % 2 == 1 else "n"
-            for stage in mgr.createSymmetricalNonInvertingStages(case_id):
-                yield stage, False, False, input_tech
+        # NOTE: symmetrical stages are *not* folded into single-output here —
+        # acst emits a separate one-stage ``symmetrical_op_amp`` family built by
+        # a dedicated composition (see _generate_symmetrical_family).
 
         # NOTE: feedback non-inverting stages are *not* single-output first
         # stages — acst uses them only as the common-mode feedback stage of a

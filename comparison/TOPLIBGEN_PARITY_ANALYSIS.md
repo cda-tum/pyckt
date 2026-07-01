@@ -424,3 +424,24 @@ So the remaining SingleOutput work is a **composition** change, not enumeration:
 
 Plus (unchanged from §10): **FD** one-stage count (432 → 72) + FD two-stage;
 **complementary** load composition.
+
+## 13. Symmetrical family + inverting-stage fix (issue #20)
+
+- **Inverting-stage bug**: `connectInstanceTerminalsNmosTransconductance` wired
+  the *internal* `INNERTRANSCONDUCTANCE`/`INNERSTAGEBIAS` nodes for the
+  single-transistor case, leaving the input gates unexposed (the PMOS case did
+  it right).  Fixed — the prerequisite for composing the symmetrical 2nd stage.
+- **Symmetrical composition** (`createSymmetricalOpAmp` / `createSymmetricalOpAmps`)
+  builds acst's symmetrical OTA: differential first stage → two current mirrors,
+  an inverting second stage on `out1`, and a complementary second stage (a copy
+  of the 2nd-stage transconductance + a diode voltage bias) mirroring `out2`
+  through `innercomp`.  Wired into the generator as a **separate one-stage-only
+  `symmetrical_op_amp` family** (own naming/category via `TopologySpec.is_symmetrical`),
+  and symmetrical stages are no longer folded into single-output.
+- **Status**: the simplest (single-transistor transconductance + diode bias)
+  symmetrical op-amps now match acst **device-for-device** (overlap 54 → 58).
+  The remaining ~206 need the **two-transistor cascode** transconductance/bias
+  variants — acst's `connectInstanceTerminalsSymmetricalOpAmp` multi-case wiring
+  (INSOURCE/INOUTPUT terminals, size-keyed sub-cases) — plus the complementary
+  bias variety (`findComplementarySecondStageStageBiases`).  That cascode
+  multi-case wiring is the remaining symmetrical work.
