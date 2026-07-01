@@ -984,7 +984,6 @@ def everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
         return True
 
     for net in list(set(gate_nets.keys()).intersection(drain_nets.keys())):
-        logger.debug(f"{net=}")
         if gatePinsAreOnlyNDoped(gate_nets[net]):
             if moreThanOneNDopdedDrainPin(drain_nets[net]):
                 return False

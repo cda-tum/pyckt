@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from pathlib import Path
 
 from topogen.common.circuit import *
@@ -9,6 +10,7 @@ from topogen.common.circuit import (
     connect,
     convert_dot_to_png,
     createTransistorStack,
+    everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType,
     save_graphviz_figure,
 )
 from topogen.HL2.cb import CurrentBiasManager
@@ -24,6 +26,45 @@ GALLERY_IMAGE_DIR = Path(__file__).parent.parent.parent.parent / "gallery" / "HL
 GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 logger = setup_logger(log_level="DEBUG", log_file=None)
+
+
+def _load_part_passes_acst_filter(loadPart, floating_policy: str = "cascode") -> bool:
+    """acst's load-part validity check (``LoadParts::create*LoadParts*``).
+
+    A load part is always required to have no gate net driving more than one
+    same-tech drain
+    (``everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType``).
+    Undriven ("floating") gate nets are then handled per *floating_policy*:
+
+    * ``"none"`` — reject any floating gate (two-transistor mixed load parts);
+    * ``"cascode"`` — accept floating gates only if their transistors are *not*
+      on the source rail, i.e. genuine cascode gates (three-/four-transistor
+      mixed and four-transistor voltage-bias parts);
+    * ``"any"`` — accept regardless (four-transistor current-bias parts, where
+      acst filters on ``everyGateNet`` alone).
+
+    pyckt previously kept every combination, over-generating invalid load parts
+    (issue #20).
+    """
+    if not everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
+        deepcopy(loadPart)
+    ):
+        return False
+    if floating_policy == "any":
+        return True
+    leaves = deepcopy(loadPart).flatten().instances
+    drains = {t.drain for t in leaves}
+    floating = {t.gate for t in leaves if t.gate not in drains}
+    if not floating:
+        return True
+    if floating_policy == "none":
+        return False
+    return not any(
+        t.source == LoadPart.SOURCE
+        for g in floating
+        for t in leaves
+        if t.gate == g
+    )
 
 
 def connectInstanceTerminalsOfTwoTransistorLoadPart(out: LoadPart, ts1, ts2):
@@ -281,7 +322,8 @@ def createTwoTransistorLoadPartsMixed(
             # fmt: on
 
             loadpart = createTwoTransistorLoadPart(ts1, ts2)
-            out.append(loadpart)
+            if _load_part_passes_acst_filter(loadpart, floating_policy="none"):
+                out.append(loadpart)
     return out
 
 
@@ -300,7 +342,8 @@ def createThreeTransistorLoadPartsMixed(
             # fmt: on
 
             loadpart = createThreeTransistorLoadPart(ts1, ts2)
-            out.append(loadpart)
+            if _load_part_passes_acst_filter(loadpart, floating_policy="cascode"):
+                out.append(loadpart)
     return out
 
 
@@ -343,7 +386,8 @@ def createFourTransistorLoadPartsMixed(
             ts1 = createTransistorStack(1, voltageBias)
             ts2 = createTransistorStack(2, currentBias)
             loadpart = createFourTransistorLoadPart(ts1, ts2)
-            out.append(loadpart)
+            if _load_part_passes_acst_filter(loadpart, floating_policy="cascode"):
+                out.append(loadpart)
     return out
 
 
