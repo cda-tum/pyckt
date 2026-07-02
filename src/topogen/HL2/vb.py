@@ -1,6 +1,6 @@
 from copy import deepcopy
 from itertools import chain
-from typing import Iterator, Union
+from typing import Iterator
 
 from topogen.common.circuit import *
 
@@ -136,8 +136,10 @@ class VoltageBiasManager:
     def createTwoTransistorVoltageBiases(
         self, normalTransistor: NormalTransistor, diodeTransistor: DiodeTransistor
     ) -> Iterator[VoltageBias]:
-        """Build the three two-transistor bias stacks: diode+diode, normal+normal,
-        and mixed normal+diode."""
+        """Build the four two-transistor bias stacks (acst
+        ``createTwoTransistorVoltageBiases``): diode+diode, normal+normal, and
+        *two* mixed normal+diode variants — one exposing the source gate on
+        ``OUTSOURCE``, one tying it to the output node (``IN``)."""
         diodeTransistor1 = deepcopy(diodeTransistor)
         diodeTransistor2 = deepcopy(diodeTransistor)
 
@@ -148,17 +150,17 @@ class VoltageBiasManager:
         normalTransistor2 = deepcopy(normalTransistor)
         normalTransistor1.id = 1
         normalTransistor2.id = 2
-        twoDiodeTransistorCircuit = self.createTwoTransistorCircuit(
+        twoDiodeTransistorCircuits = self.createTwoTransistorCircuit(
             diodeTransistor1, diodeTransistor2
         )
-        twoNormalTransistorCircuit = self.createTwoTransistorCircuit(
+        twoNormalTransistorCircuits = self.createTwoTransistorCircuit(
             normalTransistor1, normalTransistor2
         )
         mixedCircuits = self.createTwoTransistorCircuit(
             normalTransistor, diodeTransistor
         )
         return chain(
-            [twoDiodeTransistorCircuit, twoNormalTransistorCircuit, mixedCircuits]
+            twoDiodeTransistorCircuits, twoNormalTransistorCircuits, mixedCircuits
         )
 
     def createOneTransistorCircuit(self, instance: Circuit) -> VoltageBias:
@@ -172,15 +174,19 @@ class VoltageBiasManager:
 
     def createTwoTransistorCircuit(
         self, sourceTransistor: Circuit, outputTransistor: Circuit
-    ) -> Union[VoltageBias, None]:
-        """Stack *sourceTransistor* under *outputTransistor* into a
-        two-transistor :class:`VoltageBias`, or ``None`` if neither transistor
-        is a recognised diode ("dt")/normal ("nt") combination.
+    ) -> list:
+        """Stack *sourceTransistor* under *outputTransistor* into two-transistor
+        :class:`VoltageBias` circuits, one per matching acst
+        ``createTwoTransistorCircuit`` branch.
 
-        The port set differs by case: diode output transistors expose
-        ``OUTSOURCE``/``OUTINPUT``; normal-source transistors expose a plain
-        ``OUTINPUT`` only (see :meth:`connectInstanceTerminalsTwoTransistorVoltageBias`).
+        acst runs *both* branches, so a mixed normal+diode pair yields **two**
+        variants: one exposing the source gate on its own ``OUTSOURCE`` net
+        (diode-output branch), one tying the source gate to the output node
+        ``IN`` (normal-source branch — the gate-connected-cascode used by e.g.
+        the symmetrical op-amp's four-transistor loads).  A diode+diode pair
+        yields only the former, a normal+normal pair only the latter.
         """
+        out = []
         if outputTransistor.name == "dt":
             vb = VoltageBias(id=1, techtype=sourceTransistor.tech)
             vb.ports = [
@@ -190,27 +196,32 @@ class VoltageBiasManager:
                 VoltageBias.OUTSOURCE,
                 VoltageBias.OUTINPUT,
             ]
-            vb.add_instance(sourceTransistor)
-            vb.add_instance(outputTransistor)
-            vb = self.connectInstanceTerminalsTwoTransistorVoltageBias(
-                vb, sourceTransistor, outputTransistor
+            src, outp = deepcopy(sourceTransistor), deepcopy(outputTransistor)
+            vb.add_instance(src)
+            vb.add_instance(outp)
+            out.append(
+                self.connectInstanceTerminalsTwoTransistorVoltageBias(
+                    vb, src, outp, outsource_aliases_in=False
+                )
             )
-            return vb
         if sourceTransistor.name == "nt":
             vb = VoltageBias(id=1, techtype=sourceTransistor.tech)
             vb.ports = [
                 VoltageBias.IN,
                 VoltageBias.SOURCE,
                 VoltageBias.INNER,
+                VoltageBias.OUTSOURCE,
                 VoltageBias.OUTINPUT,
             ]
-            vb.add_instance(sourceTransistor)
-            vb.add_instance(outputTransistor)
-            vb = self.connectInstanceTerminalsTwoTransistorVoltageBias(
-                vb, sourceTransistor, outputTransistor
+            src, outp = deepcopy(sourceTransistor), deepcopy(outputTransistor)
+            vb.add_instance(src)
+            vb.add_instance(outp)
+            out.append(
+                self.connectInstanceTerminalsTwoTransistorVoltageBias(
+                    vb, src, outp, outsource_aliases_in=True
+                )
             )
-            return vb
-        return None
+        return out
 
     def connectInstanceTerminalsOneTransistorVoltageBias(
         self, vb: VoltageBias, transistor: Circuit
@@ -222,19 +233,25 @@ class VoltageBiasManager:
         return vb
 
     def connectInstanceTerminalsTwoTransistorVoltageBias(
-        self, vb: VoltageBias, sourceTransistor: Circuit, outputTransistor: Circuit
+        self,
+        vb: VoltageBias,
+        sourceTransistor: Circuit,
+        outputTransistor: Circuit,
+        outsource_aliases_in: bool = False,
     ) -> VoltageBias:
         """Wire both stacked transistors' pins to *vb*'s ports.
 
-        *sourceTransistor*'s gate connects to ``OUTSOURCE`` if present,
-        otherwise to ``IN``; its drain/source connect to ``INNER``/``SOURCE``.
-        *outputTransistor*'s gate/drain/source connect to ``OUTINPUT``/``IN``/
-        ``INNER``.
+        *sourceTransistor*'s gate connects to its own ``OUTSOURCE`` node, or —
+        when *outsource_aliases_in* (acst's no-``OUTSOURCE``-net branch) — to
+        the output node ``IN`` with ``OUTSOURCE`` exposed as an alias of it;
+        its drain/source connect to ``INNER``/``SOURCE``.  *outputTransistor*'s
+        gate/drain/source connect to ``OUTINPUT``/``IN``/``INNER``.
         """
-        if VoltageBias.OUTSOURCE in vb.ports:
+        if outsource_aliases_in:
+            connect((vb, VoltageBias.IN), (sourceTransistor, "gate"))
             connect((vb, VoltageBias.OUTSOURCE), (sourceTransistor, "gate"))
         else:
-            connect((vb, VoltageBias.IN), (sourceTransistor, "gate"))
+            connect((vb, VoltageBias.OUTSOURCE), (sourceTransistor, "gate"))
 
         connect((vb, VoltageBias.INNER), (sourceTransistor, "drain"))
         connect((vb, VoltageBias.SOURCE), (sourceTransistor, "source"))

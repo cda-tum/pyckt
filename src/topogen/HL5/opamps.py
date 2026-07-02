@@ -194,6 +194,7 @@ def _complementary_biases(stage_bias_cell, one_transistor_biases, all_biases):
 
 
 # symmetrical composition nets (acst OpAmps net names)
+_INSOURCE_TC = "insourcetc"          # INSOURCETRANSCONDUCTANCECOMPLEMENTARYSECONDSTAGE
 _INOUTPUT_TC = "inoutputtc"          # INOUTPUTTRANSCONDUCTANCECOMPLEMENTARYSECONDSTAGE
 _INSTAGEBIAS = "instagebias"         # INSTAGEBIASCOMPLEMENTARYSECONDSTAGE
 _INSOURCE_SB = "insourcestagebias"   # INSOURCESTAGEBIASCOMPLEMENTARYSECONDSTAGE
@@ -208,6 +209,8 @@ def createSymmetricalOpAmp(
     tc_tech: str,
     tc_size: int,
     sb_size: int,
+    load_size: int = 2,
+    load_stack_floating: int = 0,
 ) -> OpAmp:
     """Assemble a one-stage symmetrical op-amp (acst ``createSymmetricalOpAmp`` /
     ``connectInstanceTerminalsSymmetricalOpAmp``) for a simple (2-transistor)
@@ -240,8 +243,9 @@ def createSymmetricalOpAmp(
     connect((op, OpAmp.IN2), (firstStage, NonInvertingStage.IN2))
     connect((op, OpAmp.SOURCEPMOS), (firstStage, NonInvertingStage.SOURCEPMOS))
     connect((op, OpAmp.SOURCENMOS), (firstStage, NonInvertingStage.SOURCENMOS))
-    connect((op, _OUT1FS), (firstStage, NonInvertingStage.OUT1))
-    connect((op, _OUT2FS), (firstStage, NonInvertingStage.OUT2))
+    if load_size == 2:
+        connect((op, _OUT1FS), (firstStage, NonInvertingStage.OUT1))
+        connect((op, _OUT2FS), (firstStage, NonInvertingStage.OUT2))
 
     # second stage output + rails; complementary transconductance/bias rails
     connect((op, OpAmp.OUT), (secondStage, InvertingStage.OUTPUT))
@@ -255,14 +259,32 @@ def createSymmetricalOpAmp(
     connect((op, _INNERCOMP), (complementaryBias, VoltageBias.IN))
 
     # ---- transconductance wiring (senses out1 / mirrors out2) --------------
-    if tc_size == 1:
+    if load_size == 2 and tc_size == 1:
         connect((op, _OUT1FS), (secondStage, InvertingStage.INTRANSCONDUCTANCE))
         connect((op, _OUT2FS), (complementaryTransconductance, CurrentBias.IN))
-    else:  # two-transistor cascode transconductance
+    elif load_size == 2:  # two-transistor cascode transconductance
         connect((op, _OUT1FS), (secondStage, InvertingStage.INSOURCETRANSCONDUCTANCE))
         connect((op, _INOUTPUT_TC), (secondStage, InvertingStage.INOUTPUTTRANSCONDUCTANCE))
         connect((op, _OUT2FS), (complementaryTransconductance, CurrentBias.INSOURCE))
         connect((op, _INOUTPUT_TC), (complementaryTransconductance, CurrentBias.INOUTPUT))
+    else:
+        # cascode first-stage load (acst else-branch, OpAmps.cpp:848-869):
+        # the second stage senses the two cascode nodes of load branch 1
+        # (OutSource1/OutOutput1); the complementary transconductance mirrors
+        # branch 2 (OutSource2/OutOutput2), with the OUTOUTPUT2 sub-case picked
+        # by the load stack's floating-gate count.
+        connect((op, _OUT1FS), (firstStage, NonInvertingStage.OUTSOURCE1LOAD1))
+        connect((op, _OUT2FS), (firstStage, NonInvertingStage.OUTOUTPUT1LOAD1))
+        connect((op, _OUT1FS), (secondStage, InvertingStage.INSOURCETRANSCONDUCTANCE))
+        connect((op, _OUT2FS), (secondStage, InvertingStage.INOUTPUTTRANSCONDUCTANCE))
+        connect((op, _INSOURCE_TC), (firstStage, NonInvertingStage.OUTSOURCE2LOAD1))
+        connect((op, _INSOURCE_TC), (complementaryTransconductance, CurrentBias.INSOURCE))
+        if load_stack_floating == 1:
+            connect((op, _OUT2FS), (firstStage, NonInvertingStage.OUTOUTPUT2LOAD1))
+            connect((op, _OUT2FS), (complementaryTransconductance, CurrentBias.INOUTPUT))
+        else:
+            connect((op, _INOUTPUT_TC), (firstStage, NonInvertingStage.OUTOUTPUT2LOAD1))
+            connect((op, _INOUTPUT_TC), (complementaryTransconductance, CurrentBias.INOUTPUT))
 
     # ---- stage-bias wiring -------------------------------------------------
     if bias_size == 1:
@@ -318,8 +340,7 @@ def createSymmetricalOpAmps() -> Iterator[OpAmp]:
 
         for firstStage in non_inv.createSymmetricalNonInvertingStages(case):
             load_size = _symmetrical_load_size(firstStage)
-            if load_size != 2:
-                continue  # cascode first-stage loads not yet composed
+            load_floating = _symmetrical_load_stack_floating(firstStage)
             for secondStage in inv_stages:
                 tc = _bias_cell_of(secondStage, tc_tech)
                 if tc is None or 2 * tc.component_count < load_size:
@@ -330,6 +351,7 @@ def createSymmetricalOpAmps() -> Iterator[OpAmp]:
                         deepcopy(firstStage), deepcopy(secondStage),
                         _transconductance_of(secondStage, tc_tech), deepcopy(bias),
                         tc_tech, tc.component_count, sb.component_count,
+                        load_size, load_floating,
                     )
 
 
@@ -340,6 +362,23 @@ def _symmetrical_load_size(firstStage: NonInvertingStage) -> int:
     for inst in firstStage.instances:
         if inst.name == "l":
             return inst.component_count
+    return 0
+
+
+def _symmetrical_load_stack_floating(firstStage: NonInvertingStage) -> int:
+    """Per-branch count of the first-stage load's gate nets not tied to a drain
+    (acst ``load.LOADPART1.TRANSISTORSTACK1.getGateNetsNotConnectedToADrain()``).
+
+    The symmetrical load has two identical branches; flatten the whole load,
+    count its floating gates, and halve — a diode cascode yields 0, a biased
+    cascode top yields 1.  Selects acst's ``OUTOUTPUT2LOAD1`` sub-wiring.
+    """
+    for inst in firstStage.instances:
+        if inst.name == "l":
+            flat = deepcopy(inst).flatten()
+            drains = {t.drain for t in flat.instances}
+            floating = {t.gate for t in flat.instances if t.gate not in drains}
+            return len(floating) // 2
     return 0
 
 

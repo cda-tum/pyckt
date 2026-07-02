@@ -474,20 +474,69 @@ references (`bias_completion.py`: track single-diode output refs, emit their leg
 | Complementary | 2 | **4** |
 | **total signature overlap** | **70** | **88** |
 
-### 13.2 What still blocks the cascode-*load* symmetricals (~178 remaining)
+### 13.2 What still blocked the cascode-*load* symmetricals (resolved)
 
-The **cascode first-stage load** path (cases 5–8, load_size > 2) is wired
-correctly per acst's else-branch (`OpAmps.cpp:848–869`; firstStage
-`OUTSOURCE1/OUTOUTPUT1/OUTSOURCE2/OUTOUTPUT2LOAD1` → `OUT1/OUT2FIRSTSTAGE`,
-`INSOURCE/INOUTPUTTRANSCONDUCTANCECOMPLEMENTARYSECONDSTAGE`, sub-branched on the
-load stack's floating-gate count) and its load structure matches acst — but it
-**still matches 0** even with the §13.1 fix, so it is left **disabled** (enabling
-it adds ~164 false-positive topologies).  The residual divergence is the
-**improved-Wilson two-transistor voltage bias** path
-(`connectCurrentBiasOfImprovedWilsonCurrentMirror`, `OpAmps.cpp:1541–1577`),
-which pyckt does not yet port — the cascode-load transconductor gate takes a
-2-transistor Wilson voltage bias there, not the single-diode-plus-leg of §13.1.
-That is the same unported path as the **CascodeGCC** gap (§12), so both remain a
-single shared follow-up.  The cascode-load composition wiring is fully specified
-above (and in acst `OpAmps.cpp:848–869`) for re-application once the improved-
-Wilson bias path lands.
+The cascode-load composition wiring alone (acst `OpAmps.cpp:848–869`) matched 0
+because three *upstream* divergences compounded (each isolated by diffing acst
+netlists device-for-device):
+
+1. **Missing GCC voltage-bias variant** (HL2 `vb.py`): acst's
+   `createTwoTransistorCircuit` runs *both* of its branches, so a mixed
+   normal+diode pair yields **two** variants — pyckt returned after the first,
+   never building the gate-connected-cascode variant (source gate tied to the
+   output node) that acst's four-transistor symmetrical loads are made of
+   (`symmetrical_op_amp100`'s load).  Also, acst maps the `OUTSOURCE` terminal
+   to the `IN` net on the variants that lack an own `OUTSOURCE` net; pyckt
+   omitted the port entirely, silently danglings the load-part wiring.
+2. **Missing load-part filter** (HL3 `lp.py`): acst drops four-transistor VB
+   load parts whose floating gates sit on rail transistors (the Wilson-style
+   variant); pyckt kept them, generating loads acst never builds.
+3. **Port-name mismatch** (HL4 `non_inv_connections.py`): the symmetrical stage
+   connected `OUTSOURCE{1,2}LOAD1` to load ports `out_outsource*_load1`, which
+   don't exist (real names `out_source_load*`) — the connection dangled
+   silently, leaving the second stage's transconductor gate floating.
+
+With those fixed the cascode-load wiring was enabled and pyckt emits exactly
+**210 unique symmetrical signatures**.
+
+## 14. Improved-Wilson + cascode-GCC bias ports — symmetrical parity (issue #20)
+
+Two remaining bias-completion ports closed the family:
+
+- **Leg chaining** (`bias_completion.py`): a current leg of tech T must mirror
+  a reference of its *own* tech.  When a master-tech reference needs a leg and
+  the other tech has no rail reference, acst creates a fresh intermediate diode
+  (`findReferenceVoltageBias`'s create-new branch) which then gets its own
+  master-tech leg — the chained `MainBias_17/2/1` pattern.  Overlap 88 → 100.
+- **Improved-Wilson mirror** (`connectCurrentBiasOfImprovedWilsonCurrentMirror`):
+  a floating cascode gate whose (single) transistor stacks on a diode gets a
+  two-transistor voltage bias — a diode on the gate node over a transistor
+  sensing the stage's own diode node — and serves as the **ibias candidate**
+  when no rail reference exists (`connectIbiasTerminal`'s 2-transistor
+  fallback).  Reference: `symmetrical_op_amp134`.
+- **Cascode-GCC diode** (`connectCascodeGCC`): the folded GCC pair's shared
+  floating gate gets a diode riding on the differential pair's **tail node**,
+  not the rail (`addOneTransistorVoltageBiasToCircuit`'s INNERGCC case).
+  Reference: `one_stage_single_output_op_amp102`.  CascodeGCC one-stage cases
+  9–12: 0 → **36/36**.
+
+**Results (measured, suite 875 green):**
+
+| milestone | total overlap |
+|---|---|
+| session start | 88 |
+| leg chaining | 100 |
+| GCC VB variant + load-part filter + port fix + cascode symmetrical | 223 |
+| improved-Wilson port | 335 — **symmetrical 210/210, zero missing/extra** |
+| cascode-GCC diode | **365** (SingleOutput 342, FD 12, Complementary 11) |
+
+### 14.1 Next blocker — two-loadpart load composition collapse
+
+One-stage simple cases 5–8/13–16 sit at ~half matched (162/252 one-stage).
+Diffing a case-5 miss (`c5_6`): the **differential pair's drains collapse onto
+one net** — both branches of a two-loadpart load (2-transistor mixed
+loadPart1 + cascode loadPart2) merge, and duplicate diodes appear.  That is a
+`createTwoLoadPartLoadsWithoutGCC`-family *composition wiring* bug (HL3
+`l.py`), independent of bias completion.  Fixing it (and re-checking the
+telescopic-cascode gate wiring against acst's cases 7–8 loads) is the next
+piece; the two-stage family multiplies every one-stage gain ×12.
