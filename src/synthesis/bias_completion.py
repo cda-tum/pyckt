@@ -108,6 +108,9 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
     # node).  Built for a floating cascode gate whose transistor stacks on a
     # diode (acst ``connectCurrentBiasOfImprovedWilsonCurrentMirror``).
     wilson_refs: dict[str, tuple[str, str]] = {}
+    # voltage-bias references created per tech — acst's indexPmos/indexNmos
+    # counters, which decide the ibias tech (OpAmps.cpp:1031: fewer wins).
+    vb_count: dict[str, int] = {"n": 0, "p": 0}
 
     for tech in ("n", "p"):
         # single-tech floating gates only (mixed-tech gates are a more complex
@@ -135,6 +138,7 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                 new_devs.append(_diode_reference(tech, g, source=next(iter(tails))))
                 output_refs.append((tech, g))
                 output_gates.remove(g)
+                vb_count[tech] += 1
 
         # improved-Wilson current mirror (acst connectCurrentBiasOfImproved-
         # WilsonCurrentMirror, runs before the remaining-gate handling): a
@@ -161,6 +165,7 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                 new_devs.append(bottom)
                 wilson_refs[tech] = (g, src_net)
                 output_gates.remove(g)
+                vb_count[tech] += 1
 
         if _forms_cascode(source_gates, output_gates, leaves):
             # Two-transistor cascode voltage bias: a stacked diode reference —
@@ -180,6 +185,7 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                 rename[g] = top
             ibias_node[tech] = top
             rail_ref[tech] = bottom
+            vb_count[tech] += 1
         else:
             for gates_subset, is_src in ((output_gates, False), (source_gates, True)):
                 if not gates_subset:
@@ -189,6 +195,7 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                 new_devs.append(_diode_reference(tech, node))
                 for g in gates_subset:
                     rename[g] = node
+                vb_count[tech] += 1
                 if is_src:
                     ibias_node[tech] = node
                     rail_ref[tech] = node
@@ -207,12 +214,15 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
         else:
             output_refs.append((tech, top))
 
-    # tie the master source reference to the ibias pin
+    # tie the master reference to the ibias pin — acst picks the tech with
+    # *fewer* voltage biases (OpAmps.cpp:1031, indexPmos/indexNmos compare),
+    # the first-stage (input) tech on a tie, falling through to the other tech
+    # when the chosen one has no ibias-capable reference (connectIbiasTerminal's
+    # recursion; plain output diodes never qualify).
     if ibias_node:
-        if len(ibias_node) == 1:
-            master_tech = next(iter(ibias_node))
-        else:
-            master_tech = input_tech if input_tech in ibias_node else next(iter(ibias_node))
+        master_tech = min(
+            ibias_node, key=lambda t: (vb_count[t], t != input_tech)
+        )
         rename[ibias_node[master_tech]] = _IBIAS
 
         # Every reference not tied to ibias gets an opposite-tech current-source
