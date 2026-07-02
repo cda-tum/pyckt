@@ -116,6 +116,26 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
         source_gates = [g for g in group if is_source(g)]
         output_gates = [g for g in group if not is_source(g)]
 
+        # cascode-GCC (acst ``connectCascodeGCC``): a pair of same-tech cascode
+        # transistors sharing one floating gate and riding on the differential
+        # pair's drains (the folded gate-connected cascode, input tech == cascode
+        # tech) gets a diode reference riding on the pair's common-source (tail)
+        # node instead of the rail (``addOneTransistorVoltageBiasToCircuit``'s
+        # INNERGCC special case).
+        for g in list(output_gates):
+            devs = devs_of(g)
+            if len(devs) != 2:
+                continue
+            input_devs = [t for t in leaves if t.gate in ("in1", "in2")]
+            if not input_devs or {t.techtype for t in input_devs} != {tech}:
+                continue
+            in_drains = {t.drain for t in input_devs}
+            tails = {t.source for t in input_devs}
+            if len(tails) == 1 and all(t.source in in_drains for t in devs):
+                new_devs.append(_diode_reference(tech, g, source=next(iter(tails))))
+                output_refs.append((tech, g))
+                output_gates.remove(g)
+
         # improved-Wilson current mirror (acst connectCurrentBiasOfImproved-
         # WilsonCurrentMirror, runs before the remaining-gate handling): a
         # floating cascode gate driven by exactly one transistor that stacks on
