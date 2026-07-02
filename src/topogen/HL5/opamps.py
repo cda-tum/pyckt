@@ -140,15 +140,64 @@ def createFullyDifferentialOpAmp(
     return opamp
 
 
-def _transconductance_of(secondStage: InvertingStage, tech: str):
-    """Deep-copy the *tech*-side current bias of an inverting stage's analog
-    inverter — the transconductance acst mirrors as the complementary second
-    stage (``OpAmps::getSecondStageTransconductance``)."""
+def _bias_cell_of(secondStage: InvertingStage, tech: str):
+    """The *tech*-side current bias of an inverting stage's analog inverter
+    (transconductance if same tech as the stage, else the stage bias)."""
     analog_inverter = secondStage.instances[0]
     for inst in analog_inverter.instances:
         if inst.tech == tech:
-            return deepcopy(inst)
+            return inst
     return None
+
+
+def _transconductance_of(secondStage: InvertingStage, tech: str):
+    """Deep-copy the transconductance current bias (``getSecondStageTransconductance``)."""
+    cell = _bias_cell_of(secondStage, tech)
+    return deepcopy(cell) if cell is not None else None
+
+
+def _is_single_diode(vb) -> bool:
+    return len(vb.instances) == 1 and vb.instances[0].name == "dt"
+
+
+def _floating_gate_count(vb) -> int:
+    leaves = deepcopy(vb).flatten().instances
+    drains = {t.drain for t in leaves}
+    return len({t.gate for t in leaves if t.gate not in drains})
+
+
+def _complementary_biases(stage_bias_cell, one_transistor_biases, all_biases):
+    """acst ``findComplementarySecondStageStageBiases`` — pick the complementary
+    stage-bias voltage biases matching the second stage's stage-bias structure."""
+    sb_size = stage_bias_cell.component_count
+    source_is_diode = stage_bias_cell.instances[0].name == "dt"
+    out = []
+    if sb_size == 1:
+        for vb in one_transistor_biases:
+            if _is_single_diode(vb):
+                out.append(vb)
+    elif source_is_diode:
+        for vb in all_biases:
+            output_is_diode = vb.instances[-1].name == "dt"
+            if output_is_diode and _floating_gate_count(vb) == 1:
+                out.append(vb)
+            elif vb.component_count == 1 and not _is_single_diode(vb):
+                out.append(vb)
+    else:
+        for vb in all_biases:
+            output_is_diode = vb.instances[-1].name == "dt"
+            if not (output_is_diode and _floating_gate_count(vb) == 1) and vb.component_count == 2:
+                out.append(vb)
+            elif _is_single_diode(vb):
+                out.append(vb)
+    return out
+
+
+# symmetrical composition nets (acst OpAmps net names)
+_INOUTPUT_TC = "inoutputtc"          # INOUTPUTTRANSCONDUCTANCECOMPLEMENTARYSECONDSTAGE
+_INSTAGEBIAS = "instagebias"         # INSTAGEBIASCOMPLEMENTARYSECONDSTAGE
+_INSOURCE_SB = "insourcestagebias"   # INSOURCESTAGEBIASCOMPLEMENTARYSECONDSTAGE
+_INOUTPUT_SB = "inoutputstagebias"   # INOUTPUTSTAGEBIASCOMPLEMENTARYSECONDSTAGE
 
 
 def createSymmetricalOpAmp(
@@ -157,18 +206,24 @@ def createSymmetricalOpAmp(
     complementaryTransconductance,
     complementaryBias,
     tc_tech: str,
+    tc_size: int,
+    sb_size: int,
 ) -> OpAmp:
-    """Assemble a one-stage symmetrical op-amp (acst ``createSymmetricalOpAmp``).
+    """Assemble a one-stage symmetrical op-amp (acst ``createSymmetricalOpAmp`` /
+    ``connectInstanceTerminalsSymmetricalOpAmp``) for a simple (2-transistor)
+    first-stage load.
 
-    The differential first stage drives two current-mirror outputs
-    (``out1fs``/``out2fs``); the inverting second stage mirrors ``out1fs`` to the
-    output, and a complementary second stage (a copy of the second-stage
-    transconductance plus a diode voltage bias) mirrors ``out2fs`` through
-    ``innercomp`` to bias the second stage's stage bias.  *tc_tech* is the
-    transconductance tech (``"n"`` for a p-input first stage).
+    The differential first stage drives two mirror outputs (``out1``/``out2``);
+    the inverting second stage senses ``out1`` and the complementary second
+    stage (a copy of the second-stage transconductance + a voltage bias) mirrors
+    ``out2`` through ``innercomp``.  Transconductance and stage-bias wiring
+    branch on their transistor counts (*tc_size* = complementary transconductance,
+    *sb_size* = second-stage stage bias), matching acst's size-keyed sub-cases.
     """
     rail_tc = OpAmp.SOURCENMOS if tc_tech == "n" else OpAmp.SOURCEPMOS
     rail_bias = OpAmp.SOURCEPMOS if tc_tech == "n" else OpAmp.SOURCENMOS
+    bias_size = complementaryBias.component_count
+    bias_is_diode = _is_single_diode(complementaryBias)
 
     op = OpAmp(id=1, techtype="undef")
     op.ports += [
@@ -188,33 +243,53 @@ def createSymmetricalOpAmp(
     connect((op, _OUT1FS), (firstStage, NonInvertingStage.OUT1))
     connect((op, _OUT2FS), (firstStage, NonInvertingStage.OUT2))
 
-    # inverting second stage: transconductor senses out1fs, stage bias ← innercomp
+    # second stage output + rails; complementary transconductance/bias rails
     connect((op, OpAmp.OUT), (secondStage, InvertingStage.OUTPUT))
     connect((op, OpAmp.SOURCEPMOS), (secondStage, InvertingStage.SOURCEPMOS))
     connect((op, OpAmp.SOURCENMOS), (secondStage, InvertingStage.SOURCENMOS))
-    connect((op, _OUT1FS), (secondStage, InvertingStage.INTRANSCONDUCTANCE))
-    connect((op, _INNERCOMP), (secondStage, InvertingStage.INSTAGEBIAS))
-
-    # complementary transconductance mirrors out2fs → innercomp
-    connect((op, _OUT2FS), (complementaryTransconductance, CurrentBias.IN))
-    connect((op, _INNERCOMP), (complementaryTransconductance, CurrentBias.OUT))
     connect((op, rail_tc), (complementaryTransconductance, CurrentBias.SOURCE))
-
-    # complementary stage bias: diode on innercomp
-    connect((op, _INNERCOMP), (complementaryBias, VoltageBias.IN))
-    connect((op, _INNERCOMP), (complementaryBias, VoltageBias.OUT))
     connect((op, rail_bias), (complementaryBias, VoltageBias.SOURCE))
+
+    # complementary second stage feeds innercomp
+    connect((op, _INNERCOMP), (complementaryTransconductance, CurrentBias.OUT))
+    connect((op, _INNERCOMP), (complementaryBias, VoltageBias.IN))
+
+    # ---- transconductance wiring (senses out1 / mirrors out2) --------------
+    if tc_size == 1:
+        connect((op, _OUT1FS), (secondStage, InvertingStage.INTRANSCONDUCTANCE))
+        connect((op, _OUT2FS), (complementaryTransconductance, CurrentBias.IN))
+    else:  # two-transistor cascode transconductance
+        connect((op, _OUT1FS), (secondStage, InvertingStage.INSOURCETRANSCONDUCTANCE))
+        connect((op, _INOUTPUT_TC), (secondStage, InvertingStage.INOUTPUTTRANSCONDUCTANCE))
+        connect((op, _OUT2FS), (complementaryTransconductance, CurrentBias.INSOURCE))
+        connect((op, _INOUTPUT_TC), (complementaryTransconductance, CurrentBias.INOUTPUT))
+
+    # ---- stage-bias wiring -------------------------------------------------
+    if bias_size == 1:
+        connect((op, _INSTAGEBIAS), (complementaryBias, VoltageBias.OUT))
+        if sb_size == 1:
+            connect((op, _INSTAGEBIAS), (secondStage, InvertingStage.INSTAGEBIAS))
+        else:
+            connect((op, _INSTAGEBIAS), (secondStage, InvertingStage.INSOURCESTAGEBIAS))
+            if not bias_is_diode:
+                connect((op, _INNERCOMP), (secondStage, InvertingStage.INOUTPUTSTAGEBIAS))
+    else:  # two-transistor complementary bias
+        connect((op, _INSOURCE_SB), (complementaryBias, VoltageBias.OUTSOURCE))
+        connect((op, _INOUTPUT_SB), (complementaryBias, VoltageBias.OUTINPUT))
+        connect((op, _INSOURCE_SB), (secondStage, InvertingStage.INSOURCESTAGEBIAS))
+        connect((op, _INOUTPUT_SB), (secondStage, InvertingStage.INOUTPUTSTAGEBIAS))
     return op
 
 
 def createSymmetricalOpAmps() -> Iterator[OpAmp]:
-    """Yield every one-stage symmetrical op-amp (acst ``createSymmetricalOpAmps``).
+    """Yield every one-stage symmetrical op-amp for a simple (2-transistor)
+    first-stage load (acst ``createSymmetricalOpAmps``).
 
-    For each symmetrical first stage (cases 1–8) and each single-transistor
-    inverting second stage of the transconductance tech, mirror the second-stage
-    transconductance as the complementary second stage and pair it with each
-    one-transistor complementary voltage bias.  (Two-transistor cascode second
-    stages are not yet composed.)
+    For each such symmetrical first stage and each inverting second stage of the
+    transconductance tech passing the ``≥ 0.5 × load`` filter, mirror the
+    second-stage transconductance as the complementary second stage and pair it
+    with each complementary voltage bias (``findComplementarySecondStageStageBiases``).
+    Cascode (>2-transistor) first-stage loads are not yet composed.
     """
     non_inv = NonInvertingStageManager()
     inv = InvertingStageManager()
@@ -225,29 +300,47 @@ def createSymmetricalOpAmps() -> Iterator[OpAmp]:
         tc_tech = "n" if input_tech == "p" else "p"
         bias_tech = "p" if tc_tech == "n" else "n"
 
-        inv_stages = (
+        inv_stages = list(
             inv.getInvertingStagesNmosTransconductance()
             if tc_tech == "n"
             else inv.getInvertingStagesPmosTransconductance()
         )
-        comp_biases = (
+        one_transistor_biases = list(
             vb.getOneTransistorVoltageBiasesPmos()
             if bias_tech == "p"
             else vb.getOneTransistorVoltageBiasesNmos()
         )
+        all_biases = list(
+            vb.getAllVoltageBiasesPmos()
+            if bias_tech == "p"
+            else vb.getAllVoltageBiasesNmos()
+        )
 
         for firstStage in non_inv.createSymmetricalNonInvertingStages(case):
+            load_size = _symmetrical_load_size(firstStage)
+            if load_size != 2:
+                continue  # cascode first-stage loads not yet composed
             for secondStage in inv_stages:
-                tc = _transconductance_of(secondStage, tc_tech)
-                if tc is None or tc.component_count != 1:
-                    continue  # single-transistor transconductance only, for now
-                for bias in comp_biases:
-                    if bias.component_count != 1:
-                        continue
+                tc = _bias_cell_of(secondStage, tc_tech)
+                if tc is None or 2 * tc.component_count < load_size:
+                    continue  # acst's ≥ 0.5 × load filter
+                sb = _bias_cell_of(secondStage, bias_tech)
+                for bias in _complementary_biases(sb, one_transistor_biases, all_biases):
                     yield createSymmetricalOpAmp(
                         deepcopy(firstStage), deepcopy(secondStage),
-                        deepcopy(tc), deepcopy(bias), tc_tech,
+                        _transconductance_of(secondStage, tc_tech), deepcopy(bias),
+                        tc_tech, tc.component_count, sb.component_count,
                     )
+
+
+def _symmetrical_load_size(firstStage: NonInvertingStage) -> int:
+    """Total transistor count of the symmetrical first stage's load (acst's
+    ``getDeviceNamesOfFlatCircuit(load).size()`` — 2 for the simple two-diode
+    load, 4+ for cascode loads)."""
+    for inst in firstStage.instances:
+        if inst.name == "l":
+            return inst.component_count
+    return 0
 
 
 class OpAmpFactory:
