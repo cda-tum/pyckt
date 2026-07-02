@@ -21,6 +21,10 @@ _OUT1FS = "out1fs"          # first-stage output 1 (drives the inverting 2nd sta
 _OUT2FS = "out2fs"          # first-stage output 2 (mirrored by the complementary 2nd stage)
 _INNERCOMP = "innercomp"    # complementary-second-stage node biasing the 2nd-stage stage bias
 
+# two-stage inter-stage net (acst OUTFIRSTSTAGE — first-stage output into the
+# second stage's transconductor gate; also the compensation capacitor's plus)
+OUTFIRSTSTAGE = "outfirststage"
+
 
 GALLERY_DOT_DIR = (
     Path(__file__).parent.parent.parent.parent / "gallery" / "HL5" / "opamps" / "dots"
@@ -91,7 +95,22 @@ def connectInstanceTerminalsSimpleOpAmp(
         connect((opamp, OpAmp.SOURCEPMOS), (secondStage, InvertingStage.SOURCEPMOS))
         connect((opamp, OpAmp.SOURCENMOS), (secondStage, InvertingStage.SOURCENMOS))
         connect((opamp, OpAmp.OUT), (secondStage, InvertingStage.OUTPUT))
-        # connect((opamp, OpAmp.OUT1), (secondStage, InvertingStage.OUTPUT))
+
+        # first-stage output drives the second stage's transconductor gate
+        # (acst connectInstanceTerminals two-stage branch, OpAmps.cpp:709-727:
+        # OUT2 → OUTFIRSTSTAGE → IN[SOURCE]TRANSCONDUCTANCE, picked by the
+        # transconductor's transistor count via the exposed port).
+        connect((opamp, OUTFIRSTSTAGE), (firstStage, NonInvertingStage.OUT2))
+        if InvertingStage.INTRANSCONDUCTANCE in secondStage.ports:
+            connect(
+                (opamp, OUTFIRSTSTAGE),
+                (secondStage, InvertingStage.INTRANSCONDUCTANCE),
+            )
+        else:
+            connect(
+                (opamp, OUTFIRSTSTAGE),
+                (secondStage, InvertingStage.INSOURCETRANSCONDUCTANCE),
+            )
     return opamp
 
 

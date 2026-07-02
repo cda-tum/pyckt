@@ -152,17 +152,32 @@ class TopologyConverter:
             return
         outputs = [o for o in ("out", "out1", "out2") if o in net_names]
         for i, out in enumerate(outputs, start=1):
-            cap = Device(
-                name=f"Cap_load_{i}",
-                device_type=DeviceType.CAPACITOR,
-                tech_type=TechType.N,
+            self._add_capacitor(core_circuit, f"Cap_load_{i}", out, minus)
+
+        # two-stage op-amps also get a compensation capacitor between the
+        # first-stage output and the op-amp output (acst
+        # ``connectInstanceTerminalsCapacitors``, OpAmps.cpp:954-969); the
+        # ``outfirststage`` net exists only in two-stage compositions.
+        if "outfirststage" in net_names and "out" in net_names:
+            self._add_capacitor(
+                core_circuit, "Cap_compensation_1", "outfirststage", "out"
             )
-            core_circuit.add_device(cap)
-            for pin_type, net_name in ((PinType.PLUS, out), (PinType.MINUS, minus)):
-                net = core_circuit.find_or_create_net(net_name)
-                terminal = Terminal(device=cap, pin_type=pin_type, net=net)
-                cap.add_terminal(terminal)
-                core_circuit.add_terminal(terminal)
+
+    def _add_capacitor(
+        self, core_circuit: CoreCircuit, name: str, plus: str, minus: str
+    ) -> None:
+        """Attach a named capacitor between the *plus* and *minus* nets."""
+        cap = Device(
+            name=name,
+            device_type=DeviceType.CAPACITOR,
+            tech_type=TechType.N,
+        )
+        core_circuit.add_device(cap)
+        for pin_type, net_name in ((PinType.PLUS, plus), (PinType.MINUS, minus)):
+            net = core_circuit.find_or_create_net(net_name)
+            terminal = Terminal(device=cap, pin_type=pin_type, net=net)
+            cap.add_terminal(terminal)
+            core_circuit.add_terminal(terminal)
 
     # ------------------------------------------------------------------
     # Private helpers
