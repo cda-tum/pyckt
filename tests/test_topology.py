@@ -923,22 +923,19 @@ class TestNonInvConnectionsDtPath:
     `connectInstanceTerminalsOfLoadPart2XXX` (line 146)."""
 
     def _build_lp_with_dt_ts(self):
-        """3-tx LoadPart whose ts1 directly wraps a DiodeTransistor."""
-        from topogen.common.circuit import (
-            DiodeTransistor,
-            TransistorStack,
-        )
+        """3-tx LoadPart whose ts1 wraps a single-diode voltage bias (the
+        real factory structure: TransistorStack → VoltageBias → transistor)."""
+        from topogen.common.circuit import createTransistorStack
+        from topogen.HL2.vb import VoltageBiasManager
         from topogen.HL3.lp import (
             LoadPartManager,
             createThreeTransistorLoadPart,
         )
-        ts1 = TransistorStack(id=1, techtype="?")
-        ts1.add_instance(DiodeTransistor(techtype="n"))
-        ts1.ports = [TransistorStack.IN, TransistorStack.OUT, TransistorStack.SOURCE]
-        for p, ip in [(TransistorStack.IN, "gate"),
-                      (TransistorStack.OUT, "drain"),
-                      (TransistorStack.SOURCE, "source")]:
-            ts1.add_connection_xxx(port=p, instance_id=0, instance_port=ip)
+        diode_vb = next(
+            vb for vb in VoltageBiasManager().getOneTransistorVoltageBiasesNmos()
+            if vb.instances[0].name == "dt"
+        )
+        ts1 = createTransistorStack(1, diode_vb)
         # 2-tx ts2 → total component_count = 3.
         four_tx = LoadPartManager().createLoadPartsPmosFourTransistorCurrentBiases()
         ts2 = four_tx[0].instances[1]

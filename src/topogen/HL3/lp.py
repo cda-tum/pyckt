@@ -262,7 +262,12 @@ def connectInstanceTerminalsOfThreeTransistorLoadPart(
 
     connect((out, LoadPart.OUT2), (ts2, TransistorStack.OUT))
 
-    if len(ts1.instances) == 1 and ts1.instances[0].name == "dt":
+    # acst's isSingleDiodeTransistor checks the *bias inside* the stack —
+    # ts1.instances[0] is the VoltageBias wrapper, its instances[0] the
+    # transistor (checking the wrapper's name always failed, wrongly tying the
+    # cascode gate to the diode node instead of exposing it for its own bias).
+    ts1_bias = ts1.instances[0]
+    if len(ts1_bias.instances) == 1 and ts1_bias.instances[0].name == "dt":
         connect((out, LoadPart.INNEROUTPUT), (ts2, TransistorStack.INOUTPUT))
     else:
         connect((out, LoadPart.OUT1), (ts2, TransistorStack.INOUTPUT))
