@@ -446,36 +446,48 @@ Plus (unchanged from §10): **FD** one-stage count (432 → 72) + FD two-stage;
   (was `//2`, mis-sizing the simple 2-diode load).  **Overlap 58 → 70**
   (symmetrical **16/210**, all simple-load).
 
-### 13.1 Why the remaining ~194 don't match — the cascode-gate bias-completion blocker (measured)
+### 13.1 The cascode-gate bias-completion fix (measured, **shipped**)
 
-Extending the composition to the **cascode first-stage load** (cases 5–8) and
-the **two-transistor second-stage transconductor** (tc_size == 2) is *wired*
-correctly per acst's else-branch (firstStage `OUTSOURCE/OUTOUTPUT` load
-terminals; second stage `INSOURCE/INOUTPUT`), and the load structure itself
-matches acst (diode cascode, both branches).  But **0 additional** topologies
-matched device-for-device.  Root cause, isolated by diffing pyckt vs
-`symmetrical_op_amp24` (a simple-load, NMOS-input, tc2/sb2 case):
+The tc_size == 2 symmetricals (simple-load, e.g. `symmetrical_op_amp24`) diverged
+not in composition wiring but in **bias completion**.  Isolated by diffing pyckt
+vs `symmetrical_op_amp24`:
 
-- acst ties the cascode transconductor's **cascode gate** to the shared
-  `inOutputTransconductanceComplementarySecondStage` mirror node, biased by a
-  **two-transistor** cascode bias (an nmos current-source leg mirrored from
-  `ibias` + a pmos diode — acst's `MainBias` + `SecondStage1_StageBias`).
-- pyckt's **bias completion** drives that same floating cascode gate with a
-  **single self-biased diode** (`bias_p_N`).
+- acst ties the cascode transconductor's **cascode gate** to a diode reference
+  **plus an opposite-tech current-source leg** whose gate senses the `ibias`
+  reference and whose source sits on the opposite rail (`MainBias_1` +
+  `SecondStage1_StageBias_16`).  A diode reference alone carries **no bias
+  current** — the leg is what drives it.
+- pyckt's bias completion added the diode but **omitted the leg**, leaving the
+  cascode gate undriven and structurally divergent.
 
-So every tc_size == 2 (and cascode-load) symmetrical differs by the
-cascode-gate bias sub-network — a **bias-completion** divergence, *not* a
-composition-wiring one.  This is the **same subsystem** as the CascodeGCC gap
-(§12): pyckt's cascode-mirror bias generation vs acst's.  Reconciling
-`bias_completion.py` to emit acst's two-transistor cascode-gate mirror is the
-shared unlock for both the remaining ~194 symmetrical topologies and the
-CascodeGCC cases 9–12 — deferred (high blast-radius: bias completion is shared
-across all families, so it needs its own regression pass).  The cascode
-composition wiring (verified against acst lines 848–869) is intentionally
-**not** enabled — generating it now would add ~164 topologies acst does not
-emit (false positives, worse parity) with 0 new matches.  It is left as the
-next step after the bias-completion fix; the recipe (firstStage
-`OUTSOURCE1/OUTOUTPUT1/OUTSOURCE2/OUTOUTPUT2LOAD1` → `OUT1FIRSTSTAGE`/
-`OUT2FIRSTSTAGE`/`INSOURCE`/`INOUTPUTTRANSCONDUCTANCECOMPLEMENTARYSECONDSTAGE`,
-sub-branched on the load stack's floating-gate count) is fully specified above
-and in acst `OpAmps.cpp:848–869`.
+This is exactly the second half of acst `addCurrentBiasesToCircuit`
+(`OpAmps.cpp:1703–1786`): every voltage-bias reference *not* connected to `ibias`
+gets a paired opposite-tech current bias.  pyckt already did this for the
+cross-tech **source** reference; the fix extends it to the **output/cascode-gate**
+references (`bias_completion.py`: track single-diode output refs, emit their legs).
+
+**Result (measured, no regression, suite 874 green):**
+
+| family | before | after |
+|---|---|---|
+| symmetrical (SingleOutput) | 16 | **32** |
+| Complementary | 2 | **4** |
+| **total signature overlap** | **70** | **88** |
+
+### 13.2 What still blocks the cascode-*load* symmetricals (~178 remaining)
+
+The **cascode first-stage load** path (cases 5–8, load_size > 2) is wired
+correctly per acst's else-branch (`OpAmps.cpp:848–869`; firstStage
+`OUTSOURCE1/OUTOUTPUT1/OUTSOURCE2/OUTOUTPUT2LOAD1` → `OUT1/OUT2FIRSTSTAGE`,
+`INSOURCE/INOUTPUTTRANSCONDUCTANCECOMPLEMENTARYSECONDSTAGE`, sub-branched on the
+load stack's floating-gate count) and its load structure matches acst — but it
+**still matches 0** even with the §13.1 fix, so it is left **disabled** (enabling
+it adds ~164 false-positive topologies).  The residual divergence is the
+**improved-Wilson two-transistor voltage bias** path
+(`connectCurrentBiasOfImprovedWilsonCurrentMirror`, `OpAmps.cpp:1541–1577`),
+which pyckt does not yet port — the cascode-load transconductor gate takes a
+2-transistor Wilson voltage bias there, not the single-diode-plus-leg of §13.1.
+That is the same unported path as the **CascodeGCC** gap (§12), so both remain a
+single shared follow-up.  The cascode-load composition wiring is fully specified
+above (and in acst `OpAmps.cpp:848–869`) for re-application once the improved-
+Wilson bias path lands.
