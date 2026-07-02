@@ -540,3 +540,31 @@ loadPart1 + cascode loadPart2) merge, and duplicate diodes appear.  That is a
 `l.py`), independent of bias completion.  Fixing it (and re-checking the
 telescopic-cascode gate wiring against acst's cases 7–8 loads) is the next
 piece; the two-stage family multiplies every one-stage gain ×12.
+
+## 15. SingleOutput full parity — 2940/2940 (issue #20)
+
+The §14.1 "two-loadpart collapse" piece grew into complete SingleOutput
+reconciliation.  Every step measured against the acst netlist set:
+
+| step | fix | total overlap |
+|---|---|---|
+| start | (post-§14) | 365 |
+| CB load-part filters | acst's gate-net rule on `createFourTransistorLoadPartsCurrentBiases` (the diode-bottom mirror merges both fold nodes — the §14.1 collapse); diode-only + no-floating on `createTwoTransistorLoadPartsVoltageBiases`.  Also trims the library to acst's exact per-family counts. | — |
+| fewer-VBs ibias rule | acst assigns ibias to the tech with *fewer* voltage biases (`OpAmps.cpp:1031`), input tech only on ties. One-stage 180/180 generated-all-match. | 384 |
+| **two-stage composition** | pyckt never connected the first stage's output to the second stage — acst `OpAmps.cpp:709–727`: `OUT2 → OUTFIRSTSTAGE → IN[SOURCE]TRANSCONDUCTANCE` + the **compensation capacitor** `OUTFIRSTSTAGE ↔ OUT`.  Two-stage 0 → 2022/2160. | 2066 |
+| odd loads + diode-wrapper checks | acst takes the full load × stage-bias cross-product (pyckt skipped odd-transistor loads, dropping all 3T mixed loads); three `isSingleDiodeTransistor` checks inspected the bias *wrapper* instead of the transistor.  pyckt hits acst's exact 2940 SingleOutput signature count. | 2788 |
+| multi-Wilson bookkeeping | several same-tech Wilson refs per topology (list, not tech-keyed dict — dropped ones lost their legs); Wilson rail nodes are master-only sense references (acst `findReferenceVoltageBias` criteria 2/3 exclude the Wilson variant → fresh intermediate diode); floating gates processed in leaf order (acst's last-match ibias scan → the second stage's Wilson wins). | 2964 |
+
+**SingleOutputOpAmps: 2940/2940 — zero missing, zero extra** (one-stage 210,
+symmetrical 210, two-stage 2520).
+
+### 15.1 Remaining families
+
+- **Complementary 12/36**: pyckt's complementary composition collapses nets
+  (three drains on one net in `complementary_op_amp1`) — acst builds a folded
+  complementary structure (`complementary_op_amp10`: each input pair rides the
+  *opposite* load's fold nodes).  Needs its own composition port
+  (`createComplementaryNonInvertingStages` + complementary loads).
+- **FullyDifferential 12/936**: FD **two-stage** is unported (acst pairs
+  `secondStage1`/`secondStage2` per output, `OpAmps.cpp:732–780` — 864 of the
+  924 misses); FD one-stage still misses 60.
