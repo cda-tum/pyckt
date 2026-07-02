@@ -560,11 +560,12 @@ symmetrical 210, two-stage 2520).
 
 ### 15.1 Remaining families
 
-- **Complementary 12/36**: pyckt's complementary composition collapses nets
-  (three drains on one net in `complementary_op_amp1`) — acst builds a folded
-  complementary structure (`complementary_op_amp10`: each input pair rides the
-  *opposite* load's fold nodes).  Needs its own composition port
-  (`createComplementaryNonInvertingStages` + complementary loads).
+- **Complementary 36/36 — resolved**: the collapse was a one-branch typo in
+  `connectInstanceTerminalsOfComplementaryLoad` (pmos-first case): the second
+  (nmos) load part's transistor-stack nets were wired to the `*LOADPMOS` stage
+  nets already used by the first part, merging both load parts' inner nodes and
+  dangling the pmos pair's outputs.  acst maps `LOAD2 → *LOADNMOS`
+  (`NonInvertingStages.cpp:1303–1304`).  Full parity, zero missing/extra.
 - **FullyDifferential 12/936**: FD **two-stage** is unported (acst pairs
   `secondStage1`/`secondStage2` per output, `OpAmps.cpp:732–780` — 864 of the
   924 misses); FD one-stage still misses 60.
