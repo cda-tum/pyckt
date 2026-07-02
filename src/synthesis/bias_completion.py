@@ -104,6 +104,10 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
     # ``addCurrentBiasesToCircuit`` — a diode reference alone carries no bias
     # current, so its node floats without the paired current source).
     output_refs: list = []
+    # improved-Wilson references — tech → (top diode node, sensed stage diode
+    # node).  Built for a floating cascode gate whose transistor stacks on a
+    # diode (acst ``connectCurrentBiasOfImprovedWilsonCurrentMirror``).
+    wilson_refs: dict[str, tuple[str, str]] = {}
 
     for tech in ("n", "p"):
         # single-tech floating gates only (mixed-tech gates are a more complex
@@ -111,6 +115,32 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
         group = [g for g in floating if techs_of(g) == {tech}]
         source_gates = [g for g in group if is_source(g)]
         output_gates = [g for g in group if not is_source(g)]
+
+        # improved-Wilson current mirror (acst connectCurrentBiasOfImproved-
+        # WilsonCurrentMirror, runs before the remaining-gate handling): a
+        # floating cascode gate driven by exactly one transistor that stacks on
+        # a diode gets a two-transistor voltage bias — a diode on the gate node
+        # (an ibias candidate) over a transistor sensing the stage's own diode
+        # node (VB ``OUTSOURCE`` → the stage's ``INSOURCESTAGEBIAS``).
+        for g in list(output_gates):
+            devs = devs_of(g)
+            if len(devs) != 1:
+                continue
+            src_net = devs[0].source
+            if any(
+                d.drain == src_net and d.gate == src_net and d.techtype == tech
+                for d in leaves
+            ):
+                idx += 1
+                mid = f"bias_{tech}_{idx}m"
+                new_devs.append(_diode_reference(tech, g, source=mid))
+                bottom = NormalTransistor(techtype=tech, id=1)
+                bottom.drain = mid
+                bottom.gate = src_net
+                bottom.source = _RAIL_OF[tech]
+                new_devs.append(bottom)
+                wilson_refs[tech] = (g, src_net)
+                output_gates.remove(g)
 
         if _forms_cascode(source_gates, output_gates, leaves):
             # Two-transistor cascode voltage bias: a stacked diode reference —
@@ -144,6 +174,18 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                     rail_ref[tech] = node
                 else:
                     output_refs.append((tech, node))
+
+    # A Wilson reference is a two-transistor voltage bias: an ibias candidate
+    # for a tech with no rail (source) reference (acst ``connectIbiasTerminal``'s
+    # two-transistor fallback), sensed at its OUTSOURCE — the stage's own diode
+    # node.  With a rail reference present it is just another non-ibias
+    # reference needing an opposite-tech current leg on its IN (top) node.
+    for tech, (top, src_net) in wilson_refs.items():
+        if tech not in ibias_node:
+            ibias_node[tech] = top
+            rail_ref[tech] = src_net
+        else:
+            output_refs.append((tech, top))
 
     # tie the master source reference to the ibias pin
     if ibias_node:
