@@ -98,11 +98,14 @@ class TestVoltageBiasManager:
         from topogen.HL2.vb import VoltageBiasManager
         return VoltageBiasManager()
 
-    def test_five_pmos_variants(self, manager):
-        assert len(list(manager.getAllVoltageBiasesPmos())) == 5
+    def test_six_pmos_variants(self, manager):
+        # 2 one-transistor + 4 two-transistor (diode+diode, normal+normal,
+        # and both mixed normal+diode variants — acst
+        # createTwoTransistorVoltageBiases runs *both* branches for mixed)
+        assert len(list(manager.getAllVoltageBiasesPmos())) == 6
 
-    def test_five_nmos_variants(self, manager):
-        assert len(list(manager.getAllVoltageBiasesNmos())) == 5
+    def test_six_nmos_variants(self, manager):
+        assert len(list(manager.getAllVoltageBiasesNmos())) == 6
 
     def test_pmos_variants_techtype(self, manager):
         for vb in manager.getAllVoltageBiasesPmos():
@@ -156,17 +159,28 @@ class TestVoltageBiasManager:
         assert vb.instances[1].name == "dt"
         assert vb.tech == "p"
 
-    def test_create_two_transistor_circuit_returns_none_for_dt_then_nt(self):
+    def test_create_two_transistor_circuit_empty_for_dt_then_nt(self):
         """When source is a diode and output is a normal transistor neither
-        branch in `createTwoTransistorCircuit` matches → returns None
-        (line 177)."""
+        branch in `createTwoTransistorCircuit` matches → returns no
+        circuits."""
         from topogen.common.circuit import DiodeTransistor, NormalTransistor
         from topogen.HL2.vb import VoltageBiasManager
         result = VoltageBiasManager().createTwoTransistorCircuit(
             sourceTransistor=DiodeTransistor(techtype="n"),
             outputTransistor=NormalTransistor(techtype="n"),
         )
-        assert result is None
+        assert result == []
+
+    def test_create_two_transistor_circuit_two_mixed_variants(self):
+        """A mixed normal+diode pair yields both acst variants: one with the
+        source gate on its own OUTSOURCE net, one with it tied to IN."""
+        from topogen.common.circuit import DiodeTransistor, NormalTransistor
+        from topogen.HL2.vb import VoltageBiasManager
+        result = VoltageBiasManager().createTwoTransistorCircuit(
+            sourceTransistor=NormalTransistor(techtype="n"),
+            outputTransistor=DiodeTransistor(techtype="n"),
+        )
+        assert len(result) == 2
 
 
 # ---------------------------------------------------------------------------

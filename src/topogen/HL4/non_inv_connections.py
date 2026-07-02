@@ -104,8 +104,8 @@ def connectInstanceTerminalsOfLoadPart1(
         if loadPart1.component_count > 2:
             connect((stage, NonInvertingStage.OUTOUTPUT1LOAD1), (load, "out_output1_load1"))
             connect((stage, NonInvertingStage.OUTOUTPUT2LOAD1), (load, "out_output2_load1"))
-            connect((stage, NonInvertingStage.OUTSOURCE1LOAD1), (load, "out_outsource1_load1"))
-            connect((stage, NonInvertingStage.OUTSOURCE2LOAD1), (load, "out_outsource2_load1"))
+            connect((stage, NonInvertingStage.OUTSOURCE1LOAD1), (load, "out_source_load1"))
+            connect((stage, NonInvertingStage.OUTSOURCE2LOAD1), (load, "out_source_load2"))
     elif hasGCC(load):
             connect((stage, NonInvertingStage.SOURCEGCC1), (load, "source_gcc1"))
             connect((stage, NonInvertingStage.SOURCEGCC2), (load, "source_gcc2"))

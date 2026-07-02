@@ -393,13 +393,19 @@ def createFourTransistorLoadPartsMixed(
 
 def createFourTransistorLoadPartsVoltageBiases(twoTransistorVoltageBiases):
     """Build one four-transistor :class:`LoadPart` per two-transistor voltage
-    bias, pairing it with itself as both branches."""
+    bias, pairing it with itself as both branches.
+
+    Applies acst's validity filter (``createFourTransistorLoadPartsVoltageBiases``):
+    floating gates are only allowed off the source rail, which drops the mixed
+    voltage-bias variant whose rail transistors' gates float (they would need a
+    dedicated bias, which acst never builds into a load)."""
     out = []
     for voltageBias in twoTransistorVoltageBiases:
         ts1 = createTransistorStack(1, voltageBias)
         ts2 = createTransistorStack(2, voltageBias)
         loadpart = createFourTransistorLoadPart(ts1, ts2)
-        out.append(loadpart)
+        if _load_part_passes_acst_filter(loadpart, floating_policy="cascode"):
+            out.append(loadpart)
     return out
 
 
