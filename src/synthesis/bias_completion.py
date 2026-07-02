@@ -74,7 +74,16 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
     appends the new reference transistors.
     """
     drains = {t.drain for t in leaves}
-    gates = {t.gate for t in leaves}
+    # keep gates in first-occurrence (leaf/composition) order — acst iterates
+    # instance terminals in creation order, and its ibias scan keeps the *last*
+    # matching voltage bias, so candidate ordering is semantically relevant
+    # (e.g. two same-tech Wilson references: the second stage's wins ibias).
+    gates: list = []
+    _seen: set = set()
+    for t in leaves:
+        if t.gate not in _seen:
+            _seen.add(t.gate)
+            gates.append(t.gate)
     floating = [
         g for g in gates
         if g is not None and g not in drains and g not in _INPUTS and g != _IBIAS
@@ -104,10 +113,12 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
     # ``addCurrentBiasesToCircuit`` — a diode reference alone carries no bias
     # current, so its node floats without the paired current source).
     output_refs: list = []
-    # improved-Wilson references — tech → (top diode node, sensed stage diode
-    # node).  Built for a floating cascode gate whose transistor stacks on a
-    # diode (acst ``connectCurrentBiasOfImprovedWilsonCurrentMirror``).
-    wilson_refs: dict[str, tuple[str, str]] = {}
+    # improved-Wilson references — (tech, top diode node, sensed stage diode
+    # node), one per qualifying gate (a topology can have several per tech,
+    # e.g. a cascade tail plus a cascode second-stage bias).  Built for a
+    # floating cascode gate whose transistor stacks on a diode (acst
+    # ``connectCurrentBiasOfImprovedWilsonCurrentMirror``).
+    wilson_refs: list[tuple[str, str, str]] = []
     # voltage-bias references created per tech — acst's indexPmos/indexNmos
     # counters, which decide the ibias tech (OpAmps.cpp:1031: fewer wins).
     vb_count: dict[str, int] = {"n": 0, "p": 0}
@@ -163,7 +174,7 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                 bottom.gate = src_net
                 bottom.source = _RAIL_OF[tech]
                 new_devs.append(bottom)
-                wilson_refs[tech] = (g, src_net)
+                wilson_refs.append((tech, g, src_net))
                 output_gates.remove(g)
                 vb_count[tech] += 1
 
@@ -204,13 +215,20 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
 
     # A Wilson reference is a two-transistor voltage bias: an ibias candidate
     # for a tech with no rail (source) reference (acst ``connectIbiasTerminal``'s
-    # two-transistor fallback), sensed at its OUTSOURCE — the stage's own diode
-    # node.  With a rail reference present it is just another non-ibias
-    # reference needing an opposite-tech current leg on its IN (top) node.
-    for tech, (top, src_net) in wilson_refs.items():
+    # two-transistor fallback — its scan keeps the *last* match), sensed at its
+    # OUTSOURCE — the stage's own diode node.  Every other Wilson reference is
+    # just a non-ibias reference needing an opposite-tech current leg on its
+    # IN (top) node.
+    wilson_candidate: dict[str, tuple[str, str]] = {}
+    for tech, top, src_net in wilson_refs:
         if tech not in ibias_node:
+            wilson_candidate[tech] = (top, src_net)
+    wilson_master_techs: set[str] = set()
+    for tech, top, src_net in wilson_refs:
+        if wilson_candidate.get(tech) == (top, src_net):
             ibias_node[tech] = top
             rail_ref[tech] = src_net
+            wilson_master_techs.add(tech)
         else:
             output_refs.append((tech, top))
 
@@ -243,7 +261,12 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
 
         ref_gate = {master_tech: master_gate}
         if any(tech == master_tech for tech, _ in legs_needed):
-            if other_tech in rail_ref:
+            # a Wilson-derived rail node only serves as the sense reference for
+            # the ibias master itself — acst's findReferenceVoltageBias accepts
+            # source-diode and two-diode references (criteria 2/3) but not the
+            # Wilson variant, so a non-master tech with only a Wilson gets a
+            # fresh intermediate diode.
+            if other_tech in rail_ref and other_tech not in wilson_master_techs:
                 ref_gate[other_tech] = rail_ref[other_tech]
             else:
                 idx += 1
