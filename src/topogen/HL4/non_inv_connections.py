@@ -118,7 +118,10 @@ def connectInstanceTerminalsOfLoadPart1(
             connect((stage, NonInvertingStage.INNERLOAD1), (load, "inner_load1"))
         if loadPart1.component_count > 2:
             connect((stage, NonInvertingStage.INNERSOURCELOAD1), (load, "inner_source_load1"))
-            if loadPart1.ts1.instances[0].component_count == 1 and loadPart1.ts1.instances[0].name == "dt":
+            # the diode check must inspect the transistor inside the stack's
+            # bias wrapper (acst isSingleDiodeTransistor), not the wrapper
+            ts1_bias = loadPart1.ts1.instances[0]
+            if ts1_bias.component_count == 1 and ts1_bias.instances[0].name == "dt":
                 connect((stage, NonInvertingStage.INNEROUTPUTLOAD1), (load, "inner_output_load1"))
         
             if loadPart1.component_count > 3:
@@ -155,9 +158,10 @@ def connectInstanceTerminalsOfLoadPart2XXX(
             (stage, NonInvertingStage.INNERTRANSISTORSTACK2LOAD2),
             (load, "inner_transistorstack2_load2"),
         )
-        if loadPart2.instances[0].component_count == 1 and loadPart2.instances[
-            0
-        ].instances[0].name.startswith("dt"):
+        # drill through stack → bias wrapper → transistor (acst
+        # isSingleDiodeTransistor inspects the bias's transistor)
+        ts1_bias = loadPart2.instances[0].instances[0]
+        if ts1_bias.component_count == 1 and ts1_bias.instances[0].name.startswith("dt"):
             connect(
                 (stage, NonInvertingStage.INNEROUTPUTLOAD2), (load, "inner_output_load2")
             )

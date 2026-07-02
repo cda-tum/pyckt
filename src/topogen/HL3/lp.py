@@ -262,7 +262,12 @@ def connectInstanceTerminalsOfThreeTransistorLoadPart(
 
     connect((out, LoadPart.OUT2), (ts2, TransistorStack.OUT))
 
-    if len(ts1.instances) == 1 and ts1.instances[0].name == "dt":
+    # acst's isSingleDiodeTransistor checks the *bias inside* the stack —
+    # ts1.instances[0] is the VoltageBias wrapper, its instances[0] the
+    # transistor (checking the wrapper's name always failed, wrongly tying the
+    # cascode gate to the diode node instead of exposing it for its own bias).
+    ts1_bias = ts1.instances[0]
+    if len(ts1_bias.instances) == 1 and ts1_bias.instances[0].name == "dt":
         connect((out, LoadPart.INNEROUTPUT), (ts2, TransistorStack.INOUTPUT))
     else:
         connect((out, LoadPart.OUT1), (ts2, TransistorStack.INOUTPUT))
@@ -291,19 +296,22 @@ def createThreeTransistorLoadPart(ts1: TransistorStack, ts2: TransistorStack):
 def createTwoTransistorLoadPartsVoltageBiases(
     oneTransistorVoltageBiases: list[VoltageBias],
 ):
-    """Build one two-branch :class:`LoadPart` per one-transistor voltage bias,
-    pairing it with itself as both branches (skips multi-transistor biases)."""
+    """Build one two-branch :class:`LoadPart` per one-transistor **diode**
+    voltage bias, pairing it with itself as both branches (acst
+    ``createTwoTransistorLoadPartsVoltageBiases`` admits only
+    ``isSingleDiodeTransistor`` biases and rejects floating gates — a
+    normal-transistor branch would leave both mirror gates undriven)."""
     out: list[Circuit] = []
     for voltageBias in oneTransistorVoltageBiases:
 
-        if len(voltageBias.instances) == 1:
+        if len(voltageBias.instances) == 1 and voltageBias.instances[0].name == "dt":
             ts1 = createTransistorStack(1, voltageBias)
             ts2 = createTransistorStack(2, voltageBias)
 
             # fmt: on
             loadpart = createTwoTransistorLoadPart(ts1, ts2)
-            out.append(loadpart)
-            pass
+            if _load_part_passes_acst_filter(loadpart, floating_policy="none"):
+                out.append(loadpart)
 
     return out
 
@@ -425,14 +433,21 @@ def createTwoTransistorLoadPartsCurrentBiasesDifferentSources(
 
 def createFourTransistorLoadPartsCurrentBiases(twoTransistorCurrentBiases):
     """Build one four-transistor :class:`LoadPart` per two-transistor current
-    bias, pairing it with itself as both branches."""
+    bias, pairing it with itself as both branches.
+
+    Applies acst's gate-net rule (``createFourTransistorLoadPartsCurrentBiases``
+    filters on ``everyGateNetIsNotConnectedToMoreThanOneDrain...`` alone): a
+    diode-bottom current bias aliases its gate to the branch's inner node, so
+    mirroring it merges both branches' fold nodes onto one net with two
+    same-tech drains — the collapsed loads behind the case-5–8 misses."""
     out = []
     for currentBias in twoTransistorCurrentBiases:
         ts1 = createTransistorStack(1, currentBias)
         ts2 = createTransistorStack(2, currentBias)
 
         loadpart = createFourTransistorLoadPart(ts1, ts2)
-        out.append(loadpart)
+        if _load_part_passes_acst_filter(loadpart, floating_policy="any"):
+            out.append(loadpart)
     return out
 
 

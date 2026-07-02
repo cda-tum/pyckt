@@ -138,12 +138,11 @@ def createSimpleTransconductanceNonInvertingStages(
     transconductance: Transconductance, loads: list[Load], stageBiases: list[StageBias]
 ) -> Iterator[NonInvertingStage]:
     """Yield one stage per (load, stage bias) pair sharing the same
-    *transconductance*, skipping loads with an odd ``component_count``
-    (they can't pair symmetrically with a simple transconductance)."""
+    *transconductance* (the full cross-product, as acst
+    ``createSimpleTransconductanceNonInvertingStages`` — asymmetric
+    odd-transistor loads included)."""
     stageBiases = list(stageBiases)  # materialise to allow re-iteration per load
     for l in loads:
-        if l.component_count % 2 == 1:
-            continue
         for sb in stageBiases:
             yield createSimpleTransconductanceNonInvertingStage(transconductance, l, sb)
 
