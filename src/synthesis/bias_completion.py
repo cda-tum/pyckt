@@ -99,6 +99,11 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
     # cross-tech current mirror must sense): the node itself for a single-diode
     # reference, the *bottom* (rail) node for a cascode reference.
     rail_ref: dict[str, str] = {}
+    # single-diode *output* (cascode-gate) references — (tech, node).  Each needs
+    # an opposite-tech current-source leg mirroring the ibias reference (acst
+    # ``addCurrentBiasesToCircuit`` — a diode reference alone carries no bias
+    # current, so its node floats without the paired current source).
+    output_refs: list = []
 
     for tech in ("n", "p"):
         # single-tech floating gates only (mixed-tech gates are a more complex
@@ -137,6 +142,8 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                 if is_src:
                     ibias_node[tech] = node
                     rail_ref[tech] = node
+                else:
+                    output_refs.append((tech, node))
 
     # tie the master source reference to the ibias pin
     if ibias_node:
@@ -160,6 +167,20 @@ def complete_bias_network(leaves: list, input_tech: str) -> list:
                 mirror.drain = node
                 mirror.source = _RAIL_OF[master_tech]
                 new_devs.append(mirror)
+
+        # Each single-diode *output* (cascode-gate) reference gets an
+        # opposite-tech current-source leg mirroring the ibias reference: its
+        # gate senses the master reference, its drain drives the cascode-gate
+        # node, its source sits on the opposite rail (acst MainBias_1 in
+        # ``addCurrentBiasesToCircuit``).  Without it the diode carries no bias
+        # current and the node is undriven.
+        for tech, node in output_refs:
+            leg_tech = "p" if tech == "n" else "n"
+            leg = NormalTransistor(techtype=leg_tech, id=1)
+            leg.gate = master_gate
+            leg.drain = node
+            leg.source = _RAIL_OF[leg_tech]
+            new_devs.append(leg)
 
     def resolve(net):
         seen: set = set()
