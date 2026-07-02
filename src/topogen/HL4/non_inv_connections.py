@@ -290,8 +290,8 @@ def connectInstanceTerminalsOfComplementaryLoad(
             connect((nonInvertingStage, NonInvertingStage.INNEROUTPUTLOADPMOS), (load, "inner_output_load1"))
             connect((nonInvertingStage, NonInvertingStage.INNERSOURCELOADPMOS), (load, "inner_source_load1"))
 
-        connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK1LOADPMOS), (load, "inner_transistorstack1_load2"))
-        connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK2LOADPMOS), (load, "inner_transistorstack2_load2"))
+        connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK1LOADNMOS), (load, "inner_transistorstack1_load2"))
+        connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK2LOADNMOS), (load, "inner_transistorstack2_load2"))
         connect((nonInvertingStage, NonInvertingStage.INNEROUTPUTLOADNMOS), (load, "inner_output_load2"))
         connect((nonInvertingStage, NonInvertingStage.INNERSOURCELOADNMOS), (load, "inner_source_load2"))
         return nonInvertingStage
