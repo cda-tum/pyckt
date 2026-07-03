@@ -97,17 +97,6 @@
                     <structurePinName>Output</structurePinName>
                 </secondChildPinType>
             </connectionRule>
-            <connectionRule>
-                <connected>false</connected>
-                <firstChildPinType>
-                    <structureName>MosfetPmosDiodeAnalogInverter</structureName>
-                    <structurePinName>InputNMOS1</structurePinName>
-                </firstChildPinType>
-                <secondChildPinType>
-                    <structureName>MosfetAnalogInverter</structureName>
-                    <structurePinName>InputNMOS1</structurePinName>
-                </secondChildPinType>
-            </connectionRule>
         </connectionRules>
     </recognitionRules>
 </pairLibraryItem>

@@ -10,6 +10,7 @@ Also includes rule generation and XML writers.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
@@ -52,6 +53,24 @@ def _get_device_net(device: Device, pin_name: str) -> Net | None:
         return device.get_net(PinType.from_text(pin_name))
     except (KeyError, Exception):
         return None
+
+
+def _natural_sort_key(s: Structure) -> tuple:
+    """Canonical ordering key for a symmetric pair's children: the smallest
+    leaf device name in natural order (``m9`` before ``m10``), which matches
+    acst's creation-/netlist-order pairing."""
+    devs = s.devices
+    if not devs:
+        return (("", s.structure_id.index),)
+    name = min(devs, key=lambda d: _natural_name(d.name)).name
+    return _natural_name(name)
+
+
+def _natural_name(name: str) -> tuple:
+    return tuple(
+        int(part) if part.isdigit() else part
+        for part in re.split(r"(\d+)", name)
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -185,11 +204,15 @@ class PairRecognizer:
                     counters[item.name] += 1
                     c1, c2 = a, b
                     if item.symmetry:
-                        # canonical child order: smaller leaf device name → child1
-                        def _sort_key(s: Structure) -> str:
-                            devs = s.devices
-                            return min(d.name for d in devs) if devs else str(s.structure_id.index)
-                        if _sort_key(a) > _sort_key(b):
+                        # canonical child order: acst pairs children in
+                        # creation (netlist) order, which natural-sorting the
+                        # leaf device names reproduces.  A plain string sort
+                        # put "m10" before "m9", swapping Input1/Input2 on
+                        # differential pairs and mis-orienting sibling
+                        # symmetric pairs so higher-level composites (e.g.
+                        # MosfetCascodedDifferentialPair) never matched
+                        # (issue #38).
+                        if _natural_sort_key(a) > _natural_sort_key(b):
                             c1, c2 = b, a
                     pairs.append(
                         self._build_pair(item, c1, c2, idx, entry.persistence)
