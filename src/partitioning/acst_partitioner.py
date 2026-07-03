@@ -103,25 +103,67 @@ class AcstPartitioner:
     # ── step 1: differential pairs → first stage ──────────────────────
 
     def _partition_differential_pairs(self) -> None:
+        """Port of ``Partitioning::partitioningDifferentialPairs``.
+
+        A lone diff pair is the first stage (with its parent's sibling
+        recorded as the cascode *helper structure*, typing it telescopic /
+        foldedCascode); diff pairs sharing both gate nets are either the two
+        halves of a complementary first stage (different tech) or the
+        common-mode feedback sensing pairs (same tech), grouped into one part.
+        """
         for dp in self._find(_DP):
             if self._result.structure_already_classified(dp):
                 continue
             tp = TransconductancePart(self._result.next_id("trans"))
-            tp.add_main_structure(dp)
+            tp.add_main_structure(dp, self._result)
             self._result.add_transconductance_part(tp)
 
-            # feedback vs first stage: does another diff pair share both gates?
             g1 = self._idx.net_name(dp, "Input1")
             g2 = self._idx.net_name(dp, "Input2")
-            others: set[int] = set()
-            for net in (g1, g2):
+
+            def _on(net: str | None, pin: str) -> list:
+                # acst does NOT exclude dp itself: its own pins count toward
+                # the shared-gate threshold (findConnectedStructures is
+                # unfiltered in partitioningDifferentialPairs)
                 if not net:
-                    continue
-                for pin in ("Input1", "Input2"):
-                    for s in self._idx.connected_via(net, _DP, pin):
-                        if s is not dp:
-                            others.add(id(s))
-            tp.type = "feedBack" if len(others) >= 2 else "firstStage"
+                    return []
+                return list(self._idx.connected_via(net, _DP, pin))
+
+            l11, l21 = _on(g1, "Input1"), _on(g1, "Input2")
+            l12, l22 = _on(g2, "Input1"), _on(g2, "Input2")
+
+            if len(l11) + len(l21) + len(l12) + len(l22) > 2:
+                same_sets = (
+                    {id(x) for x in l11} == {id(x) for x in l22}
+                    and {id(x) for x in l21} == {id(x) for x in l12}
+                )
+                if same_sets:
+                    other = next(
+                        (x for x in (*l11, *l21) if x is not dp), None
+                    )
+                    if other is not None and other.tech_type != dp.tech_type:
+                        tp.type = "firstStage"
+                        tp.first_stage_type = "complementary"
+                    else:
+                        tp.type = "feedBack"
+                else:
+                    tp.type = "feedBack"
+                for group in (l11, l21, l12, l22):
+                    for member in group:
+                        if member is not dp:
+                            tp.add_main_structure(member, self._result)
+            else:
+                tp.type = "firstStage"
+                if dp.has_parent:
+                    parent = dp.parents[0]
+                    helper = getattr(parent, "child2", None)
+                    if helper is not None:
+                        tp.helper_structure = helper
+                        tp.first_stage_type = (
+                            "telescopic"
+                            if helper.tech_type == dp.tech_type
+                            else "foldedCascode"
+                        )
 
     # ── step 2: bias of the diff pair (tail current) ──────────────────
 
@@ -136,7 +178,7 @@ class AcstPartitioner:
             return
         bias = BiasPart(self._result.next_id("bias"))
         self._find_with_drain_connected(source_net, dp, bias, None,
-                                        dp.tech_type, load=False)
+                                        dp.tech_type)
         if bias.has_main_structures:
             tp = self._result.get_transconductance_part(dp)
             if tp is not None:
@@ -156,6 +198,15 @@ class AcstPartitioner:
                 self._initialize_load_parts_of_diff_pair(main)
 
     def _initialize_load_parts_of_diff_pair(self, dp: "Structure") -> None:
+        """Port of ``Partitioning::initializeLoadPartsOfDifferentialPair``.
+
+        Walks drain-connected arrays from both pair outputs into same-/
+        opposite-tech load parts; a cascoded first stage additionally folds
+        its helper pair's arrays into the matching load part (marking the
+        folded pair's current biases) and recurses from the helper's own
+        drains; each surviving load part gets its gate-connected voltage
+        biases attached (``findBiasOfLoadPart``).
+        """
         arrays = dp.array_children
         if len(arrays) < 2:
             return
@@ -165,26 +216,132 @@ class AcstPartitioner:
             drain = self._array_drain_net(arr)
             if drain is not None:
                 self._find_with_drain_connected(drain, arr, load_same, load_opp,
-                                                dp.tech_type, load=True)
+                                                dp.tech_type)
+
         tp = self._result.get_transconductance_part(dp)
+        if (
+            dp.name == _DP
+            and dp.has_parent
+            and tp is not None
+            and tp.first_stage_type != "complementary"
+            and tp.helper_structure is not None
+        ):
+            cascoded = tp.helper_structure
+            target = (load_same if cascoded.tech_type == dp.tech_type
+                      else load_opp)
+            target.cascoded_pair = cascoded
+            cascode_arrays = cascoded.array_children[:2]
+            for ca in cascode_arrays:
+                target.add_main_structure(ca, self._result)
+            if dp.parents[0].name == "MosfetFoldedCascodeDifferentialPair":
+                for ms in target.main_structures:
+                    if ms not in cascode_arrays:
+                        target.current_biases_of_folded_pair.append(ms)
+            self._initialize_load_parts_of_diff_pair(cascoded)
+        elif tp is not None and tp.first_stage_type == "complementary":
+            self._find_structure_between_dp_and_first_stage_output(dp, load_opp)
+
+        # attach to the (parent's) transconductance part and record biases
+        owner = None
+        if dp.has_parent:
+            owner = self._result.get_transconductance_part(dp.parents[0])
+        if owner is None:
+            owner = self._result.get_transconductance_part(dp)
         for lp in (load_same, load_opp):
             if lp.has_main_structures:
-                if tp is not None:
-                    tp.load_parts.append(lp)
+                if owner is not None:
+                    owner.load_parts.append(lp)
                 self._result.add_load_part(lp)
+                self._find_bias_of_load_part(lp)
+
+    def _find_structure_between_dp_and_first_stage_output(
+        self, dp: "Structure", load_opp: LoadPart
+    ) -> None:
+        """Port of ``findStructureBetweenDifferentialPairAndOutputFirstStage``:
+        the complementary first stage's folding devices are the opposite-tech
+        structures on the pair outputs whose sources are off-rail."""
+        for arr in dp.array_children[:2]:
+            drain = self._array_drain_net(arr)
+            if drain is None:
+                continue
+            for cs in self._idx.connected_structures(drain):
+                if cs.is_pair or cs.tech_type == dp.tech_type:
+                    continue
+                source = self._idx.net_name(cs, "Source")
+                if source is not None and not self._idx.is_supply(source):
+                    load_opp.add_main_structure(cs, self._result)
+
+    def _find_bias_of_load_part(self, load_part: LoadPart) -> None:
+        """Port of ``Partitioning::findBiasOfLoadPart``: attach (or create)
+        the voltage bias driving each normal-array load gate."""
+        for main in list(load_part.main_structures):
+            if main.name != _NA:
+                continue
+            gate_net = self._idx.net_name(main, "Gate")
+            if gate_net is None:
+                continue
+            for cs in self._idx.connected_structures(gate_net):
+                if cs is main or cs.is_pair:
+                    continue
+                if cs.tech_type != main.tech_type:
+                    continue
+                source_net = self._idx.net_name(cs, "Source")
+                drain_net = self._idx.net_name(cs, "Drain")
+                if cs.has_parent and self._is_voltage_bias(cs) and \
+                        source_net != gate_net:
+                    for parent in cs.parents:
+                        if self._result.structure_already_classified(cs):
+                            existing = self._result.get_part(cs)
+                            if isinstance(existing, BiasPart):
+                                if existing not in load_part.bias_parts:
+                                    load_part.bias_parts.append(existing)
+                                if load_part not in existing.biased_parts:
+                                    existing.biased_parts.append(load_part)
+                            elif (isinstance(existing, LoadPart)
+                                  and existing is not load_part
+                                  and existing not in load_part.bias_parts):
+                                load_part.bias_parts.append(existing)
+                        else:
+                            vb = BiasPart(self._result.next_id("bias"))
+                            vb.type = "voltageBias"
+                            owner = (parent if self._is_voltage_bias(parent)
+                                     else cs)
+                            vb.add_main_structure(owner, self._result)
+                            vb.biased_parts.append(load_part)
+                            load_part.bias_parts.append(vb)
+                            self._result.add_bias_part(vb)
+                if self._is_voltage_bias(cs) and drain_net == gate_net:
+                    if self._result.structure_already_classified(cs):
+                        existing = self._result.get_part(cs)
+                        if isinstance(existing, BiasPart):
+                            if existing not in load_part.bias_parts:
+                                load_part.bias_parts.append(existing)
+                            if load_part not in existing.biased_parts:
+                                existing.biased_parts.append(load_part)
+                    else:
+                        vb = BiasPart(self._result.next_id("bias"))
+                        vb.type = "voltageBias"
+                        vb.add_main_structure(cs, self._result)
+                        vb.biased_parts.append(load_part)
+                        load_part.bias_parts.append(vb)
+                        self._result.add_bias_part(vb)
 
     # ── shared recursive drain walk (load + bias) ─────────────────────
 
     def _find_with_drain_connected(
         self, net: str, ref: "Structure",
-        part_same, part_opp, ref_tech, load: bool,
+        part_same, part_opp, ref_tech,
     ) -> None:
         """Port of findWithDrainConnectedLoadStructures / ...Devices.
 
         Adds array-level structures whose Drain sits on *net* (same/opposite
         tech) and recurses up their Source net while it is not a supply rail.
+        acst walks the *array-level* net view, so composite (pair) structures
+        never join these parts directly — their arrays do.
         """
         for cs in self._idx.connected_structures(net):
+            if cs.is_pair:
+                continue
             if self._result.structure_already_classified(cs):
                 continue
             if cs is ref or not cs.has_pin("Drain"):
@@ -193,15 +350,15 @@ class AcstPartitioner:
                 continue
             source = self._idx.net_name(cs, "Source")
             if part_same is not None and cs.tech_type == ref_tech:
-                part_same.add_main_structure(cs)
+                part_same.add_main_structure(cs, self._result)
                 if source is not None and not self._idx.is_supply(source):
                     self._find_with_drain_connected(source, cs, part_same, None,
-                                                    ref_tech, load)
+                                                    ref_tech)
             elif part_opp is not None:
-                part_opp.add_main_structure(cs)
+                part_opp.add_main_structure(cs, self._result)
                 if source is not None and not self._idx.is_supply(source):
                     self._find_with_drain_connected(source, cs, part_opp, None,
-                                                    ref_tech, load)
+                                                    ref_tech)
 
     # ── step 4: second stage (inverter classifiers) ───────────────────
 
@@ -363,7 +520,7 @@ class AcstPartitioner:
             for s in self._sc.get_level(lvl).structures:
                 if self._result.structure_already_classified(s):
                     continue
-                if not (s.name in (_NA, _DA)):
+                if s.name not in (_NA, _DA):
                     continue
                 devs = {d.name for d in s.devices}
                 if devs & covered or not devs:

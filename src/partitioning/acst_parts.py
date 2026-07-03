@@ -40,9 +40,15 @@ class Part:
         self.part_id = part_id
         self.main_structures: list[Structure] = []
 
-    def add_main_structure(self, structure: "Structure") -> None:
+    def add_main_structure(self, structure: "Structure", result=None) -> None:
+        """Add *structure* and, when *result* is given, immediately own its
+        array leaves (acst ``Part::addMainStructure`` always registers via
+        ``initializeComponents`` at add time — before the part itself is added
+        to the result)."""
         if not self.has_as_main_structure(structure):
             self.main_structures.append(structure)
+            if result is not None:
+                result.register(self, structure)
 
     def has_as_main_structure(self, structure: "Structure") -> bool:
         return any(s is structure for s in self.main_structures)
@@ -106,6 +112,12 @@ class LoadPart(Part):
     def __init__(self, part_id: int = -1) -> None:
         super().__init__(part_id)
         self.cascoded_pair: "Structure | None" = None
+        # gate-driving voltage biases attached by findBiasOfLoadPart (a load
+        # part can itself serve as another load's bias, hence Part)
+        self.bias_parts: list[Part] = []
+        # a folded-cascode pair's current-source arrays (acst
+        # addCurrentBiasOfFoldedPair)
+        self.current_biases_of_folded_pair: list["Structure"] = []
 
     def is_load(self) -> bool: return True
 
@@ -162,7 +174,14 @@ class AcstPartitionResult:
         self.bias_parts: list[BiasPart] = []
         self.capacitance_parts: list[CapacitancePart] = []
         self.undefined_parts: list[UndefinedPart] = []
-        # structure id → owning Part
+        # array-leaf id → owning Part.  acst's registry is leaf-based
+        # (Result::transistors_/twoPorts_, filled by Part::initializeComponents
+        # the moment a main structure is added): classifying any structure
+        # classifies its array leaves, "already classified" means *all* leaves
+        # are owned, and getPart resolves any ancestor through its first owned
+        # leaf.  Keying by exact structure object instead left pairs' arrays
+        # "unclassified", so later sweeps re-classified the same devices
+        # (issue #32's biasPart flood).
         self._registry: dict[int, Part] = {}
         self._counters: dict[str, int] = {}
 
@@ -173,9 +192,14 @@ class AcstPartitionResult:
         return n
 
     # ── registration ──────────────────────────────────────────────────
+    def register(self, part: Part, structure: "Structure") -> None:
+        """Own *structure*'s array leaves (acst ``Part::initializeComponents``)."""
+        for leaf in structure.array_children:
+            self._registry.setdefault(id(leaf), part)
+
     def _register(self, part: Part) -> None:
         for s in part.main_structures:
-            self._registry[id(s)] = part
+            self.register(part, s)
 
     def add_transconductance_part(self, part: TransconductancePart) -> None:
         self.transconductance_parts.append(part); self._register(part)
@@ -194,15 +218,22 @@ class AcstPartitionResult:
 
     # ── queries (mirror acst Result) ──────────────────────────────────
     def structure_already_classified(self, structure: "Structure") -> bool:
-        return id(structure) in self._registry
+        leaves = structure.array_children
+        if not leaves:
+            return False
+        return all(id(leaf) in self._registry for leaf in leaves)
 
     def get_part(self, structure: "Structure") -> Part | None:
-        return self._registry.get(id(structure))
+        for leaf in structure.array_children:
+            part = self._registry.get(id(leaf))
+            if part is not None:
+                return part
+        return None
 
     def get_transconductance_part(
         self, structure: "Structure"
     ) -> TransconductancePart | None:
-        part = self._registry.get(id(structure))
+        part = self.get_part(structure)
         return part if isinstance(part, TransconductancePart) else None
 
     def has_first_stage(self) -> bool:
