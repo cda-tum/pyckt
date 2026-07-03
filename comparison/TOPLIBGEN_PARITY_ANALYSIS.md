@@ -569,3 +569,33 @@ symmetrical 210, two-stage 2520).
 - **FullyDifferential 12/936**: FD **two-stage** is unported (acst pairs
   `secondStage1`/`secondStage2` per output, `OpAmps.cpp:732–780` — 864 of the
   924 misses); FD one-stage still misses 60.
+
+## 16. FullyDifferential parity — the library is complete (issue #20)
+
+- **Feedback-stage filter**: acst's gate-net validity check in
+  `createFeedbackTransconductanceNonInvertingStages` (a pyckt TODO) drops the
+  1-transistor-tail feedback variant — feedback stages hit acst's exact 2 per
+  tech, FD one-stage count 108 → 72.
+- **Per-structure CMFB target**: the common-mode feedback drives the load
+  terminal picked by `connectedLoadInstanceTerminalToFeedbackStage`
+  (`OpAmps.cpp:900–935`) — `INNERLOAD1`/`INNERSOURCELOAD1` (one-part loads),
+  `INNERLOAD2`/`INNERSOURCELOAD2` (two-part, 2T first part), `INNERBIASGCC`
+  (GCC loads).  pyckt always drove `INNERLOAD1`.  FD one-stage 12 → **72/72**.
+- **FD two-stage composition**: one inverting second stage per output
+  (`OUT1/OUT2FIRSTSTAGE`, transconductor gate by size, per-output compensation
+  capacitors; two independent copies of the same inverting stage —
+  `OpAmps.cpp:746–770` + `createFullyDifferentialTwoStageOpAmps`), wired into
+  the generator.  FD **936/936**.
+
+## FINAL SCOREBOARD — issue #20 acceptance criteria met
+
+| Category | acst | pyckt generated | matched |
+|---|---:|---:|---:|
+| SingleOutputOpAmps | 2940 | 2940 | **2940/2940** |
+| FullyDifferentialOpAmps | 936 | 936 | **936/936** |
+| ComplementaryOpAmps | 36 | 36 | **36/36** |
+| **total** | **3912** | **3912** | **3912/3912** |
+
+Every topology acst emits, pyckt emits — device-for-device, per category, with
+zero extras.  Verified with `comparison/topology_signature.py`; full pytest
+suite green.
