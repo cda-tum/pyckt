@@ -92,10 +92,18 @@ class TopologyLibraryGenerator:
         ):
             tech = TechType.P if input_tech == "p" else TechType.N
 
+            # ---- fully-differential (one-stage + per-output two-stage) ----
+            # FD op-amps compose the first stage with a common-mode feedback
+            # stage, then add twelve two-stage variants with one inverting
+            # second stage per output (acst createFullyDifferentialOneStage/
+            # TwoStageOpAmps).
+            if is_fd:
+                topology_id = self._generate_fd_topologies(
+                    first_stage, input_tech, inv_stages, topology_id
+                )
+                continue
+
             # ---- one-stage ------------------------------------------------
-            # Fully-differential op-amps compose the first stage with a
-            # common-mode feedback stage (acst createFullyDifferentialOneStageOpAmps);
-            # single-output/complementary use the first stage alone.
             for opamp_1s in self._one_stage_opamps(first_stage, is_fd, input_tech):
                 spec_1s = TopologySpec(
                     id=topology_id,
@@ -114,11 +122,10 @@ class TopologyLibraryGenerator:
                 topology_id += 1
 
             # ---- two-stage (single-output only) ---------------------------
-            # acst emits two-stage variants for single-output only: complementary
-            # and fully-differential op-amps are one-stage (acst createOpAmps
-            # guards two-stage with ``if(!isComplementary)``, and its FD path
-            # is one-stage here — FD two-stage is not yet ported).
-            if is_fd or is_complementary:
+            # acst emits two-stage variants for single-output only:
+            # complementary op-amps are one-stage (acst createOpAmps guards
+            # two-stage with ``if(!isComplementary)``).
+            if is_complementary:
                 continue
             for second_stage in inv_stages:
                 opamp_2s = createSimpleOpAmp(
@@ -182,6 +189,58 @@ class TopologyLibraryGenerator:
                 core_circuit = None
             self.library.add(spec, core_circuit)
             topology_id += 1
+        return topology_id
+
+    def _generate_fd_topologies(
+        self, first_stage, input_tech: str, inv_stages, topology_id: int
+    ) -> int:
+        """Add all fully-differential op-amps for *first_stage*: per matching
+        common-mode feedback stage, one one-stage op-amp plus one two-stage
+        variant per inverting stage — with an independent copy of the same
+        inverting stage on each output (acst
+        ``createFullyDifferentialOneStageOpAmps`` /
+        ``createFullyDifferentialTwoStageOpAmps``).  Returns the next free id.
+        """
+        from topogen.HL4.non_inv import NonInvertingStageManager
+        from topogen.HL5.opamps import createFullyDifferentialOpAmp
+
+        mgr = NonInvertingStageManager()
+        feedback_stages = (
+            mgr.getFeedbackNonInvertingStagesPmosTransconductance()
+            if input_tech == "p"
+            else mgr.getFeedbackNonInvertingStagesNmosTransconductance()
+        )
+        tech = TechType.P if input_tech == "p" else TechType.N
+        for fb in feedback_stages:
+            variants = [
+                (1, createFullyDifferentialOpAmp(deepcopy(first_stage), deepcopy(fb)))
+            ]
+            variants += [
+                (
+                    2,
+                    createFullyDifferentialOpAmp(
+                        deepcopy(first_stage), deepcopy(fb),
+                        deepcopy(ss), deepcopy(ss),
+                    ),
+                )
+                for ss in inv_stages
+            ]
+            for num_stages, opamp in variants:
+                spec = TopologySpec(
+                    id=topology_id,
+                    name=self._make_name(num_stages, False, True, input_tech),
+                    num_stages=num_stages,
+                    is_complementary=False,
+                    is_fully_differential=True,
+                    input_tech=tech,
+                    has_cascode={},
+                )
+                try:
+                    core_circuit = self._converter.convert(opamp)
+                except Exception:  # noqa: BLE001
+                    core_circuit = None
+                self.library.add(spec, core_circuit)
+                topology_id += 1
         return topology_id
 
     def _one_stage_opamps(self, first_stage, is_fd: bool, input_tech: str) -> list:

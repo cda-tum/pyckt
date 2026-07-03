@@ -176,15 +176,19 @@ def createFeedbackTransconductanceNonInvertingStages(
 ) -> Iterator[NonInvertingStage]:
     """Yield one stage per (load, stage bias) pair sharing the same feedback
     *transconductance*, deep-copying the stage bias into independent
-    ``sb1``/``sb2`` instances for each stage."""
+    ``sb1``/``sb2`` instances for each stage.  Applies acst's gate-net
+    validity filter (``createFeedbackTransconductanceNonInvertingStages``)."""
     for load in loads:
         for stageBias in stageBiases:
             sb1 = deepcopy(stageBias)
             sb2 = deepcopy(stageBias)
-            yield createFeedbackTransconductanceNonInvertingStage(
+            stage = createFeedbackTransconductanceNonInvertingStage(
                 transconductance, load, sb1, sb2
             )
-            # TODO: add if(nonInvertingStage.everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType())
+            if everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
+                stage
+            ):
+                yield stage
 
 
 class NonInvertingStageManager:
