@@ -30,7 +30,7 @@ equivalent results.
 | **rulegen** — sizing-rule generation | ✅ | **10/10 library items — level AND persistence exact match acst** | ✅ Done |
 | **automaticsizing** — CP-SAT sizing | ✅ | schema + performance models match; W/L not yet converged | ◑ Functional, tuning |
 | **synthesis** — topology synthesis | ✅ pipeline | ranked list (4 914 candidates); real `AcstNetlistWriter` netlists per candidate | ◑ Netlist done, solver stub |
-| **toplibgen** — topology library gen | ✅ enumeration + acst-format emitter | 7 020 topologies; real ACST-format netlists. FD file-count matches (936/936) but **structural** parity is 0 pending the flatten/composition fixes (Fix 1 landed) — see §4.6 | ◑ Netlists now well-formed, set-parity open |
+| **toplibgen** — topology library gen | ✅ enumeration + acst-format emitter | 3 912 distinct topologies; real ACST-format netlists. **Full topology-set parity: 3912/3912 device-for-device** (2940/936/36 per category) — see §4.6 | ✅ Set parity reached (issue #20) |
 
 **Headline:** all six modes run end-to-end. The three deterministic
 *recognition* modes (structrec, partitioning, rulegen) now reproduce acst's
@@ -171,38 +171,40 @@ Searches a discrete grid of W/L values for an assignment that satisfies all circ
   budget (minutes), so a direct output diff is deferred until acst is run to
   completion offline.
 
-### 4.6 toplibgen — ◑ acst-format netlists done, topology-set parity open
-- Enumerates **7 020** op-amp topologies (up from the previously-reported
-  1 725 — the full HL2–HL5 factory sweep, not a subset), all converting to a
-  flat circuit without error.
-- **New this period:** `toplibgen --output-format acst` — a real
-  `AcstNetlistWriter` emits one ACST-format `.ckt` netlist per topology
-  (`.suckt`/`.end`, `nmos`/`pmos` models, bulk column) into acst's three
-  category directories, replacing the placeholder netlist bodies.
-- Per-category counts vs the acst reference (`acst/InputFileExamples/
-  TopologyLibraryGeneration/Netlists/`):
+### 4.6 toplibgen — ✅ full topology-set parity with acst (3912/3912)
 
-  | Category | acst files | pyckt files | Count match? | **Structural** match? |
-  |----------|-----:|------:|:--:|:--:|
-  | FullyDifferentialOpAmps | 936 | 936 | ✅ exact | **✗ 0/936** |
-  | SingleOutputOpAmps | 2 940 | 4 914 | ✗ | **✗ 0/2940** |
-  | ComplementaryOpAmps | 36 | 1 170 | ✗ | **✗ 0/36** |
+- Enumerates **4 302** op-amp topologies (full HL2–HL5 factory sweep),
+  collapsing to **3 912 structurally-distinct** circuits — **exactly acst's
+  reference set, matched device-for-device with zero extras** (issue #20,
+  PRs #22–#28), verified per category with the canonical signature harness
+  ([`comparison/topology_signature.py`](comparison/topology_signature.py)):
 
-  **Important correction (issue #3):** the FullyDifferential "936/936" is only a
-  *file-count* coincidence, **not** structural fidelity. A canonical
-  name-independent topology-signature diff
-  ([`comparison/topology_signature.py`](comparison/topology_signature.py)) shows
-  **zero** of pyckt's generated topologies matched any acst topology in *any*
-  category. Root cause: `Circuit.flatten()` did not resolve internal
-  instance-to-instance nets, so every generated transistor was emitted with a
-  single connected pin — the whole 7 020-file library collapsed to **3**
-  structurally-distinct (hollow) circuits.
+  | Category | acst | pyckt distinct | Structural match |
+  |----------|-----:|------:|:--:|
+  | SingleOutputOpAmps | 2 940 | 2 940 | ✅ **2940/2940** |
+  | FullyDifferentialOpAmps | 936 | 936 | ✅ **936/936** |
+  | ComplementaryOpAmps | 36 | 36 | ✅ **36/36** |
 
-  **Fix 1 landed:** `flatten()` rewritten as a union-find over the full
-  connection graph; MOSFETs are now fully wired and structural diversity went
-  from 3 → ~4 300 distinct topologies. Remaining for true set-parity: port
-  acst's OpAmp-level bias/capacitor composition (`buildAndConnectedBias`), then
-  reconcile the enumeration counts. Full analysis + staged plan in
+- Per-category cross-tab (stage × output family; issue #8 — regenerate with
+  `.venv/bin/python scripts/report_topology_counts.py`, full table in
+  [`reports/TOPOLOGY_COUNTS.md`](reports/TOPOLOGY_COUNTS.md)):
+
+  | | Single-ended | Symmetrical | Fully-differential | Complementary | total |
+  |---|---:|---:|---:|---:|---:|
+  | **1-stage** | 240 | 210 | 72 | 36 | 558 |
+  | **2-stage** | 2 880 | 0 | 864 | 0 | 3 744 |
+  | **total** | 3 120 | 210 | 936 | 36 | 4 302 |
+
+  (Generated counts; 30 one-stage single-ended variants and their 360
+  two-stage multiples are structural duplicates, giving the 3 912 distinct
+  set. The symmetrical family is acst's one-stage-only `symmetrical_op_amp`
+  sub-family of `SingleOutputOpAmps`.)
+
+- `toplibgen --output-format acst` emits one ACST-format `.ckt` netlist per
+  topology (`.suckt`/`.end`, `nmos`/`pmos` models, bulk column) into acst's
+  three category directories. The full root-cause history (flatten
+  union-find, composition ports, bias-completion reconciliation,
+  improved-Wilson/cascode-GCC biases) is chronicled in
   [`comparison/TOPLIBGEN_PARITY_ANALYSIS.md`](comparison/TOPLIBGEN_PARITY_ANALYSIS.md).
 - Driven by [`scripts/run_toplibgen.sh`](scripts/run_toplibgen.sh)
   (pyckt-only; acst's toplibgen run is a multi-minute benchmark, not exercised
@@ -268,8 +270,8 @@ Changes in this period are tracked as GitHub Issues and Pull Requests on
   per package plus a Python-API quick-start. Addresses supervisor feedback §3.
 - **toplibgen acst-format emitter** — `AcstNetlistWriter`, `acst_category()` /
   `acst_name_prefix()`, `to_acst_directory()`. `toplibgen --output-format acst`
-  writes real per-topology netlists; FullyDifferential file count matches acst
-  (936/936) — though structural parity is a separate, open item (§4.6).
+  writes real per-topology netlists; the full library now matches acst
+  device-for-device in every category (3912/3912, issue #20 — §4.6).
 - **Per-mode run scripts** — `scripts/run_{structrec,partitioning,rulegen,
   toplibgen}.sh` + `scripts/SCRIPTS.md`.
 - **partitioning** re-implemented to acst's gm-path/stage semantics → 19/19.
