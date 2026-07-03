@@ -14,17 +14,18 @@ comparison; ordinals/order/whitespace/rail-renaming normalised).
     --gallery <fuboco-gallery checkout> --report reports/FUBOCO_GALLERY_REPORT.md
 ```
 
-## Verdict (updated as follow-up fixes land)
+## Verdict (updated as follow-up fixes land — this run: post PR #40)
 
 **Structure recognition: COMPLETE parity — 1950/1950 (`s-1-2`) and 936/936
-(`fd-1-2`) circuits identical.**  Progression: 18/2 → 342/14 (#30) →
-1714/718 (#31) → **all** (#38).  The remaining diffs are partitioning only.
+(`fd-1-2`) circuits identical**, all four issue-#31 composites verified
+recognised on their reference circuits.  Progression: 18/2 → 342/14 (#30) →
+1714/718 (#31) → **all** (#38).  Every remaining diff below is partitioning.
 
 | Root cause | Issue | Status |
 |---|---|---|
 | Mixed-tech composites report `p`/`n` instead of `undefined` | [#30](https://github.com/Firas-Jrad/pyckt/issues/30) | ✅ fixed (PR #37) |
-| Four gallery composites missing from the bundled library | [#31](https://github.com/Firas-Jrad/pyckt/issues/31) | ✅ fixed (PR #39) |
-| DP child ordering + cascoded-DP grouping | [#38](https://github.com/Firas-Jrad/pyckt/issues/38) | ✅ fixed (natural-order pairing + item-rule fix) |
+| Four gallery composites missing from the bundled library | [#31](https://github.com/Firas-Jrad/pyckt/issues/31) | ✅ fixed (PR #39; ordering/rules refined in PR #40) |
+| DP child ordering + cascoded-DP grouping | [#38](https://github.com/Firas-Jrad/pyckt/issues/38) | ✅ fixed (PR #40) |
 | Load parts under-identified (land in `biasParts`) | [#32](https://github.com/Firas-Jrad/pyckt/issues/32) | ☐ open |
 | gm typing: FD `feedBack` grouping, `primarySecondStage`, `firstStageType` | [#33](https://github.com/Firas-Jrad/pyckt/issues/33) | ☐ open |
 | Capacitor `load`/`compensation` typing inverted | [#34](https://github.com/Firas-Jrad/pyckt/issues/34) | ☐ open |
