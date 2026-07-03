@@ -3,10 +3,9 @@
 Compares pyckt's structure recognition and partitioning (acst output format)
 against the FUBOCO Gallery reference artefacts
 (https://github.com/analog-ml/fuboco-gallery) for every circuit of the
-`s-1-2` (1950 circuits) and `fd-1-2` (936 circuits) categories.  See the
-first section of `scripts/compare_fuboco_gallery.py` for the methodology
-(semantic XML comparison; ordinals/order/whitespace/rail-renaming
-normalised).
+`s-1-2` (1950 circuits) and `fd-1-2` (936 circuits) categories.  See
+`scripts/compare_fuboco_gallery.py` for the methodology (semantic XML
+comparison; ordinals/order/whitespace/rail-renaming normalised).
 
 **Regenerate**:
 
@@ -17,37 +16,32 @@ normalised).
 
 ## Verdict (updated as follow-up fixes land)
 
+**Structure recognition: COMPLETE parity — 1950/1950 (`s-1-2`) and 936/936
+(`fd-1-2`) circuits identical.**  Progression: 18/2 → 342/14 (#30) →
+1714/718 (#31) → **all** (#38).  The remaining diffs are partitioning only.
+
 | Root cause | Issue | Status |
 |---|---|---|
 | Mixed-tech composites report `p`/`n` instead of `undefined` | [#30](https://github.com/Firas-Jrad/pyckt/issues/30) | ✅ fixed (PR #37) |
-| `MosfetNmos/PmosDiodeAnalogInverter` + `MosfetNmos/PmosNonInvertingInverter` missing from the bundled library | [#31](https://github.com/Firas-Jrad/pyckt/issues/31) | ✅ fixed (4 library items added) |
-| Residual DP diffs: cascoded-DP grouping in GCC circuits, `Input1/Input2` order | [#38](https://github.com/Firas-Jrad/pyckt/issues/38) | ☐ open |
+| Four gallery composites missing from the bundled library | [#31](https://github.com/Firas-Jrad/pyckt/issues/31) | ✅ fixed (PR #39) |
+| DP child ordering + cascoded-DP grouping | [#38](https://github.com/Firas-Jrad/pyckt/issues/38) | ✅ fixed (natural-order pairing + item-rule fix) |
 | Load parts under-identified (land in `biasParts`) | [#32](https://github.com/Firas-Jrad/pyckt/issues/32) | ☐ open |
 | gm typing: FD `feedBack` grouping, `primarySecondStage`, `firstStageType` | [#33](https://github.com/Firas-Jrad/pyckt/issues/33) | ☐ open |
 | Capacitor `load`/`compensation` typing inverted | [#34](https://github.com/Firas-Jrad/pyckt/issues/34) | ☐ open |
 
-Structure-recognition identical circuits: **s-1-2 18 → 342 (#30) → 1714
-(#31) of 1950**; **fd-1-2 2 → 14 → 718 of 936**.  Partitioning is still
-blocked on #32–#34.
-
 Notes:
-- The gallery *netlists* all parse and recognise cleanly; divergences are in
-  recognition composites and partitioning classification, not parsing.
-- `s-1-2`/`fd-1-2` are whole categories (1-and-2-stage single-output /
-  fully-differential per the gallery README), not single variants; `fd-1-2`
-  holds exactly 936 circuits — the same count as acst's (and pyckt's) FD
-  family.
+- The gallery *netlists* all parse and recognise cleanly; the remaining
+  divergences are exclusively partitioning classification (#32–#34).
 - The gallery was generated with a **newer acst recognition library** than
-  the snapshot bundled in pyckt/the local acst checkout: the four issue-#31
-  structures exist in neither of the local libraries and were reconstructed
-  from the gallery's own reference trees.
+  the local snapshots; the four issue-#31 structures were reconstructed from
+  the gallery's own reference trees.
 
 ## `s-1-2` — 1950 circuits
 
 | artefact | identical | differing |
 |---|---:|---:|
-| structure recognition (`subcircuits.xml`) | 1714 | 236 |
-| partitioning (`functional_blocks.xml`) | 1 | 1949 |
+| structure recognition (`subcircuits.xml`) | 1950 | 0 |
+| partitioning (`functional_blocks.xml`) | 3 | 1947 |
 
 **recurring diff patterns** (occurrences across all circuits; net names elided):
 
@@ -59,8 +53,8 @@ Notes:
 | 1800 | partitioning | `extra (in pyckt, not gallery): capacitances/capacitance {'type': 'load'} structures=['CapacitorArray']` | `1_1` |
 | 1250 | partitioning | `missing (in gallery, not pyckt): biasParts/biasPart {} structures=['MosfetMixedCascodePair1']` | `1_5` |
 | 1170 | partitioning | `missing (in gallery, not pyckt): loadParts/loadPart {} structures=['MosfetNormalArray', 'MosfetNormalArray', 'MosfetNormalArray', 'MosfetNormalArray']` | `3` |
-| 977 | partitioning | `extra (in pyckt, not gallery): gmParts/gmPart {'firstStageType': 'simple', 'type': 'firstStage'} structures=['MosfetDifferentialPair']` | `1` |
 | 892 | partitioning | `extra (in pyckt, not gallery): biasParts/biasPart {} structures=['MosfetCascodePair']` | `1_2` |
+| 829 | partitioning | `extra (in pyckt, not gallery): gmParts/gmPart {'firstStageType': 'simple', 'type': 'firstStage'} structures=['MosfetDifferentialPair']` | `1` |
 | 780 | partitioning | `missing (in gallery, not pyckt): loadParts/loadPart {} structures=['MosfetDiodeArray', 'MosfetDiodeArray', 'MosfetNormalArray', 'MosfetNormalArray']` | `2` |
 | 650 | partitioning | `missing (in gallery, not pyckt): biasParts/biasPart {} structures=['MosfetDiodeArray', 'MosfetNormalArray']` | `12` |
 | 650 | partitioning | `extra (in pyckt, not gallery): biasParts/biasPart {} structures=['MosfetDiodeArray', 'MosfetMixedCascodePair2', 'MosfetNormalArray']` | `12` |
@@ -84,21 +78,21 @@ Notes:
 | 156 | partitioning | `extra (in pyckt, not gallery): loadParts/loadPart {} structures=['MosfetDiodeArray', 'MosfetDiodeArray', 'MosfetMixedCascodePair1', 'MosfetMixedCascodePair2', 'MosfetNormalArray', 'MosfetNormalArray']` | `97` |
 | 152 | partitioning | `missing (in gallery, not pyckt): biasParts/biasPart {} structures=['MosfetDiodeArray']` | `31_3` |
 | 150 | partitioning | `extra (in pyckt, not gallery): loadParts/loadPart {} structures=['MosfetCascodePair', 'MosfetNormalArray', 'MosfetNormalArray']` | `92_2` |
-| 148 | partitioning | `missing (in gallery, not pyckt): gmParts/gmPart {'firstStageType': 'simple', 'type': 'firstStage'} structures=['MosfetDifferentialPair']` | `5_4` |
 | 119 | partitioning | `missing (in gallery, not pyckt): gmParts/gmPart {'type': 'primarySecondStage'} structures=['MosfetPmosNonInvertingInverter']` | `6_1` |
 | 115 | partitioning | `missing (in gallery, not pyckt): gmParts/gmPart {'type': 'primarySecondStage'} structures=['MosfetNmosNonInvertingInverter']` | `3_7` |
-| 97 | structrec | `extra (in pyckt, not gallery): structure MosfetDifferentialPair [n] devices=[]` | `7_11` |
-| 93 | structrec | `extra (in pyckt, not gallery): structure MosfetDifferentialPair [p] devices=[]` | `1_2` |
-| 79 | structrec | `missing (in gallery, not pyckt): structure MosfetDifferentialPair [n] devices=[]` | `7_11` |
 | 78 | partitioning | `extra (in pyckt, not gallery): loadParts/loadPart {} structures=['MosfetDiodeArray', 'MosfetNormalArray']` | `5` |
-| 69 | structrec | `missing (in gallery, not pyckt): structure MosfetDifferentialPair [p] devices=[]` | `5_4` |
 | 68 | partitioning | `extra (in pyckt, not gallery): loadParts/loadPart {} structures=['MosfetDiodeArray', 'MosfetMixedCascodePair1', 'MosfetMixedCascodePair2', 'MosfetNormalArray']` | `4_10` |
+| 65 | partitioning | `extra (in pyckt, not gallery): loadParts/loadPart {} structures=['MosfetCascodePair', 'MosfetDiodeArray', 'MosfetDiodeStack', 'MosfetNormalArray']` | `7` |
+| 65 | partitioning | `extra (in pyckt, not gallery): loadParts/loadPart {} structures=['MosfetCascodePair', 'MosfetNormalArray', 'MosfetNormalArray', 'MosfetVoltageReference2']` | `8` |
+| 42 | partitioning | `extra (in pyckt, not gallery): loadParts/loadPart {} structures=['MosfetCascodePair']` | `4_10` |
+| 30 | partitioning | `missing (in gallery, not pyckt): gmParts/gmPart {'type': 'thirdStage'} structures=['MosfetCascodePair']` | `91_2` |
+| 22 | partitioning | `missing (in gallery, not pyckt): gmParts/gmPart {'type': 'thirdStage'} structures=['MosfetNormalArray']` | `91_1` |
 
 ## `fd-1-2` — 936 circuits
 
 | artefact | identical | differing |
 |---|---:|---:|
-| structure recognition (`subcircuits.xml`) | 718 | 218 |
+| structure recognition (`subcircuits.xml`) | 936 | 0 |
 | partitioning (`functional_blocks.xml`) | 0 | 936 |
 
 **recurring diff patterns** (occurrences across all circuits; net names elided):
@@ -129,10 +123,6 @@ Notes:
 | 312 | partitioning | `missing (in gallery, not pyckt): biasParts/biasPart {} structures=['MosfetDiodeArray', 'MosfetNormalArray']` | `27` |
 | 312 | partitioning | `extra (in pyckt, not gallery): biasParts/biasPart {} structures=['MosfetDiodeArray', 'MosfetMixedCascodePair2', 'MosfetNormalArray']` | `27` |
 | 132 | partitioning | `extra (in pyckt, not gallery): gmParts/gmPart {'type': 'thirdStage'} structures=['MosfetCascodePair']` | `5_2` |
-| 109 | structrec | `missing (in gallery, not pyckt): structure MosfetDifferentialPair [p] devices=[]` | `1_3` |
-| 109 | structrec | `extra (in pyckt, not gallery): structure MosfetDifferentialPair [p] devices=[]` | `1_3` |
-| 109 | structrec | `missing (in gallery, not pyckt): structure MosfetDifferentialPair [n] devices=[]` | `13_2` |
-| 109 | structrec | `extra (in pyckt, not gallery): structure MosfetDifferentialPair [n] devices=[]` | `13_2` |
 | 84 | partitioning | `extra (in pyckt, not gallery): gmParts/gmPart {'type': 'thirdStage'} structures=['MosfetNormalArray']` | `5_8` |
 | 20 | partitioning | `missing (in gallery, not pyckt): gmParts/gmPart {'type': 'primarySecondStage'} structures=['MosfetNmosNonInvertingInverter']` | `1_7` |
 | 20 | partitioning | `missing (in gallery, not pyckt): gmParts/gmPart {'type': 'primarySecondStage'} structures=['MosfetPmosNonInvertingInverter']` | `13_1` |
