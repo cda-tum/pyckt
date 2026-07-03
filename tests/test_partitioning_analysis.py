@@ -48,12 +48,37 @@ class TestPartitioningAnalysisLifecycle:
         assert a.structure_circuits is not None
         assert a.circuit_params is not None
 
-    def test_initialize_missing_circuit_params_raises(self, inputs_dir, tmp_path):
+    def test_initialize_without_circuit_params_infers_roles(
+        self, inputs_dir, tmp_path
+    ):
+        """--circuit-params is optional: net roles are inferred structurally
+        (issue #6), matching the fixture's params file."""
         args = _make_args(inputs_dir,
                           xml_circuit_information_file=None,
                           output_file=str(tmp_path / "p.xml"))
-        with pytest.raises(ValueError, match="xml-circuit-information-file"):
-            PartitioningAnalysis(args).initialize()
+        a = PartitioningAnalysis(args)
+        a.initialize()
+        assert a.circuit_params is not None
+        assert a.circuit_params.output_net == "out"
+        assert a.circuit_params.bias_current[0] == "ibias"
+        assert {a.circuit_params.input_plus[0],
+                a.circuit_params.input_minus[0]} == {"inp", "inn"}
+
+    def test_partition_identical_with_and_without_circuit_params(
+        self, inputs_dir, tmp_path
+    ):
+        """The inferred roles reproduce the params-file partition exactly."""
+        with_params = PartitioningAnalysis(
+            _make_args(inputs_dir, output_file=str(tmp_path / "a.xml"))
+        )
+        with_params.initialize(); with_params.compute()
+        inferred = PartitioningAnalysis(
+            _make_args(inputs_dir,
+                       xml_circuit_information_file=None,
+                       output_file=str(tmp_path / "b.xml"))
+        )
+        inferred.initialize(); inferred.compute()
+        assert inferred.partition.summary() == with_params.partition.summary()
 
     def test_compute_before_initialize_raises_runtime(self, inputs_dir, tmp_path):
         args = _make_args(inputs_dir, output_file=str(tmp_path / "p.xml"))

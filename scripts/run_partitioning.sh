@@ -4,24 +4,21 @@
 # Runs pyckt's `partitioning` (acst-compatible format) and, when available, the
 # acst reference for the same circuit.
 #
-# Note: pyckt's partitioner needs --circuit-params (input/output/bias/supply
-# nets); the Partitioning bundle ships none, so we borrow the shared
-# CircuitParameterAndSpecifications.xml.  acst's partitioner derives them and
-# needs no params file.
+# Like acst, pyckt derives the input/output/bias/supply net roles from the
+# circuit structure — no --circuit-params file is needed (it remains available
+# as an optional override).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PYCKT="${PYCKT:-$REPO/.venv/bin/pyckt}"
 ACST="${ACST:-/home/jrad/acst/build/bin/acst.sh}"
 PY_IN="${PY_IN:-$REPO/tests/data/inputs}"
-PY_DATA="${PY_DATA:-$REPO/tests/data}"
 ACST_IN="${ACST_IN:-/home/jrad/acst/InputFileExamples}"
 ACST_LIB="${ACST_LIB:-/home/jrad/acst/StructRec/xml/AnalogLibrary.xml}"
 OUT="${OUT:-$REPO/output/partitioning}"
 
 src="$PY_IN/Partitioning"
 acst_src="$ACST_IN/Partitioning"
-params="$PY_DATA/CircuitParameterAndSpecifications.xml"
 mkdir -p "$OUT/py" "$OUT/cpp"
 
 echo "[partitioning] pyckt (acst format) ..."
@@ -30,7 +27,6 @@ echo "[partitioning] pyckt (acst format) ..."
   --device-types   "$src/deviceTypes.xcat" \
   --mapping        "$src/HSpiceMapping.xcat" \
   --supply-nets    "$src/supplyNets.xcat" \
-  --circuit-params "$params" \
   --output-format  acst \
   --output "$OUT/py/py_acst.xml"
 echo "  -> $OUT/py/py_acst.xml"

@@ -34,10 +34,13 @@ class PartitioningAnalysis(AbstractAnalysis):
         * ``device_types_file`` — ``deviceTypes.xcat``
         * ``hspice_mapping_file`` — ``HSpiceMapping.xcat``
         * ``hspice_supplynet_file`` — ``supplyNets.xcat``
-        * ``xml_circuit_information_file`` — ``CircuitParameterAndSpecifications.xml``
         * ``output_file`` — output partition XML path
 
     Optional args:
+        * ``xml_circuit_information_file`` —
+          ``CircuitParameterAndSpecifications.xml``; when omitted the
+          input/output/bias net roles are inferred from the circuit
+          structure (:mod:`partitioning.net_inference`), as acst does.
         * ``xml_structrec_library_file`` — directory or
           ``AnalogLibrary.xml`` file. Defaults to the bundled XMLs.
     """
@@ -80,9 +83,16 @@ class PartitioningAnalysis(AbstractAnalysis):
             "Recognised %d structures", self.structure_circuits.total_structures
         )
 
-        self.circuit_params = parse_circuit_parameters(
-            self._require_arg("xml_circuit_information_file")
-        )
+        # Optional override: with no --circuit-params, infer the net roles
+        # from the circuit structure, as acst's partitioner does (its
+        # ``Partitioning::compute`` takes only the recognition result).
+        params_file = getattr(self.args, "xml_circuit_information_file", None)
+        if params_file:
+            self.circuit_params = parse_circuit_parameters(params_file)
+        else:
+            from partitioning.net_inference import infer_circuit_parameters
+
+            self.circuit_params = infer_circuit_parameters(self.circuit)
 
     # ------------------------------------------------------------------
     # Phase 2 — compute
