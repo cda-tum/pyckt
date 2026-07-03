@@ -36,8 +36,12 @@ class TestRuleLearner:
         return RuleLearner("SymmetricalCascodeOpAmp").learn(sc)
 
     def test_learns_a_hierarchy_of_composites(self, library):
-        # acst learns 10 composite items for this op-amp; pyckt matches.
-        assert len(library.items) == 10
+        # 11 composite items since the issue-#31 library extension: the
+        # NmosDiodeAnalogInverter over the fixture's bias mirror adds one
+        # level-2 composite to the learned hierarchy (was 10 with the
+        # pre-gallery 52-item recognition library, matching the local acst
+        # binary's reference of that era).
+        assert len(library.items) == 11
         assert all(i.name.startswith("SymmetricalCascodeOpAmp") for i in library.items)
 
     def test_culminates_in_single_top_structure(self, library):
@@ -62,25 +66,28 @@ class TestRuleLearner:
                     assert by_name[child].persistence >= item.level - by_name[child].level
 
     def test_levels_and_persistence_match_acst_reference(self, library):
-        # Regression for issue #5: pyckt's learned hierarchy must match acst's
-        # reference (outputs/rulegen/cpp/SymmetricalCascodeOpAmpLibrary.xml)
-        # item-for-item on both hierarchy level and persistence.  Before the
-        # most-constrained-first pairing tie-break, OpAmp5 landed at level 1
-        # (a spurious CapacitorArray+DiodeArray composite) and OpAmp3/4/5
-        # persistence diverged; all three now match acst.
-        # acst values {name: (level, persistence)}; OpAmp10 is the top
-        # structure → persistence None (never pruned).
+        # Regression snapshot for issue #5's learning algorithm (the
+        # most-constrained-first pairing tie-break, which originally made
+        # pyckt's hierarchy match acst's rulegen reference item-for-item).
+        # The values were re-snapshotted after issue #31 extended the bundled
+        # recognition library with the FUBOCO-gallery composites (the local
+        # acst binary still runs the older 52-item library, so its reference
+        # XML is no longer input-comparable); the learning algorithm itself
+        # is unchanged and the algorithmic invariants are covered by the
+        # other tests in this class.  The top structure's persistence is
+        # None (never pruned).
         expected = {
             "SymmetricalCascodeOpAmp1": (3, 1),
             "SymmetricalCascodeOpAmp2": (2, 1),
-            "SymmetricalCascodeOpAmp3": (2, 1),
-            "SymmetricalCascodeOpAmp4": (2, 2),
+            "SymmetricalCascodeOpAmp3": (2, 2),
+            "SymmetricalCascodeOpAmp4": (2, 1),
             "SymmetricalCascodeOpAmp5": (2, 1),
             "SymmetricalCascodeOpAmp6": (4, 1),
-            "SymmetricalCascodeOpAmp7": (3, 2),
-            "SymmetricalCascodeOpAmp8": (3, 3),
+            "SymmetricalCascodeOpAmp7": (3, 1),
+            "SymmetricalCascodeOpAmp8": (3, 2),
             "SymmetricalCascodeOpAmp9": (5, 1),
-            "SymmetricalCascodeOpAmp10": (6, None),
+            "SymmetricalCascodeOpAmp10": (4, 2),
+            "SymmetricalCascodeOpAmp11": (6, None),
         }
         actual = {i.name: (i.level, i.persistence) for i in library.items}
         assert actual == expected
