@@ -146,10 +146,13 @@ class TestArrayItems:
 
 class TestPairLibrary:
     def test_counts_and_levels(self, pair_lib: PairLibrary):
-        assert len(pair_lib) == 52
+        # 52 originals + 4 FUBOCO-gallery composites (issue #31): the two
+        # diode analog inverters at level 1, the two non-inverting inverters
+        # at level 2.
+        assert len(pair_lib) == 56
         assert pair_lib.hierarchy_levels == [1, 2, 3]
-        assert len(pair_lib.get_level_entries(1)) == 21
-        assert len(pair_lib.get_level_entries(2)) == 27
+        assert len(pair_lib.get_level_entries(1)) == 23
+        assert len(pair_lib.get_level_entries(2)) == 29
         assert len(pair_lib.get_level_entries(3)) == 4
         assert pair_lib.get_level_entries(99) == []
 

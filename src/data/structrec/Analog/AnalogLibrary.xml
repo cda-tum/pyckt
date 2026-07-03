@@ -23,6 +23,10 @@
             <pairLibraryItemFile>Items/Mosfet/MosfetMixedCascodePair1.xml</pairLibraryItemFile>
 			<pairLibraryItemFile>Items/Mosfet/MosfetMixedCascodePair2.xml</pairLibraryItemFile>
 			<pairLibraryItemFile>Items/Mosfet/MosfetAnalogInverter.xml</pairLibraryItemFile>
+			<pairLibraryItemFile>Items/Mosfet/MosfetNmosDiodeAnalogInverter.xml</pairLibraryItemFile>
+			<pairLibraryItemFile>Items/Mosfet/MosfetPmosDiodeAnalogInverter.xml</pairLibraryItemFile>
+			<pairLibraryItemFile>Items/Mosfet/MosfetNmosNonInvertingInverter.xml</pairLibraryItemFile>
+			<pairLibraryItemFile>Items/Mosfet/MosfetPmosNonInvertingInverter.xml</pairLibraryItemFile>
 			<pairLibraryItemFile>Items/Mosfet/MosfetCascodedAnalogInverter.xml</pairLibraryItemFile>
 			<pairLibraryItemFile>Items/Mosfet/MosfetCascodedPMOSAnalogInverter.xml</pairLibraryItemFile>
 			<pairLibraryItemFile>Items/Mosfet/MosfetCascodedNMOSAnalogInverter.xml</pairLibraryItemFile>
@@ -81,6 +85,8 @@
                 <pairLibraryItem persistence="1">MosfetCurrentMirrorLoad</pairLibraryItem>
                 <pairLibraryItem>MosfetVoltageReference1</pairLibraryItem>
                 <pairLibraryItem>MosfetAnalogInverter</pairLibraryItem>
+                <pairLibraryItem>MosfetNmosDiodeAnalogInverter</pairLibraryItem>
+                <pairLibraryItem>MosfetPmosDiodeAnalogInverter</pairLibraryItem>
                 <pairLibraryItem persistence="1">MosfetVoltageReference2</pairLibraryItem>
                 <pairLibraryItem persistence="1">MosfetGateConnectedCouple</pairLibraryItem>
                 <pairLibraryItem persistence="1">MosfetDiodeStack</pairLibraryItem>
@@ -110,6 +116,8 @@
                 <pairLibraryItem>MosfetWilsonCurrentMirror</pairLibraryItem>
                 <pairLibraryItem persistence="1">MosfetCascodedDifferentialPair</pairLibraryItem>
                 <pairLibraryItem persistence="1">MosfetFoldedCascodeDifferentialPair</pairLibraryItem>
+                <pairLibraryItem>MosfetNmosNonInvertingInverter</pairLibraryItem>
+                <pairLibraryItem>MosfetPmosNonInvertingInverter</pairLibraryItem>
                 <pairLibraryItem>MosfetCascodedAnalogInverter</pairLibraryItem>
                 <pairLibraryItem>MosfetCascodedPMOSAnalogInverter</pairLibraryItem>
                 <pairLibraryItem>MosfetCascodedNMOSAnalogInverter</pairLibraryItem>
