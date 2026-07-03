@@ -191,3 +191,27 @@ class TestRecognitionWriteRuntimeError:
         # "nothing to write" branch.
         with pytest.raises(RuntimeError, match="nothing to write"):
             a.write()
+
+
+class TestPairTechTypeInference:
+    """Issue #30: composite pairs take the children's tech when both agree
+    and *undefined* otherwise (acst PairLibraryItem::addToCircuit) — never
+    blindly child1's tech."""
+
+    def test_every_pair_tech_matches_inference(self, inputs_dir, tmp_path):
+        from recognition.model import PairStructure
+
+        args = _make_args(inputs_dir, output_file=str(tmp_path / "o.xml"))
+        a = StructRecAnalysis(args)
+        a.initialize()
+
+        pairs = [
+            s for s in a.structure_circuits.all_structures
+            if isinstance(s, PairStructure)
+        ]
+        assert pairs, "fixture should recognise at least one pair"
+        for pair in pairs:
+            assert pair.tech_type == pair.infer_tech_type(), (
+                f"{pair.structure_id} carries {pair.tech_type}, children say "
+                f"{pair.infer_tech_type()}"
+            )
