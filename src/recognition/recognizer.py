@@ -271,6 +271,10 @@ class PairRecognizer:
     ) -> PairStructure:
         pair = PairStructure(StructureId(item.name, idx),
                              c1, c2, item.symmetry, c1.tech_type)
+        # acst assigns the children's tech when they agree and *undefined*
+        # for mixed-tech composites (PairLibraryItem::addToCircuit); always
+        # taking child1's tech mislabelled every mixed pair (issue #30).
+        pair.tech_type = pair.infer_tech_type()
         pair.persistence = persistence
         for m in item.connections:
             pin = StructurePin(name=m.pair_pin.pin_name); pair.add_pin(pin)
