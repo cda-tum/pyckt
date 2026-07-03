@@ -162,6 +162,14 @@ class TopologyConverter:
             self._add_capacitor(
                 core_circuit, "Cap_compensation_1", "outfirststage", "out"
             )
+        # fully-differential two-stage: one compensation capacitor per output
+        if "out1firststage" in net_names and "out1" in net_names:
+            self._add_capacitor(
+                core_circuit, "Cap_compensation_1", "out1firststage", "out1"
+            )
+            self._add_capacitor(
+                core_circuit, "Cap_compensation_2", "out2firststage", "out2"
+            )
 
     def _add_capacitor(
         self, core_circuit: CoreCircuit, name: str, plus: str, minus: str

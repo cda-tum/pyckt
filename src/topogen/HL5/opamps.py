@@ -24,6 +24,9 @@ _INNERCOMP = "innercomp"    # complementary-second-stage node biasing the 2nd-st
 # two-stage inter-stage net (acst OUTFIRSTSTAGE — first-stage output into the
 # second stage's transconductor gate; also the compensation capacitor's plus)
 OUTFIRSTSTAGE = "outfirststage"
+# fully-differential two-stage inter-stage nets (acst OUT1/OUT2FIRSTSTAGE)
+OUT1FIRSTSTAGE = "out1firststage"
+OUT2FIRSTSTAGE = "out2firststage"
 
 
 GALLERY_DOT_DIR = (
@@ -117,16 +120,21 @@ def connectInstanceTerminalsSimpleOpAmp(
 def createFullyDifferentialOpAmp(
     firstStage: NonInvertingStage,
     feedbackStage: NonInvertingStage,
+    secondStage1: Union[InvertingStage, None] = None,
+    secondStage2: Union[InvertingStage, None] = None,
 ) -> OpAmp:
-    """Assemble a one-stage fully-differential op-amp from a differential
-    *firstStage* and a common-mode *feedbackStage* (acst
-    ``OpAmps::createFullyDifferentialOpAmp`` + ``connectInstanceTerminals``).
+    """Assemble a fully-differential op-amp from a differential *firstStage*,
+    a common-mode *feedbackStage*, and optionally one inverting second stage
+    per output (acst ``OpAmps::createFullyDifferentialOpAmp`` +
+    ``connectInstanceTerminalsFullyDifferentialOpAmp``).
 
-    The first stage drives the two differential outputs ``out1``/``out2``; the
-    feedback stage senses them (``IN1←out2``, ``IN2←out1``), references
-    ``vref`` on its inner transconductance, and its output (``outfeedback``)
-    drives the first stage's current-mirror load gate (``InnerLoad1``) — the
-    common-mode feedback that biases the first stage's load.
+    One-stage: the first stage drives the two differential outputs
+    ``out1``/``out2`` directly.  Two-stage: each first-stage output feeds its
+    own inverting second stage (``out1firststage``/``out2firststage``), whose
+    outputs become ``out1``/``out2``.  Either way the feedback stage senses
+    the final outputs (``IN1←out2``, ``IN2←out1``), references ``vref`` on
+    its inner transconductance, and its output (``outfeedback``) drives the
+    first stage's mirror-load gate.
     """
     opamp = OpAmp(id=1, techtype="undef")
     opamp.ports += [
@@ -142,8 +150,27 @@ def createFullyDifferentialOpAmp(
     connect((opamp, OpAmp.IN2), (firstStage, NonInvertingStage.IN2))
     connect((opamp, OpAmp.SOURCEPMOS), (firstStage, NonInvertingStage.SOURCEPMOS))
     connect((opamp, OpAmp.SOURCENMOS), (firstStage, NonInvertingStage.SOURCENMOS))
-    connect((opamp, OpAmp.OUT1), (firstStage, NonInvertingStage.OUT1))
-    connect((opamp, OpAmp.OUT2), (firstStage, NonInvertingStage.OUT2))
+    if secondStage1 is None:
+        connect((opamp, OpAmp.OUT1), (firstStage, NonInvertingStage.OUT1))
+        connect((opamp, OpAmp.OUT2), (firstStage, NonInvertingStage.OUT2))
+    else:
+        # per-output inverting second stages (acst OpAmps.cpp:746-770):
+        # each first-stage output drives its own second stage's transconductor
+        # gate; the second stages' outputs are the op-amp outputs.
+        opamp.add_instance(secondStage1)
+        opamp.add_instance(secondStage2)
+        for ss, out_net, fs_term, inter in (
+            (secondStage1, OpAmp.OUT1, NonInvertingStage.OUT1, OUT1FIRSTSTAGE),
+            (secondStage2, OpAmp.OUT2, NonInvertingStage.OUT2, OUT2FIRSTSTAGE),
+        ):
+            connect((opamp, OpAmp.SOURCEPMOS), (ss, InvertingStage.SOURCEPMOS))
+            connect((opamp, OpAmp.SOURCENMOS), (ss, InvertingStage.SOURCENMOS))
+            connect((opamp, out_net), (ss, InvertingStage.OUTPUT))
+            connect((opamp, inter), (firstStage, fs_term))
+            if InvertingStage.INTRANSCONDUCTANCE in ss.ports:
+                connect((opamp, inter), (ss, InvertingStage.INTRANSCONDUCTANCE))
+            else:
+                connect((opamp, inter), (ss, InvertingStage.INSOURCETRANSCONDUCTANCE))
 
     # feedback (common-mode) stage
     connect((opamp, OpAmp.OUT2), (feedbackStage, NonInvertingStage.IN1))
@@ -153,10 +180,34 @@ def createFullyDifferentialOpAmp(
     connect((opamp, OpAmp.SOURCENMOS), (feedbackStage, NonInvertingStage.SOURCENMOS))
 
     # common-mode feedback node: feedback-stage output drives the first stage's
-    # mirror-load gate (acst connectedLoadInstanceTerminalToFeedbackStage)
+    # mirror-load gate, picked per load structure (acst
+    # connectedLoadInstanceTerminalToFeedbackStage, OpAmps.cpp:900-935)
     connect((opamp, OpAmp.OUTFEEDBACK), (feedbackStage, NonInvertingStage.OUT2))
-    connect((opamp, OpAmp.OUTFEEDBACK), (firstStage, NonInvertingStage.INNERLOAD1))
+    connect(
+        (opamp, OpAmp.OUTFEEDBACK),
+        (firstStage, _feedback_load_terminal(firstStage)),
+    )
     return opamp
+
+
+def _feedback_load_terminal(firstStage: NonInvertingStage) -> str:
+    """The first-stage load terminal the common-mode feedback drives (acst
+    ``connectedLoadInstanceTerminalToFeedbackStage``): the mirror gate of a
+    one-load-part load (inner for 2 transistors, inner-source above that), the
+    second part's mirror gate for a two-part load with a 2-transistor first
+    part, and the GCC bias node otherwise."""
+    load = next(i for i in firstStage.instances if i.name == "l")
+    loadPart1 = load.instances[0]
+    if len(load.instances) == 1:
+        if loadPart1.component_count == 2:
+            return NonInvertingStage.INNERLOAD1
+        return NonInvertingStage.INNERSOURCELOAD1
+    if loadPart1.component_count == 2:
+        loadPart2 = load.instances[1]
+        if loadPart2.component_count == 2:
+            return NonInvertingStage.INNERLOAD2
+        return NonInvertingStage.INNERSOURCELOAD2
+    return NonInvertingStage.INNERBIASGCC
 
 
 def _bias_cell_of(secondStage: InvertingStage, tech: str):
