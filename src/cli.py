@@ -157,8 +157,11 @@ def _build_partitioning(sub) -> None:
     _add_io_args(sp)
     _add_library_arg(sp)
     sp.add_argument("--circuit-params", dest="xml_circuit_information_file",
-                    required=True,
-                    help="Path to CircuitParameterAndSpecifications.xml")
+                    required=False, default=None,
+                    help="Path to CircuitParameterAndSpecifications.xml "
+                         "(optional override; when omitted, the input/output/"
+                         "bias net roles are inferred from the circuit "
+                         "structure, as acst does)")
     sp.add_argument("--output", dest="output_file", required=True,
                     help="Output XML path for the partition")
     _add_output_format_arg(sp)

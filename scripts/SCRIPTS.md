@@ -59,7 +59,10 @@ capacitance).
 | `cascodedSymmetricalCMOSOTA.hspice` | the op-amp netlist |
 | `deviceTypes.xcat`, `HSpiceMapping.xcat`, `supplyNets.xcat` | parsing config (as above) |
 | `AnalogLibrary.xml` (`$ACST_LIB`) | recognition library |
-| `CircuitParameterAndSpecifications.xml` (`$PY_DATA/`) | **pyckt only** — input/output/bias/supply nets. The Partitioning bundle ships none, so the shared copy is borrowed; acst derives these itself. |
+
+Like acst, pyckt derives the input/output/bias/supply net roles from the
+circuit structure — no `CircuitParameterAndSpecifications.xml` is needed
+(`--circuit-params` remains available as an optional override).
 
 **Generated outputs** (default under `output/partitioning/`):
 
