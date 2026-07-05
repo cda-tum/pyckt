@@ -14,19 +14,16 @@ comparison; ordinals/order/whitespace/rail-renaming normalised).
     --gallery <fuboco-gallery checkout> --report reports/FUBOCO_GALLERY_REPORT.md
 ```
 
-## Verdict (updated as follow-up fixes land — this run: post PR #42, with #33)
+## Verdict (this run: post #34 — capacitor typing)
 
-**Structure recognition: COMPLETE parity — 1950/1950 (`s-1-2`) and 936/936
-(`fd-1-2`) circuits identical.** Progression: 18/2 → 342/14 (#30) →
-1714/718 (#31) → **all** (#38).
+**Effectively complete gallery parity.**
 
-**Partitioning: every remaining divergence is now capacitor `load` /
-`compensation` typing (#34)** — with a single exception (see below).  After
-the load-classification port (#32) and the gm/second-stage typing port (#33),
-`s-1-2` reduces to **150 fully-identical circuits and 1799 that differ only in
-capacitor typing** (1 circuit, `5_7`, also carries one gm-label difference);
-`fd-1-2` reduces to **936 circuits differing only in capacitor typing**.  Once
-#34 lands, `fd-1-2` reaches full parity and `s-1-2` is down to the lone `5_7`.
+- **Structure recognition: 1950/1950 (`s-1-2`) + 936/936 (`fd-1-2`) identical.**
+- **Partitioning: `fd-1-2` 936/936 identical; `s-1-2` 1949/1950 identical.**
+
+The whole 2886-circuit gallery now matches except a single `s-1-2` circuit
+(`5_7`) that carries one gm-label difference (see below).  The follow-up
+issues spawned from #7 are all resolved:
 
 | Root cause | Issue | Status |
 |---|---|---|
@@ -34,19 +31,20 @@ capacitor typing** (1 circuit, `5_7`, also carries one gm-label difference);
 | Four gallery composites missing from the bundled library | [#31](https://github.com/Firas-Jrad/pyckt/issues/31) | ✅ fixed (PR #39; refined in PR #40) |
 | DP child ordering + cascoded-DP grouping | [#38](https://github.com/Firas-Jrad/pyckt/issues/38) | ✅ fixed (PR #40) |
 | Load parts under-identified (land in `biasParts`) | [#32](https://github.com/Firas-Jrad/pyckt/issues/32) | ✅ fixed (PR #42) |
-| gm typing: second/third-stage, `firstStageType`, FD `feedBack` grouping | [#33](https://github.com/Firas-Jrad/pyckt/issues/33) | ✅ fixed (this PR) |
-| Capacitor `load`/`compensation` typing inverted | [#34](https://github.com/Firas-Jrad/pyckt/issues/34) | ☐ open — sole remaining blocker |
+| gm typing: second/third-stage, `firstStageType`, FD `feedBack` | [#33](https://github.com/Firas-Jrad/pyckt/issues/33) | ✅ fixed (PR #43) |
+| Capacitor `load`/`compensation` typing inverted | [#34](https://github.com/Firas-Jrad/pyckt/issues/34) | ✅ fixed (this PR) |
+
+Progression — structrec: 18/2 → 342/14 (#30) → 1714/718 (#31) → **all**
+(#38).  Partitioning identical (`s-1-2`/`fd-1-2`): 3/0 → 150/0 (#33) →
+**1949/936** (#34).
 
 Notes:
-- The gallery *netlists* all parse and recognise cleanly; the remaining
-  divergences are exclusively partitioning capacitor typing (#34).
-- The gallery was generated with a **newer acst recognition library** than
-  the local snapshots.  One `s-1-2` circuit, `5_7`, labels a
+- The gallery was generated with a **newer acst recognition library** than the
+  local snapshots.  The lone `5_7` residue labels a
   `MosfetNmosNonInvertingInverter` composite `primarySecondStage` where the
-  gallery expects `thirdStage`.  This composite has no classifier in the local
-  acst snapshot; the newer-acst rule that retypes it can't be reproduced
-  without mis-retyping 216 other circuits, so it is left as a documented
-  single-circuit residue (0.03 %) to revisit with #34.
+  gallery expects `thirdStage`; that composite has no classifier in the local
+  acst snapshot, and the newer-acst rule that retypes it mis-retypes 216 other
+  circuits, so it is documented rather than forced.
 
 <!-- The tables below are regenerated verbatim by scripts/compare_fuboco_gallery.py. -->
 
@@ -55,14 +53,12 @@ Notes:
 | artefact | identical | differing |
 |---|---:|---:|
 | structure recognition (`subcircuits.xml`) | 1950 | 0 |
-| partitioning (`functional_blocks.xml`) | 150 | 1800 |
+| partitioning (`functional_blocks.xml`) | 1949 | 1 |
 
 **recurring diff patterns** (occurrences across all circuits; net names elided):
 
 | n | artefact | pattern | example circuit |
 |---:|---|---|---|
-| 1800 | partitioning | `missing (in gallery, not pyckt): capacitances/capacitance {'type': 'compensation'} structures=['CapacitorArray']` | `1_1` |
-| 1800 | partitioning | `extra (in pyckt, not gallery): capacitances/capacitance {'type': 'load'} structures=['CapacitorArray']` | `1_1` |
 | 1 | partitioning | `missing (in gallery, not pyckt): gmParts/gmPart {'type': 'thirdStage'} structures=['MosfetNmosNonInvertingInverter']` | `5_7` |
 | 1 | partitioning | `extra (in pyckt, not gallery): gmParts/gmPart {'type': 'primarySecondStage'} structures=['MosfetNmosNonInvertingInverter']` | `5_7` |
 
@@ -71,11 +67,4 @@ Notes:
 | artefact | identical | differing |
 |---|---:|---:|
 | structure recognition (`subcircuits.xml`) | 936 | 0 |
-| partitioning (`functional_blocks.xml`) | 0 | 936 |
-
-**recurring diff patterns** (occurrences across all circuits; net names elided):
-
-| n | artefact | pattern | example circuit |
-|---:|---|---|---|
-| 1872 | partitioning | `missing (in gallery, not pyckt): capacitances/capacitance {'type': 'load'} structures=['CapacitorArray']` | `1` |
-| 1872 | partitioning | `extra (in pyckt, not gallery): capacitances/capacitance {'type': 'compensation'} structures=['CapacitorArray']` | `1` |
+| partitioning (`functional_blocks.xml`) | 936 | 0 |
