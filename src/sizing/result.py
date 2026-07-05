@@ -133,6 +133,19 @@ class ExpectedPerformance:
     vout_min_v: float = 0.0
     vout_max_v: float = 0.0
 
+    # ── Fields acst emits that pyckt does not always compute ─────────
+    # These mirror the optional members of acst's ``Result`` (emitted under
+    # ``if(hasCMRR())`` etc.).  ``None`` means "not computed" and the acst
+    # writer omits the corresponding node — the AC-analysis metrics (CMRR,
+    # PSRR, common-mode input range) are populated by the solver work tracked
+    # in the CP-SAT convergence issue, not here.
+    transit_freq_error_factor_mhz: float | None = None
+    cmrr_db: float | None = None
+    neg_psrr_deg: float | None = None
+    pos_psrr_deg: float | None = None
+    max_cm_input_v: float | None = None
+    min_cm_input_v: float | None = None
+
     def summary(self) -> str:
         """Multi-line summary of all performance metrics."""
         lines = [
@@ -168,6 +181,12 @@ class SizingResult:
     iterations: int = 0
     solve_time_seconds: float = 0.0
     objective_value: float | None = None
+    # DC operating point per net [V] and sized capacitor values [pF], mirroring
+    # acst's ``<Voltages>`` and ``<Dimensions><Capacitors>`` sections.  Empty
+    # when the solver has not computed them (the acst writer still emits the
+    # section shell, just with no child rows).
+    net_voltages: dict[str, float] = field(default_factory=dict)
+    capacitors: dict[str, float] = field(default_factory=dict)
 
     # ── Factories ────────────────────────────────────────────────────
 
