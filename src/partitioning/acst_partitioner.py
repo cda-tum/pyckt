@@ -36,13 +36,37 @@ _DP = "MosfetDifferentialPair"
 _NA = "MosfetNormalArray"
 _DA = "MosfetDiodeArray"
 _VREF1 = "MosfetVoltageReference1"
-# inverter structure names checked as second-stage transconductances
+# inverter structure names checked as second-stage transconductances, in
+# acst's exact partitioningSecondStage order (Partitioning.cpp:235-253)
 _INVERTERS = (
     "MosfetAnalogInverter",
     "MosfetCascodedAnalogInverter",
+    "MosfetCascodeAnalogInverterNmosCurrentMirrorLoad",
+    "MosfetCascodeAnalogInverterPmosCurrentMirrorLoad",
+    "MosfetCascodeAnalogInverterNmosDiodeTransistor",
+    "MosfetCascodeAnalogInverterPmosDiodeTransistor",
+    "MosfetCascodeAnalogInverterNmosDiodeTransistorPmosCurrentMirrorLoad",
+    "MosfetCascodeAnalogInverterPmosDiodeTransistorNmosCurrentMirrorLoad",
     "MosfetCascodedPMOSAnalogInverter",
     "MosfetCascodedNMOSAnalogInverter",
+    "MosfetCascodePMOSAnalogInverterCurrentMirrorLoad",
+    "MosfetCascodeNMOSAnalogInverterCurrentMirrorLoad",
+    "MosfetCascodePMOSAnalogInverterOneDiodeTransistor",
+    "MosfetCascodeNMOSAnalogInverterOneDiodeTransistor",
+    "MosfetCascodeAnalogInverterTwoCurrentMirrorLoads",
 )
+
+# acst isCurrentMirror: an exact name list (MosfetCurrentMirrorLoad and
+# MosfetCascodePair are NOT current mirrors here)
+_CURRENT_MIRRORS = frozenset((
+    "MosfetSimpleCurrentMirror",
+    "MosfetCascodeCurrentMirror",
+    "MosfetImprovedWilsonCurrentMirror",
+    "MosfetWideSwingCascodeCurrentMirror",
+    "MosfetWideSwingCurrentMirror",
+    "MosfetFourTransistorCurrentMirror",
+    "MosfetWilsonCurrentMirror",
+))
 
 
 class AcstPartitioner:
@@ -64,6 +88,7 @@ class AcstPartitioner:
             self._partition_bias_parts_of_diff_pairs()
             self._partition_load_parts_of_diff_pairs()
         self._partition_second_stage()
+        self._partition_third_stage()
         self._recognize_second_second_stage()
 
         first = self._result.get_first_stage()
@@ -74,6 +99,8 @@ class AcstPartitioner:
                 first.first_stage_type = "simple"
 
         self._partition_remaining_current_mirrors()
+        self._partition_voltage_reference1()
+        self._classify_diode_arrays()
         self._partition_capacitances()
         self._create_undefined_parts()
 
@@ -95,7 +122,7 @@ class AcstPartitioner:
 
     @staticmethod
     def _is_current_mirror(s: "Structure") -> bool:
-        return "CurrentMirror" in s.name
+        return s.name in _CURRENT_MIRRORS
 
     def _array_drain_net(self, array: "Structure") -> str | None:
         return self._idx.net_name(array, "Drain")
@@ -349,7 +376,11 @@ class AcstPartitioner:
             if self._idx.net_name(cs, "Drain") != net:
                 continue
             source = self._idx.net_name(cs, "Source")
-            if part_same is not None and cs.tech_type == ref_tech:
+            # acst compares each candidate against the *immediate* reference
+            # structure (the recursion's just-added structure), not the
+            # original walk root — that is what lets a mirror stack chain
+            # (top array -> its diode below) into one load part.
+            if part_same is not None and cs.tech_type == ref.tech_type:
                 part_same.add_main_structure(cs, self._result)
                 if source is not None and not self._idx.is_supply(source):
                     self._find_with_drain_connected(source, cs, part_same, None,
@@ -365,59 +396,299 @@ class AcstPartitioner:
     def _partition_second_stage(self) -> None:
         for name in self._present_inverters():
             self._classify_inverter(name)
+        # the FUBOCO-era library's cascaded non-inverting inverters classify
+        # as a whole-composite gm stage after the plain inverters (their
+        # inner analog inverter classifies first; the gallery shows both gm
+        # parts, e.g. s-1-2/raw/3_7)
+        for name in ("MosfetNmosNonInvertingInverter",
+                     "MosfetPmosNonInvertingInverter"):
+            self._classify_noninverting_inverter(name)
+
+    def _partition_third_stage(self) -> None:
+        """Port of ``Partitioning::partitioningThirdStage``: re-run four of
+        the inverter classifiers now that second stages exist (an inverter
+        sensing a ``primarySecondStage`` output types as ``thirdStage``),
+        then the symmetrical-OTA fixup — a ``primarySecondStage`` whose
+        supply-sourced gm transistor is gated by an inverter output that
+        itself senses the first stage is really a third stage."""
+        for name in ("MosfetAnalogInverter",
+                     "MosfetCascodedAnalogInverter",
+                     "MosfetCascodedPMOSAnalogInverter",
+                     "MosfetCascodedNMOSAnalogInverter"):
+            self._classify_inverter(name)
+
+        if len(self._result.get_second_stages()) <= 1:
+            return
+        for stage in list(self._result.get_second_stages()):
+            if not stage.is_primary_second_stage():
+                continue
+            gate_net = None
+            for main in stage.main_structures:
+                for arr in main.array_children:
+                    if arr.name != "MosfetNormalArray":
+                        continue
+                    src = self._idx.net_name(arr, "Source")
+                    if src is not None and self._idx.is_supply(src):
+                        gate_net = self._idx.net_name(arr, "Gate")
+            if gate_net is None:
+                continue
+            # acst compares against each *other* second stage, but the check
+            # (hasSecondStageOutputConnection) is global over the current
+            # second-stage set, re-evaluated after each retype — once a
+            # stage is retyped the remaining ones see a smaller set, which
+            # is what lets exactly one duplicate stage survive as primary.
+            others = [o for o in self._result.get_second_stages()
+                      if o is not stage]
+            if others and self._has_second_stage_output_connection(gate_net):
+                stage.type = "thirdStage"
+
+    # acst hasSecondStageOutputConnection recognises "the output of a second
+    # stage" purely structurally: the net must be the Output of a classified
+    # inverter (that is not the first stage's load) whose own input senses
+    # the first-stage output.  The gallery's acst extends the inverter-name
+    # list with the four FUBOCO-era items (the diode inverters and the
+    # cascaded non-inverting composites) — s-1-2/raw/5_7 needs the diode
+    # inverter, 101_1 the composite.
+    _OUTPUT_INVERTERS = frozenset(_INVERTERS) | frozenset((
+        "MosfetNmosDiodeAnalogInverter", "MosfetPmosDiodeAnalogInverter",
+        "MosfetNmosNonInvertingInverter", "MosfetPmosNonInvertingInverter",
+    ))
+
+    def _has_second_stage_output_connection(self, net: str) -> bool:
+        first = self._result.get_first_stage()
+        # acst skips connected structures whose part isLoadPartOfFirstStage.
+        # Its getPart resolves through the composite's first array child; that
+        # ordering surfaces a first-stage load there, but pyckt's ordering can
+        # surface the first-stage gm of the same composite instead (a
+        # structure that also spans the input pair, e.g. s-1-2/raw/5_7's
+        # MosfetCascodeAnalogInverterNmosCurrentMirrorLoad = m4,m5,m6,m8).
+        # Skip the first stage either way — a genuine downstream inverter
+        # output resolves to a second-stage / undefined part.
+        first_parts = [first, *first.load_parts] if first is not None else []
+        for cs in self._idx.connected_structures(net):
+            if not self._result.structure_already_classified(cs):
+                continue
+            part = self._result.get_part(cs)
+            if part is not None and part in first_parts:
+                continue
+            if cs.name not in self._OUTPUT_INVERTERS:
+                continue
+            if self._idx.net_name(cs, "Output") != net:
+                continue
+            if self._inverter_input_senses_first_stage(cs):
+                return True
+        return False
+
+    def _inverter_input_senses_first_stage(self, inv: "Structure") -> bool:
+        """acst ``inputOfInverterIsConnectedToFirstStageOutput``: either
+        inverter input net carries the first-stage output, where acst's
+        ``hasFirstStageOutputConnection`` general branch accepts a
+        MosfetDifferentialPair *or* MosfetGateConnectedCouple with an
+        Output1/Output2 pin on the net."""
+        for pin in ("InputNMOS1", "InputPMOS1"):
+            in_net = self._idx.net_name(inv, pin)
+            if in_net is None:
+                continue
+            for cs in self._idx.connected_structures(in_net):
+                if cs.name not in ("MosfetDifferentialPair",
+                                   "MosfetGateConnectedCouple"):
+                    continue
+                if (self._idx.net_name(cs, "Output1") == in_net
+                        or self._idx.net_name(cs, "Output2") == in_net):
+                    return True
+        return False
+
+    def _classify_noninverting_inverter(self, name: str) -> None:
+        """Classify a cascaded non-inverting inverter composite as one gm
+        part: same sensing-gate logic as ``classifyInverter``, but the whole
+        composite is the transconductance and its diode-inverter child the
+        stage bias.
+
+        When two composites share the diode-inverter reference (mirror-OTA
+        templates like s-1-2/raw/101_1), acst's instance ordering classifies
+        the one driving the real stage output first, which then absorbs the
+        shared reference and makes the other fully-classified.  pyckt's
+        recognition order differs, so defer composites whose Output net is
+        itself a first-stage drain net."""
+        candidates = self._find(name)
+        candidates.sort(
+            key=lambda s: self._touches_first_stage_output(
+                self._idx.net_name(s, "Output") or "")
+        )
+        for inv in candidates:
+            if self._result.structure_already_classified(inv):
+                continue
+            if not inv.is_pair:
+                continue
+            inv_type = ""
+            matched = False
+            for gate_a, gate_b in (("InputPMOS1", "InputNMOS1"),
+                                   ("InputNMOS1", "InputPMOS1")):
+                net_a = self._idx.net_name(inv, gate_a)
+                net_b = self._idx.net_name(inv, gate_b)
+                if net_a is None:
+                    continue
+                for cs in self._idx.connected_structures(net_a):
+                    if not self._result.structure_already_classified(cs):
+                        continue
+                    part = self._result.get_part(cs)
+                    if part is None or not (part.is_transconductance()
+                                            or part.is_load()):
+                        continue
+                    if not self._has_stage_output_net_connection(net_a, part):
+                        continue
+                    if not (self._has_voltage_bias_output_connection(net_b)
+                            or self._only_one_transistor_on_net(net_b)):
+                        continue
+                    matched = True
+                    if (part.is_load()
+                            or (part.is_transconductance()
+                                and part.is_first_stage())):
+                        inv_type = "primarySecondStage"
+                    elif (part.is_transconductance()
+                          and part.is_primary_second_stage()):
+                        inv_type = "thirdStage"
+            if matched:
+                self._initialize_inverter_stage([inv], inv.child1, inv_type)
 
     def _present_inverters(self) -> list[str]:
         return [n for n in _INVERTERS if self._find(n)]
 
     def _classify_inverter(self, inverter_name: str) -> None:
+        """Port of ``Partitioning::classifyInverter``: an inverter whose one
+        gate senses a stage output (while the other gate is a voltage-bias
+        node or single-transistor net) becomes the next gm stage — that gate's
+        child is the transconductor, the other child its stage bias.
+
+        Note: acst declares the child numbers *outside* the inverter loop, so
+        a matched child assignment leaks into subsequent unmatched inverters
+        of the same name (bug-compatible on purpose — the gallery reference
+        was produced by this code).
+        """
+        child_trans = 0
+        child_bias = 0
         for inv in self._find(inverter_name):
             if self._result.structure_already_classified(inv):
                 continue
             if not inv.is_pair:
                 continue
-            child_trans = 0
             inv_type = ""
             for gate_a, gate_b, trans_child, bias_child in (
                 ("InputPMOS1", "InputNMOS1", 1, 2),
                 ("InputNMOS1", "InputPMOS1", 2, 1),
             ):
                 net_a = self._idx.net_name(inv, gate_a)
+                net_b = self._idx.net_name(inv, gate_b)
                 if net_a is None:
                     continue
                 for s in self._idx.connected_structures(net_a):
+                    if not self._result.structure_already_classified(s):
+                        continue
                     part = self._result.get_part(s)
                     if part is None or not (part.is_transconductance() or part.is_load()):
                         continue
                     if not self._has_stage_output_net_connection(net_a, part):
                         continue
-                    if not (self._has_voltage_bias_output_connection(
-                                self._idx.net_name(inv, gate_b))
-                            or self._only_one_transistor_on_net(
-                                self._idx.net_name(inv, gate_b))):
+                    if not (self._has_voltage_bias_output_connection(net_b)
+                            or self._only_one_transistor_on_net(net_b)):
                         continue
+                    if inv.get_child(trans_child).name == "MosfetMixedCascodePair2":
+                        continue
+                    child_trans, child_bias = trans_child, bias_child
                     if (part.is_load()
                             or (part.is_transconductance() and part.is_first_stage())):
                         inv_type = "primarySecondStage"
-                        child_trans, _ = trans_child, bias_child
-                    elif (part.is_transconductance() and part.is_primary_second_stage()):
+                    elif (part.is_transconductance()
+                          and part.is_primary_second_stage()):
                         inv_type = "thirdStage"
-                        child_trans, _ = trans_child, bias_child
-                if child_trans:
-                    break
-            if child_trans and inv_type:
-                trans_struct = inv.get_child(child_trans)
-                self._initialize_inverter_stage([trans_struct], inv_type)
+            if child_trans:
+                self._initialize_inverter_stage(
+                    [inv.get_child(child_trans)],
+                    inv.get_child(child_bias),
+                    inv_type,
+                )
 
     def _initialize_inverter_stage(
-        self, trans_structs: list["Structure"], inv_type: str
+        self, trans_structs: list["Structure"], bias_struc: "Structure",
+        inv_type: str,
     ) -> None:
+        """Port of ``Partitioning::initializeInverterStage``: create the gm
+        part for the transconductor side and classify the stage-bias side —
+        a current bias, plus the voltage bias mirrored into it when the bias
+        sits under a current mirror (directly or via its pair's arrays)."""
         if any(self._result.structure_already_classified(t) for t in trans_structs):
             return
         tp = TransconductancePart(self._result.next_id("trans"))
         for t in trans_structs:
-            tp.add_main_structure(t)
+            tp.add_main_structure(t, self._result)
         tp.type = inv_type
+        tp.helper_structure = bias_struc
         self._result.add_transconductance_part(tp)
+
+        def _link_existing(struct, target_part) -> None:
+            existing = self._result.get_part(struct)
+            if isinstance(existing, BiasPart):
+                if target_part not in existing.biased_parts:
+                    existing.add_biased_part(target_part)
+                    if isinstance(target_part, TransconductancePart):
+                        target_part.bias_parts.append(existing)
+
+        def _mirror_reference_bias(mirror, current_bias: BiasPart) -> None:
+            child1 = getattr(mirror, "child1", None)
+            if child1 is None:
+                return
+            if not self._result.structure_already_classified(child1):
+                vb = BiasPart(self._result.next_id("bias"))
+                vb.type = "voltageBias"
+                vb.add_main_structure(child1, self._result)
+                vb.add_biased_part(current_bias)
+                self._result.add_bias_part(vb)
+            else:
+                _link_existing(child1, current_bias)
+
+        def _direct_mirror_parent(struct):
+            for parent in struct.parents:
+                if self._is_current_mirror(parent):
+                    return parent
+            return None
+
+        mirror = _direct_mirror_parent(bias_struc)
+        if mirror is not None:
+            if not self._result.structure_already_classified(bias_struc):
+                bp = BiasPart(self._result.next_id("bias"))
+                bp.type = "currentBias"
+                bp.add_main_structure(bias_struc, self._result)
+                bp.add_biased_part(tp)
+                tp.bias_parts.append(bp)
+                self._result.add_bias_part(bp)
+                _mirror_reference_bias(mirror, bp)
+            else:
+                _link_existing(bias_struc, tp)
+        elif bias_struc.is_pair:
+            if not self._result.structure_already_classified(bias_struc):
+                bp = BiasPart(self._result.next_id("bias"))
+                bp.type = "currentBias"
+                bp.add_main_structure(bias_struc, self._result)
+                bp.add_biased_part(tp)
+                tp.bias_parts.append(bp)
+                self._result.add_bias_part(bp)
+                for arr in bias_struc.array_children:
+                    arr_mirror = _direct_mirror_parent(arr)
+                    if arr_mirror is not None:
+                        _mirror_reference_bias(arr_mirror, bp)
+            else:
+                _link_existing(bias_struc, tp)
+        else:
+            arrays = bias_struc.array_children
+            gate = self._idx.net_name(arrays[0], "Gate") if arrays else None
+            if self._only_one_transistor_on_net(gate):
+                if not self._result.structure_already_classified(bias_struc):
+                    bp = BiasPart(self._result.next_id("bias"))
+                    bp.type = "currentBias"
+                    bp.add_main_structure(bias_struc, self._result)
+                    bp.add_biased_part(tp)
+                    tp.bias_parts.append(bp)
+                    self._result.add_bias_part(bp)
 
     # ── step 5: symmetrical second-second stage ───────────────────────
 
@@ -454,17 +725,19 @@ class AcstPartitioner:
                         continue
                     potential_bias = self._idx.connected_structures(
                         self._idx.net_name(cs, "Drain") or "")
-                    if self._find_second_second_bias(potential_bias) is None:
+                    bias_struc = self._find_second_second_bias(potential_bias)
+                    if bias_struc is None:
                         continue
                     if not self._result.structure_already_classified(output_leg):
-                        self._initialize_inverter_stage([arr, cs],
+                        self._initialize_inverter_stage([arr, cs], bias_struc,
                                                         "secondarySecondStage")
                 # fallback: whole leg if no paired array found
                 if not self._result.has_secondary_second_stage():
                     drain_structs = self._idx.connected_structures(drain)
-                    if (self._find_second_second_bias(drain_structs) is not None
+                    bias_struc = self._find_second_second_bias(drain_structs)
+                    if (bias_struc is not None
                             and not self._result.structure_already_classified(output_leg)):
-                        self._initialize_inverter_stage([output_leg],
+                        self._initialize_inverter_stage([output_leg], bias_struc,
                                                         "secondarySecondStage")
 
     def _find_second_second_bias(self, structs: list["Structure"]):
@@ -495,38 +768,150 @@ class AcstPartitioner:
     # ── step 6: remaining structures → bias ───────────────────────────
 
     def _partition_remaining_current_mirrors(self) -> None:
-        """Classify leftover building blocks as bias, at acst's granularity.
-
-        acst emits bias parts at the component level: the cascode/voltage-ref
-        children of higher current mirrors, then individual leaf arrays — each
-        device counted once.  We classify intermediate bias structures first
-        (CascodePair / VoltageReference), then any remaining leaf arrays whose
-        devices are not yet covered.
+        """Port of ``Partitioning::partitioningRemainingCurrentMirrors``:
+        every unconsumed current mirror (any hierarchy level) classifies its
+        reference child (child1) as a voltage bias and its output child
+        (child2) as a current bias — as *whole* structures, which is how
+        composite references like ``MosfetMixedCascodePair1`` become single
+        bias parts.  (acst's addBiasedPartTypeVoltageBias /
+        addBiasedPartToCurrentBias only add biased-part cross-links, which the
+        acst XML comparison does not key on, so they are not ported.)
         """
-        covered = self._covered_devices()
-        # 1) intermediate bias building blocks (children of higher mirrors)
-        for name in ("MosfetCascodePair", "MosfetVoltageReference2",
-                     "MosfetVoltageReference1", "MosfetDiodeStack"):
-            for s in self._find(name):
-                if self._result.structure_already_classified(s):
+        for structure in self._all_structures():
+            if not self._is_current_mirror(structure) or not structure.is_pair:
+                continue
+            c1, c2 = structure.child1, structure.child2
+            c1_done = self._result.structure_already_classified(c1)
+            c2_done = self._result.structure_already_classified(c2)
+            if not c1_done and not c2_done:
+                vb = BiasPart(self._result.next_id("bias"))
+                vb.type = "voltageBias"
+                vb.add_main_structure(c1, self._result)
+                self._result.add_bias_part(vb)
+                cb = BiasPart(self._result.next_id("bias"))
+                cb.type = "currentBias"
+                cb.add_main_structure(c2, self._result)
+                self._result.add_bias_part(cb)
+                vb.add_biased_part(cb)
+            elif not c2_done:
+                cb = BiasPart(self._result.next_id("bias"))
+                cb.type = "currentBias"
+                cb.add_main_structure(c2, self._result)
+                self._result.add_bias_part(cb)
+                p1 = self._result.get_part(c1)
+                if isinstance(p1, BiasPart):
+                    p1.add_biased_part(cb)
+            elif not c1_done:
+                vb = BiasPart(self._result.next_id("bias"))
+                vb.type = "voltageBias"
+                vb.add_main_structure(c1, self._result)
+                self._result.add_bias_part(vb)
+                p2 = self._result.get_part(c2)
+                if p2 is not None:
+                    vb.add_biased_part(p2)
+
+    def _has_current_bias_input_on_net(self, s: "Structure", net: str) -> bool:
+        """acst ``hasCurrentBiasInputConnectionOnNet``: the structure's Gate
+        (or Gate1) pin sits on *net*."""
+        for pin in ("Gate", "Gate1"):
+            if s.has_pin(pin):
+                return self._idx.net_name(s, pin) == net
+        return False
+
+    def _partition_voltage_reference1(self) -> None:
+        """Port of ``Partitioning::partitioningVoltageReference1``: an
+        unconsumed voltage reference whose Input net drives a load part's
+        mirror gate becomes a voltage bias."""
+        for vref in self._find(_VREF1):
+            if self._result.structure_already_classified(vref):
+                continue
+            input_net = self._idx.net_name(vref, "Input")
+            if input_net is None:
+                continue
+            is_load = False
+            for cs in self._idx.connected_structures(input_net):
+                if (self._result.structure_already_classified(cs)
+                        and self._has_current_bias_input_on_net(cs, input_net)):
+                    part = self._result.get_part(cs)
+                    if part is not None and part.is_load():
+                        is_load = True
+                        break
+            if is_load:
+                vb = BiasPart(self._result.next_id("bias"))
+                vb.type = "voltageBias"
+                vb.add_main_structure(vref, self._result)
+                self._result.add_bias_part(vb)
+                for cs in self._idx.connected_structures(input_net):
+                    if not self._result.structure_already_classified(cs):
+                        continue
+                    if not self._has_current_bias_input_on_net(cs, input_net):
+                        continue
+                    part = self._result.get_part(cs)
+                    if part is None or part is vb:
+                        continue
+                    if part.is_load() and part not in vb.biased_parts:
+                        vb.add_biased_part(part)
+                        part.bias_parts.append(vb)
+                    elif (isinstance(part, BiasPart)
+                          and part.type == "currentBias"):
+                        vb.add_biased_part(part)
+
+    def _classify_diode_arrays(self) -> None:
+        """Port of ``Partitioning::classifyDiodeArrays``: a leftover
+        rail-sourced diode whose node drives an already-classified load /
+        gm / bias gate of its own tech becomes a voltage bias."""
+        for diode in self._find(_DA):
+            if self._result.structure_already_classified(diode):
+                continue
+            source = self._idx.net_name(diode, "Source")
+            if source is None or not self._idx.is_supply(source):
+                continue
+            gate_net = self._idx.net_name(diode, "Drain")
+            if gate_net is None:
+                continue
+            is_load = is_trans = is_current_bias = False
+            for cs in self._idx.connected_structures(gate_net):
+                if not self._result.structure_already_classified(cs):
                     continue
-                devs = {d.name for d in s.devices}
-                if devs & covered:
+                if not self._has_current_bias_input_on_net(cs, gate_net):
                     continue
-                self._add_bias(s, "voltageBias" if "Voltage" in name else "currentBias")
-                covered |= devs
-        # 2) remaining leaf arrays, one device at a time
-        for lvl in self._sc.hierarchy_levels:
-            for s in self._sc.get_level(lvl).structures:
-                if self._result.structure_already_classified(s):
+                if cs.tech_type != diode.tech_type:
                     continue
-                if s.name not in (_NA, _DA):
+                part = self._result.get_part(cs)
+                if part is None:
                     continue
-                devs = {d.name for d in s.devices}
-                if devs & covered or not devs:
-                    continue
-                self._add_bias(s, "voltageBias" if s.name == _DA else "currentBias")
-                covered |= devs
+                is_load = is_load or part.is_load()
+                is_trans = is_trans or part.is_transconductance()
+                # the FUBOCO-era acst also classifies diodes that reference a
+                # current bias (the local snapshot computes this flag but its
+                # creation gate predates it — the gallery is the oracle here,
+                # e.g. s-1-2/raw/1_3's m16 driving the second stage's bias)
+                is_current_bias = is_current_bias or (
+                    isinstance(part, BiasPart) and part.type == "currentBias"
+                )
+                if is_load or is_trans:
+                    break
+            if is_load or is_trans or is_current_bias:
+                vb = BiasPart(self._result.next_id("bias"))
+                vb.type = "voltageBias"
+                vb.add_main_structure(diode, self._result)
+                self._result.add_bias_part(vb)
+                for cs in self._idx.connected_structures(gate_net):
+                    if not self._result.structure_already_classified(cs):
+                        continue
+                    if not self._has_current_bias_input_on_net(cs, gate_net):
+                        continue
+                    if cs.tech_type != diode.tech_type:
+                        continue
+                    part = self._result.get_part(cs)
+                    if part is None or part is vb:
+                        continue
+                    if part.is_load() or part.is_transconductance():
+                        if part not in vb.biased_parts:
+                            vb.add_biased_part(part)
+                            part.bias_parts.append(vb)
+                    elif isinstance(part, BiasPart):
+                        vb.add_biased_part(part)
 
     def _covered_devices(self) -> set[str]:
         """Device names already assigned to a gm / load / bias / cap part."""
@@ -577,9 +962,15 @@ class AcstPartitioner:
     # ── small helpers ─────────────────────────────────────────────────
 
     def _all_structures(self) -> list["Structure"]:
+        # acst StructureCircuits::findAllStructures iterates hierarchy levels
+        # from the highest down to 0, and each level's std::map orders by
+        # StructureId (name, then index).  partitioningRemainingCurrentMirrors
+        # depends on this: a composite mirror must claim its reference child
+        # before a lower-level mirror sharing the same diode gets a turn.
         out: list[Structure] = []
-        for lvl in self._sc.hierarchy_levels:
-            out.extend(self._sc.get_level(lvl).structures)
+        for lvl in reversed(self._sc.hierarchy_levels):
+            out.extend(sorted(self._sc.get_level(lvl).structures,
+                              key=lambda s: (s.name, s.structure_id.index)))
         return out
 
     def _structure_nets(self, s: "Structure") -> set[str]:
