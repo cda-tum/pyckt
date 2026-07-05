@@ -481,21 +481,75 @@ class AcstPartitioner:
 
     def _inverter_input_senses_first_stage(self, inv: "Structure") -> bool:
         """acst ``inputOfInverterIsConnectedToFirstStageOutput``: either
-        inverter input net carries the first-stage output, where acst's
-        ``hasFirstStageOutputConnection`` general branch accepts a
-        MosfetDifferentialPair *or* MosfetGateConnectedCouple with an
-        Output1/Output2 pin on the net."""
+        inverter input net carries the first-stage output."""
         for pin in ("InputNMOS1", "InputPMOS1"):
             in_net = self._idx.net_name(inv, pin)
-            if in_net is None:
-                continue
-            for cs in self._idx.connected_structures(in_net):
-                if cs.name not in ("MosfetDifferentialPair",
-                                   "MosfetGateConnectedCouple"):
-                    continue
-                if (self._idx.net_name(cs, "Output1") == in_net
-                        or self._idx.net_name(cs, "Output2") == in_net):
+            if in_net is not None and self._has_first_stage_output_connection(in_net):
+                return True
+        return False
+
+    def _has_first_stage_output_connection(self, net: str) -> bool:
+        """Port of ``Partitioning::hasFirstStageOutputConnection``.  Three
+        branches by first-stage shape: a single symmetrical load part
+        (voltage-bias output on the net), a plain diff pair / gate-connected
+        couple (Output1/Output2 on the net — this covers the FD out1/out2
+        rails), or a complementary first stage (its load's non-supply output
+        component drains onto the net)."""
+        first = self._result.get_first_stage()
+        if first is None:
+            return False
+        if (len(first.load_parts) == 1
+                and self._is_symmetrical_load_part(first.load_parts[0])):
+            if not self._has_voltage_bias_output_connection(net):
+                return False
+            for main in first.load_parts[0].main_structures:
+                if (self._is_voltage_bias(main)
+                        and self._has_voltage_bias_input_on_net(main, net)):
                     return True
+            return False
+        if first.first_stage_type != "complementary":
+            for cs in self._idx.connected_structures(net):
+                if cs.name in ("MosfetDifferentialPair",
+                               "MosfetGateConnectedCouple") and (
+                        self._idx.net_name(cs, "Output1") == net
+                        or self._idx.net_name(cs, "Output2") == net):
+                    return True
+            return False
+        if not first.load_parts:
+            return False
+        for main in first.load_parts[0].main_structures:
+            for arr in main.array_children:
+                src = self._idx.net_name(arr, "Source")
+                if src is not None and self._idx.is_supply(src):
+                    continue
+                if self._idx.net_name(arr, "Drain") == net:
+                    return True
+        return False
+
+    def _has_third_stage_output_connection(self, net: str) -> bool:
+        """Port of ``Partitioning::hasThirdStageOutputConnection``: the net is
+        the Output of a plain / cascoded analog inverter whose input senses a
+        second-stage output."""
+        for cs in self._idx.connected_structures(net):
+            if cs.name not in ("MosfetAnalogInverter",
+                               "MosfetCascodedAnalogInverter",
+                               "MosfetCascodedPMOSAnalogInverter",
+                               "MosfetCascodedNMOSAnalogInverter"):
+                continue
+            if self._idx.net_name(cs, "Output") != net:
+                continue
+            for pin in ("InputPMOS1", "InputNMOS1"):
+                g = self._idx.net_name(cs, pin)
+                if g is not None and self._has_second_stage_output_connection(g):
+                    return True
+        return False
+
+    def _has_voltage_bias_input_on_net(self, s: "Structure", net: str) -> bool:
+        """acst ``hasVoltageBiasInputConnectionOnNet``: the voltage bias's
+        Drain (or Input) pin sits on *net*."""
+        for pin in ("Drain", "Input"):
+            if s.has_pin(pin):
+                return self._idx.net_name(s, pin) == net
         return False
 
     def _classify_noninverting_inverter(self, name: str) -> None:
@@ -931,15 +985,51 @@ class AcstPartitioner:
     # ── step 7: capacitances ──────────────────────────────────────────
 
     def _partition_capacitances(self) -> None:
+        """Port of ``Partitioning::partitioningCapacitances``: type each
+        capacitor by which stage outputs its two terminals touch.
+
+        - one terminal a stage output (first/second/third), the other
+          ground → ``load``
+        - first-stage output ↔ second-stage output, or second ↔ third →
+          ``compensation`` (Miller cap)
+
+        (acst's third branch — a Miller cap through a nulling-resistor MOS —
+        needs a ResistorPart pyckt has no model for and does not arise in the
+        all-capacitor gallery netlists, so it is not ported.)
+        """
         for s in self._all_structures():
             if self._result.structure_already_classified(s):
                 continue
             if not self._is_capacitor(s):
                 continue
-            nets = self._structure_nets(s)
+            minus = self._idx.net_name(s, "Minus")
+            plus = self._idx.net_name(s, "Plus")
+
+            def second(net):
+                return net is not None and self._has_second_stage_output_connection(net)
+
+            def first(net):
+                return net is not None and self._has_first_stage_output_connection(net)
+
+            def third(net):
+                return net is not None and self._has_third_stage_output_connection(net)
+
+            def gnd(net):
+                return net is not None and self._idx.is_ground(net)
+
+            cap_type: str | None = None
+            if ((second(minus) and gnd(plus)) or (second(plus) and gnd(minus))
+                    or (first(plus) and gnd(minus)) or (first(minus) and gnd(plus))
+                    or (third(plus) and gnd(minus)) or (third(minus) and gnd(plus))):
+                cap_type = "load"
+            elif ((second(minus) and first(plus)) or (second(plus) and first(minus))
+                    or (third(minus) and second(plus)) or (third(plus) and second(minus))):
+                cap_type = "compensation"
+            if cap_type is None:
+                continue
             cap = CapacitancePart(self._result.next_id("cap"))
             cap.add_main_structure(s)
-            cap.type = "load" if self._output_net in nets else "compensation"
+            cap.type = cap_type
             self._result.add_capacitance_part(cap)
 
     # ── step 8: undefined ─────────────────────────────────────────────

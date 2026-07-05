@@ -569,3 +569,72 @@ class TestPartitionerMissingBranches:
         s.add_pin(StructurePin("Orphan"))
         assert Partitioner._pin_net_names(s) == set()
         assert not Partitioner._has_supply_connection(s)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  acst capacitor typing (issue #34)
+# ═══════════════════════════════════════════════════════════════════════
+
+# A two-stage single-output op-amp (gallery s-1-2/1_1): c1 spans the first-
+# and second-stage outputs (a Miller compensation cap) and c2 spans the
+# second-stage output and ground (the load cap).  acst types them
+# ``compensation`` / ``load`` respectively; pyckt used to type both by the
+# single inferred output net, mislabelling c1 as ``load``.
+_TWO_STAGE_NETLIST = """\
+.suckt two_stage_single_output_op_amp_1_1 ibias in1 in2 out sourceNmos sourcePmos
+c1 outFirstStage out
+m1 inputVoltageBiasXXpXX1 outVoltageBiasXXnXX0 sourceNmos sourceNmos nmos
+m2 outVoltageBiasXXnXX0 ibias sourcePmos sourcePmos pmos
+m3 FirstStageYout1 inputVoltageBiasXXpXX1 FirstStageYsourceGCC1 FirstStageYsourceGCC1 pmos
+m4 outFirstStage inputVoltageBiasXXpXX1 FirstStageYsourceGCC2 FirstStageYsourceGCC2 pmos
+m5 FirstStageYout1 FirstStageYout1 sourceNmos sourceNmos nmos
+m6 outFirstStage FirstStageYout1 sourceNmos sourceNmos nmos
+m7 sourceTransconductance ibias sourcePmos sourcePmos pmos
+m8 FirstStageYsourceGCC1 in1 sourceTransconductance sourceTransconductance pmos
+m9 FirstStageYsourceGCC2 in2 sourceTransconductance sourceTransconductance pmos
+c2 out sourceNmos
+m10 out outFirstStage sourceNmos sourceNmos nmos
+m11 out ibias sourcePmos sourcePmos pmos
+m12 outVoltageBiasXXnXX0 outVoltageBiasXXnXX0 sourceNmos sourceNmos nmos
+m13 inputVoltageBiasXXpXX1 inputVoltageBiasXXpXX1 sourceTransconductance sourceTransconductance pmos
+m14 ibias ibias sourcePmos sourcePmos pmos
+.end two_stage_single_output_op_amp_1_1
+"""
+
+
+class TestAcstCapacitorTyping:
+    @pytest.fixture(scope="class")
+    def caps(self, inputs_dir, tmp_path_factory):
+        from ckt_io.device_types_parser import load_device_types
+        from ckt_io.hspice_mapping import HSpiceMapping
+        from ckt_io.hspice_parser import HSpiceParser
+        from ckt_io.supply_nets_parser import SupplyNetConfig
+        from partitioning.acst_partitioner import AcstPartitioner
+        from partitioning.net_inference import infer_circuit_parameters
+        from recognition.library import Library
+        from recognition.recognizer import StructureRecognizer
+
+        src = inputs_dir / "Partitioning"
+        tmp = tmp_path_factory.mktemp("caps")
+        supply = tmp / "supply.xcat"
+        supply.write_text('GND_1 "sourceNmos"\nVDD_1 "sourcePmos"\n')
+        netlist = tmp / "two_stage.ckt"
+        netlist.write_text(_TWO_STAGE_NETLIST)
+
+        parser = HSpiceParser(
+            HSpiceMapping.from_file(str(src / "HSpiceMapping.xcat")),
+            SupplyNetConfig.from_file(str(supply)),
+            load_device_types(str(src / "deviceTypes.xcat")),
+        )
+        circuit = parser.parse(str(netlist))
+        sc = StructureRecognizer(Library.from_directory(None)).recognize(circuit)
+        result = AcstPartitioner(infer_circuit_parameters(circuit)).partition(sc)
+        return {cp.devices()[0]: cp.type for cp in result.capacitance_parts}
+
+    def test_miller_cap_is_compensation(self, caps):
+        # c1: first-stage output (outFirstStage) ↔ second-stage output (out)
+        assert caps["c1"] == "compensation"
+
+    def test_load_cap_is_load(self, caps):
+        # c2: second-stage output (out) ↔ ground
+        assert caps["c2"] == "load"
