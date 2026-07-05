@@ -201,3 +201,99 @@ def test_acst_sizing_writer_no_solution():
     results = root.find("automatic_sizing-results")
     ns = results.find("NoSolution")
     assert ns is not None and ns.get("reason") == "infeasible"
+
+
+# ── acst-parity fields added in issue #1 ──────────────────────────────────
+
+
+def _full_result() -> SizingResult:
+    """Sample carrying every acst-parity field populated."""
+    r = _sample_result()
+    r.performance.transit_freq_error_factor_mhz = 2.2
+    r.performance.cmrr_db = 78.0
+    r.performance.neg_psrr_deg = 65.0
+    r.performance.pos_psrr_deg = 70.0
+    r.performance.max_cm_input_v = 2.4
+    r.performance.min_cm_input_v = 0.6
+    r.net_voltages = {"out": 1.65, "vdd!": 3.3, "gnd!": 0.0}
+    r.capacitors = {"c1": 1.2, "c2": 0.5}
+    return r
+
+
+def test_acst_writer_always_emits_transit_freq_error_factor_and_shells():
+    # even the bare sample (no optional AC metrics) carries the always-present
+    # TransitFrequencyWithErrorFactor node and the Voltages / Capacitors shells
+    root = AcstSizingXMLWriter(_sample_result()).build_tree()
+    results = root.find("automatic_sizing-results")
+    perf = results.find("ExpectedPerformance")
+
+    tf_ef = perf.find("TransitFrequencyWithErrorFactor")
+    assert tf_ef is not None and tf_ef.get("unit") == "M_Hz"
+    # falls back to the nominal transit frequency when not separately computed
+    assert tf_ef.text == "2.75"
+
+    assert results.find("Voltages") is not None
+    assert results.find("Voltages").get("unit") == "V"
+    assert results.find("Dimensions").find("Capacitors") is not None
+
+
+def test_acst_writer_omits_conditional_ac_metrics_when_absent():
+    perf = (
+        AcstSizingXMLWriter(_sample_result())
+        .build_tree()
+        .find("automatic_sizing-results")
+        .find("ExpectedPerformance")
+    )
+    for tag in ("CMRR", "negPSRR", "posPSRR",
+                "maxCommonModeInputVoltage", "minCommonModeInputVoltage"):
+        assert perf.find(tag) is None
+
+
+def test_acst_writer_emits_all_performance_fields_in_acst_order():
+    perf = (
+        AcstSizingXMLWriter(_full_result())
+        .build_tree()
+        .find("automatic_sizing-results")
+        .find("ExpectedPerformance")
+    )
+    assert [child.tag for child in perf] == [
+        "Gain", "Power", "Area", "TransitFrequency",
+        "TransitFrequencyWithErrorFactor", "SlewRate", "PhaseMargin",
+        "CMRR", "negPSRR", "posPSRR",
+        "MaximumOutputVoltage", "MinimumOutputVoltage",
+        "maxCommonModeInputVoltage", "minCommonModeInputVoltage",
+    ]
+    assert perf.find("CMRR").get("unit") == "dB"
+    assert perf.find("CMRR").text == "78"
+    assert perf.find("negPSRR").get("unit") == "degree"
+    assert perf.find("posPSRR").text == "70"
+    assert perf.find("maxCommonModeInputVoltage").get("unit") == "V"
+    assert perf.find("minCommonModeInputVoltage").text == "0.6"
+
+
+def test_acst_writer_voltages_section():
+    results = (
+        AcstSizingXMLWriter(_full_result())
+        .build_tree()
+        .find("automatic_sizing-results")
+    )
+    voltages = results.find("Voltages")
+    assert voltages.get("unit") == "V"
+    nets = {n.get("name"): n.text for n in voltages.findall("Net")}
+    # leading-slash net names, sorted
+    assert nets == {"/out": "1.65", "/vdd!": "3.3", "/gnd!": "0"}
+
+
+def test_acst_writer_capacitor_dimensions():
+    dims = (
+        AcstSizingXMLWriter(_full_result())
+        .build_tree()
+        .find("automatic_sizing-results")
+        .find("Dimensions")
+    )
+    caps = dims.find("Capacitors")
+    by_name = {c.get("name"): c for c in caps.findall("Capacitor")}
+    assert set(by_name) == {"/c1", "/c2"}
+    value = by_name["/c1"].find("Value")
+    assert value.get("unit") == "p_F"
+    assert value.text == "1.2"
