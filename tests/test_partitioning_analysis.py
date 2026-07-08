@@ -115,10 +115,12 @@ class TestResolveLibDir:
     def test_returns_dir_when_given_directory(self, tmp_path):
         assert PartitioningAnalysis._resolve_lib_dir(str(tmp_path)) == tmp_path
 
-    def test_returns_parent_when_given_file(self, tmp_path):
-        f = tmp_path / "AnalogLibrary.xml"
+    def test_passes_file_through(self, tmp_path):
+        # issue #47: Library.from_directory accepts wrapper files directly,
+        # so the helper no longer strips the filename
+        f = tmp_path / "Library.xml"
         f.write_text("<root/>")
-        assert PartitioningAnalysis._resolve_lib_dir(str(f)) == tmp_path
+        assert PartitioningAnalysis._resolve_lib_dir(str(f)) == f
 
     def test_returns_none_when_given_none(self):
         assert PartitioningAnalysis._resolve_lib_dir(None) is None

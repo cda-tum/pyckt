@@ -65,8 +65,43 @@ class TestLibraryLoading:
         assert "PairLibrary" in r
 
     def test_missing_directory_raises(self):
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError, match="/nonexistent/path"):
             Library.from_directory("/nonexistent/path")
+
+    # ── issue #47: acst wrapper-file form of --library ────────────────
+
+    def test_wrapper_file_loads_same_as_directory(self, library: Library):
+        """A wrapper file with any name (acst's Library.xml form) loads the
+        same library as pointing at its directory."""
+        fixture = (Path(__file__).parent / "data" / "inputs"
+                   / "RuleGeneration" / "Library.xml")
+        lib = Library.from_directory(fixture)
+        assert len(lib.pair_library.items) == len(library.pair_library.items)
+        assert len(lib.array_library) == len(library.array_library)
+
+    def test_wrapper_file_with_absolute_references(self, tmp_path):
+        """Wrapper references may be absolute paths."""
+        wrapper = tmp_path / "MyLib.xml"
+        wrapper.write_text(
+            "<library>"
+            "<arrayLibraries><arrayLibraryFile>"
+            f"{_DEFAULT_LIB_DIR / 'Array' / 'ArrayLibrary.xml'}"
+            "</arrayLibraryFile></arrayLibraries>"
+            "<pairLibraries><pairLibraryFile>"
+            f"{_DEFAULT_LIB_DIR / 'Analog' / 'AnalogLibrary.xml'}"
+            "</pairLibraryFile></pairLibraries>"
+            "</library>"
+        )
+        lib = Library.from_directory(wrapper)
+        assert len(lib.pair_library.items) > 0
+
+    def test_non_wrapper_file_raises_value_error(self, tmp_path):
+        """A file without the library references fails with a clear error
+        naming the file, instead of a puzzling downstream crash."""
+        bogus = tmp_path / "NotALibrary.xml"
+        bogus.write_text("<pairLibraryItem></pairLibraryItem>")
+        with pytest.raises(ValueError, match="NotALibrary.xml"):
+            Library.from_directory(bogus)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -311,9 +346,8 @@ class TestMissingBranches:
 
     def test_persistence_fallback_child_element(self, tmp_path):
         """pairLibraryItem with <persistence> child element (not attribute) is parsed (line 719)."""
-        from pathlib import Path
 
-        from recognition.library import PERSISTENCE_MAX, PairLibrary
+        from recognition.library import PairLibrary
 
         # Minimal AnalogLibrary.xml with child-element persistence form
         xml = """\

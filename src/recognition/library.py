@@ -825,13 +825,17 @@ class Library:
 
     @classmethod
     def from_directory(cls, lib_dir: str | Path | None = None) -> Library:
-        """Load the complete library from a data directory.
+        """Load the complete library from a directory or wrapper file.
 
         Parameters
         ----------
         lib_dir : str or Path, optional
-            Root directory containing ``AnalogLibrary.xml``.
-            Defaults to the bundled ``data/structrec/`` directory.
+            Either a root directory containing ``AnalogLibrary.xml``, or a
+            wrapper-file path (acst's ``--xml-structrec-library-file`` form,
+            e.g. ``Library.xml``) whose ``<library>`` root references the
+            array/pair libraries; references resolve relative to the
+            wrapper's own directory.  Defaults to the bundled
+            ``data/structrec/`` directory.
 
         Returns
         -------
@@ -842,23 +846,39 @@ class Library:
         ------
         FileNotFoundError
             If the directory or any referenced XML file is missing.
+        ValueError
+            If the master file is not a library wrapper (no
+            ``arrayLibraryFile``/``pairLibraryFile`` references).
         xml.etree.ElementTree.ParseError
             If an XML file cannot be parsed.
         """
         if lib_dir is None:
             lib_dir = _DEFAULT_LIB_DIR
         lib_dir = Path(lib_dir)
+        if not lib_dir.exists():
+            raise FileNotFoundError(f"structrec library not found: {lib_dir}")
+        # a wrapper file may carry any name (acst ships e.g. Library.xml);
+        # a directory must contain the canonical AnalogLibrary.xml
+        master_path = lib_dir if lib_dir.is_file() else lib_dir / "AnalogLibrary.xml"
+        base_dir = master_path.parent
 
-        master = _parse_xml_file(lib_dir / "AnalogLibrary.xml")
+        master = _parse_xml_file(master_path)
+
+        array_rel = _text(master.find(".//arrayLibraryFile"))
+        pair_rel = _text(master.find(".//pairLibraryFile"))
+        if not array_rel or not pair_rel:
+            raise ValueError(
+                f"{master_path} is not a structrec library wrapper: expected "
+                "<arrayLibraryFile> and <pairLibraryFile> references under a "
+                "<library> root"
+            )
 
         # ── Array library ────────────────────────────────────────────
-        array_rel = _text(master.find(".//arrayLibraryFile"))
-        array_dir = (lib_dir / array_rel).parent
+        array_dir = (base_dir / array_rel).parent
         array_library = ArrayLibrary.from_xml(array_dir)
 
         # ── Pair library ─────────────────────────────────────────────
-        pair_rel = _text(master.find(".//pairLibraryFile"))
-        pair_dir = (lib_dir / pair_rel).parent
+        pair_dir = (base_dir / pair_rel).parent
         pair_library = PairLibrary.from_xml(pair_dir)
 
         return cls(array_library=array_library, pair_library=pair_library)

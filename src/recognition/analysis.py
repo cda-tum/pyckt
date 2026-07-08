@@ -71,15 +71,13 @@ def _require_arg(args, name: str) -> str:
 
 
 def _resolve_lib_dir(path_str: str | None) -> Path | None:
-    """Accept either a directory or an `AnalogLibrary.xml` file path.
+    """Pass the ``--library`` argument through to ``Library.from_directory``.
 
-    `Library.from_directory(None)` falls back to the bundled XMLs, so we
-    pass `None` through unchanged when no library was specified.
+    The loader itself accepts a directory *or* a wrapper-file path (issue
+    #47 — acst's ``Library.xml`` form), and ``None`` falls back to the
+    bundled XMLs, so no resolution is needed here.
     """
-    if path_str is None:
-        return None
-    path = Path(path_str)
-    return path if path.is_dir() else path.parent
+    return Path(path_str) if path_str is not None else None
 
 
 # ---------------------------------------------------------------------------

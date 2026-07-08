@@ -118,8 +118,10 @@ def _add_io_args(sp: argparse.ArgumentParser) -> None:
 def _add_library_arg(sp: argparse.ArgumentParser) -> None:
     """Optional structrec library directory (defaults to bundled XMLs)."""
     sp.add_argument("--library", dest="xml_structrec_library_file", default=None,
-                    help="Structrec library directory or AnalogLibrary.xml "
-                         "(default: bundled XMLs)")
+                    help="Structrec library: a directory containing "
+                         "AnalogLibrary.xml, or a wrapper file in acst's "
+                         "--xml-structrec-library-file form (e.g. Library.xml)"
+                         " (default: bundled XMLs)")
 
 
 def _add_output_format_arg(sp: argparse.ArgumentParser) -> None:
