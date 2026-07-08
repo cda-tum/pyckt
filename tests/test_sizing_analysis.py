@@ -347,6 +347,27 @@ class TestPerformanceModels:
                 if d.name in analysis.result.devices:
                     assert analysis.result.devices[d.name].vov >= 100  # mV
 
+    # ── issue #49: solved DC operating point + capacitor values ──────
+
+    def test_net_voltages_exported(self, perf):
+        """Every circuit net gets a solved DC value: the rails and pinned
+        inputs at their given voltages, internal nets from the solver."""
+        analysis, _, _ = perf
+        volts = analysis.result.net_voltages
+        params = analysis.circuit_info.parameters
+        assert volts[params.supply_voltage[0]] == params.supply_voltage[1]
+        assert volts[params.ground[0]] == params.ground[1]
+        assert volts[params.input_plus[0]] == params.input_plus[1]
+        assert volts[params.input_minus[0]] == params.input_minus[1]
+        # one entry per circuit net (16 on the cascoded OTA, as acst emits)
+        assert len(volts) == len(analysis.circuit.nets)
+        vdd = params.supply_voltage[1]
+        assert all(0.0 <= v <= vdd for v in volts.values())
+
+    def test_load_capacitor_exported(self, perf):
+        analysis, _, _ = perf
+        assert analysis.result.capacitors == {"cl": 20.0}
+
     def test_balanced_objective_over_satisfies(self, perf):
         # §8d objective swap: the acst-style maximised multi-objective produces a
         # *balanced* design that clears the gain spec by a comfortable margin
