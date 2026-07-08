@@ -14,7 +14,7 @@ comparison; ordinals/order/whitespace/rail-renaming normalised).
     --gallery <fuboco-gallery checkout> --report reports/FUBOCO_GALLERY_REPORT.md
 ```
 
-## Verdict (this run: post #34 — capacitor typing)
+## Verdict (this run: 2026-07-08, `jrad` post #47–#50 — numbers unchanged since #34)
 
 **Effectively complete gallery parity.**
 
