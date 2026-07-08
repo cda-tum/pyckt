@@ -20,6 +20,7 @@ from .constraints import (
     SizingRuleConstraints,
     SpecConstraints,
     TransistorConstraints,
+    VoltageCouplingConstraints,
 )
 from .variables import SizingVariableRegistry
 
@@ -140,6 +141,13 @@ class SizingProblem:
         # ── Step 4: KCL constraints ──────────────────────────────────
         kcl = KCLConstraints(circuit, reg)
         problem.constraints.extend(kcl.as_constraints())
+
+        # ── Step 4b: device ↔ net voltage coupling ───────────────────
+        # Ties every Vgs/Vds to the net-voltage variables so shared-gate
+        # structures (mirrors, bias chains) behave physically; without it
+        # the solver can starve whole branches of current (issue #2).
+        vc = VoltageCouplingConstraints(circuit, reg, params, supply_mv)
+        problem.constraints.extend(vc.as_constraints())
 
         # ── Step 5: Sizing-rule constraints ──────────────────────────
         src = SizingRuleConstraints(rules, reg)

@@ -484,6 +484,123 @@ class SaturationCondition(Constraint):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  Device ↔ net voltage coupling
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class DeviceVoltageCoupling(Constraint):
+    r"""Tie a device's $V_{GS}$/$V_{DS}$ magnitudes to its net voltages.
+
+    NMOS: $V_{GS} = V(g) - V(s)$, $V_{DS} = V(d) - V(s)$;
+    PMOS: $V_{GS} = V(s) - V(g)$, $V_{DS} = V(s) - V(d)$ (magnitudes, matching
+    the positive per-device variables and the |Vth| convention).
+
+    Without this layer the net-voltage variables are disconnected from the
+    transistor operating points — shared-gate mirrors don't mirror, and the
+    solver can starve the output branch of current while "satisfying" every
+    per-device equation.  C++ ref: ``NetToIntVarMap`` +
+    ``TransistorConstraintsSHM`` edge voltages.
+    """
+
+    def __init__(
+        self,
+        tv: TransistorVariables,
+        is_pmos: bool,
+        gate: SizingVariable | int,
+        drain: SizingVariable | int,
+        source: SizingVariable | int,
+    ) -> None:
+        self.tv = tv
+        self.is_pmos = is_pmos
+        self.gate = gate
+        self.drain = drain
+        self.source = source
+
+    def description(self) -> str:
+        kind = "PMOS" if self.is_pmos else "NMOS"
+        return f"{self.tv.device_name}: {kind} Vgs/Vds ↔ net voltages"
+
+    def post(self, solver: object) -> None:
+        var = getattr(solver, "var", None)
+        if var is None:
+            raise TypeError("Solver adapter must implement `var()`")
+
+        def net(v):
+            return v if isinstance(v, int) else var(v)
+
+        sign = -1 if self.is_pmos else 1
+        # Vgs = sign·(V(g) − V(s));  Vds = sign·(V(d) − V(s))
+        _solver_call(
+            solver, "add_raw_constraint",
+            var(self.tv.vgs) == sign * (net(self.gate) - net(self.source)),
+        )
+        _solver_call(
+            solver, "add_raw_constraint",
+            var(self.tv.vds) == sign * (net(self.drain) - net(self.source)),
+        )
+
+
+class VoltageCouplingConstraints:
+    """Generate the Vgs/Vds ↔ net coupling for every MOSFET.
+
+    Supply nets contribute their fixed rail value; the spec'd DC inputs
+    (``InputPinMinus``/``InputPinPlus``) are pinned to their given voltage.
+    """
+
+    def __init__(
+        self,
+        circuit: Circuit,
+        variables: SizingVariableRegistry,
+        params: CircuitParameter,
+        supply_mv: int,
+    ) -> None:
+        self.circuit = circuit
+        self.variables = variables
+        self.params = params
+        self.supply_mv = supply_mv
+
+    def as_constraints(self) -> list[Constraint]:
+        from core.device import DeviceType, PinType, TechType
+
+        constraints: list[Constraint] = []
+
+        pinned: dict[str, int] = {}
+        for net_name, volts in (self.params.input_minus,
+                                self.params.input_plus):
+            if net_name:
+                pinned[net_name] = int(volts * 1000)
+        for net_name, mv in pinned.items():
+            vv = self.variables.voltages.get(net_name)
+            if vv is not None:
+                constraints.append(BoundsConstraint(
+                    vv.var, mv, mv, f"DC input: V({net_name}) = {mv} mV",
+                ))
+
+        def net_ref(net) -> SizingVariable | int:
+            if net.is_power():
+                return self.supply_mv if net.is_vdd() else 0
+            vv = self.variables.voltages.get(net.name)
+            return vv.var if vv is not None else 0
+
+        for dev in self.circuit.devices:
+            if dev.device_type != DeviceType.MOSFET:
+                continue
+            if dev.name not in self.variables.transistors:
+                continue
+            tv = self.variables.get_transistor(dev.name)
+            try:
+                gate = net_ref(dev.get_net(PinType.GATE))
+                drain = net_ref(dev.get_net(PinType.DRAIN))
+                source = net_ref(dev.get_net(PinType.SOURCE))
+            except Exception:
+                continue
+            constraints.append(DeviceVoltageCoupling(
+                tv, dev.tech_type == TechType.P, gate, drain, source,
+            ))
+        return constraints
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  KCL constraints
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -736,16 +853,36 @@ class SpecConstraints:
 
         if out_devs:
             # A_v = gm_in / g_out, where g_out is the small-signal conductance
-            # at the OUTPUT node (the cascoded output devices, with low gds) —
-            # NOT the input pair's own gds.  Putting the diff-pair gds in the
-            # denominator (the old formulation) forced its overdrive ~0, which
-            # capped the tail current and broke the slew-rate spec.
-            # Post:  gm_in - gain * Σ gds_out >= 0
-            terms: list[tuple[int, SizingVariable]] = [(1, gm_in)]
-            for dev in out_devs:
-                terms.append((-gain_int,
-                              self.variables.get_transistor(dev.name).gds))
-            constraints.append(LinearConstraint(terms, ">=", 0))
+            # at the OUTPUT node.  For a cascoded output branch the effective
+            # conductance is gds_casc·gds_bottom/gm_casc, NOT the raw gds —
+            # acst composes it this way (createGainConstraintFirstStage), and
+            # on the reference OTA the flat Σgds understates the gain by
+            # ~52 dB, which previously forced the solver to inflate gm_in
+            # (and with it f_T) to absurd values to fake the gain spec.
+            from .topology import output_branches
+            branches = output_branches(
+                self.circuit, self.params.output_net,
+                self.variables.transistors,
+            )
+            if branches and any(bottom is not None for _, bottom in branches):
+                constraints.append(CascodeGainConstraint(
+                    gm_in,
+                    [
+                        (self.variables.get_transistor(casc.name),
+                         self.variables.get_transistor(bottom.name)
+                         if bottom is not None else None)
+                        for casc, bottom in branches
+                    ],
+                    gain_int,
+                    f"cascode gain >= {self.specs.min_gain} dB",
+                ))
+            else:
+                # Post:  gm_in - gain * Σ gds_out >= 0
+                terms: list[tuple[int, SizingVariable]] = [(1, gm_in)]
+                for dev in out_devs:
+                    terms.append((-gain_int,
+                                  self.variables.get_transistor(dev.name).gds))
+                constraints.append(LinearConstraint(terms, ">=", 0))
         else:
             # fall back to the single-device approximation when the output node
             # cannot be resolved (no circuit context)
@@ -833,6 +970,24 @@ class SpecConstraints:
                 tv.current, max(tv.current.lower, per_dev), tv.current.upper,
                 f"SR: I({dev.name}) >= {per_dev} nA for SR >= {sr} V/μs",
             ))
+
+        # C_L slews with the *output branch* current (acst calculateSlewRate
+        # uses the currents that reach the output) — the mirror ratio can
+        # otherwise starve the output branch while the tail satisfies the
+        # input-side bound above.
+        from .topology import output_node_devices
+        out_devs = output_node_devices(
+            self.circuit, self.params.output_net, self.variables.transistors,
+        )
+        if out_devs:
+            per_branch = -(-i_tail_min // 2)  # both branches drive C_L
+            for dev in out_devs:
+                tv = self.variables.get_transistor(dev.name)
+                constraints.append(BoundsConstraint(
+                    tv.current, max(tv.current.lower, per_branch),
+                    tv.current.upper,
+                    f"SR: I({dev.name}) >= {per_branch} nA (output branch)",
+                ))
         return constraints
 
     # ── Power ────────────────────────────────────────────────────────
@@ -955,6 +1110,68 @@ class GainConstraint(Constraint):
             ">=",
             0,
         )
+
+
+class CascodeGainConstraint(Constraint):
+    r"""$g_{m,in} \ge \text{gain} \cdot \sum_b g_{\text{eff},b}$ with cascode branches.
+
+    For a cascoded output branch, $g_{\text{eff}} = g_{ds,c} \cdot g_{ds,b} /
+    g_{m,c}$ — encoded without division as
+    $g_{\text{eff}} \cdot g_{m,c} \ge g_{ds,c} \cdot g_{ds,b}$
+    (the maximisation direction of the gain reward keeps $g_{\text{eff}}$
+    tight against the bound).  A non-cascoded branch contributes its raw
+    ``gds``.  C++ ref: ``createGainConstraintFirstStage``.
+    """
+
+    def __init__(
+        self,
+        gm_in: SizingVariable,
+        branches: list[tuple[TransistorVariables, TransistorVariables | None]],
+        gain_linear: int,
+        label: str = "",
+    ) -> None:
+        self.gm_in = gm_in
+        self.branches = branches
+        self.gain_linear = gain_linear
+        self.label = label
+
+    def description(self) -> str:
+        return self.label or f"{self.gm_in.name} >= {self.gain_linear} · Σ g_eff"
+
+    def post(self, solver: object) -> None:
+        var = getattr(solver, "var", None)
+        if var is None:
+            raise TypeError("Solver adapter must implement `var()`")
+        g_eff_vars = []
+        linear_gds: list[SizingVariable] = []
+        for casc_tv, bottom_tv in self.branches:
+            if bottom_tv is None:
+                linear_gds.append(casc_tv.gds)
+                continue
+            # g_eff · gm_casc == gds_casc · gds_bottom
+            g_eff = _solver_call(
+                solver, "tmp_var", 0, casc_tv.gds.upper, "gain_geff",
+            )
+            prod = _solver_call(
+                solver, "tmp_var",
+                0, casc_tv.gds.upper * bottom_tv.gds.upper, "gain_gds2",
+            )
+            lhs = _solver_call(
+                solver, "tmp_var",
+                0, casc_tv.gds.upper * casc_tv.gm.upper, "gain_geff_gm",
+            )
+            _solver_call(solver, "add_multiplication",
+                         prod, var(casc_tv.gds), var(bottom_tv.gds))
+            _solver_call(solver, "add_multiplication",
+                         lhs, g_eff, var(casc_tv.gm))
+            _solver_call(solver, "add_raw_constraint", lhs >= prod)
+            g_eff_vars.append(g_eff)
+        expr = var(self.gm_in)
+        for g_eff in g_eff_vars:
+            expr = expr - self.gain_linear * g_eff
+        for gds in linear_gds:
+            expr = expr - self.gain_linear * var(gds)
+        _solver_call(solver, "add_raw_constraint", expr >= 0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

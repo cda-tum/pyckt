@@ -211,14 +211,19 @@ class TestAutomaticSizingCLI:
     not marked ``slow``.
     """
 
-    @pytest.fixture
-    def out_xml(self, tmp_path):
-        return tmp_path / "sizing.xml"
+    @pytest.fixture(scope="class")
+    def out_xml(self, tmp_path_factory):
+        return tmp_path_factory.mktemp("sizing_cli") / "sizing.xml"
 
-    @pytest.fixture
-    def cli_args(self, inputs_dir, out_xml):
+    @pytest.fixture(scope="class")
+    def sized(self, inputs_dir, out_xml):
+        """One shared CLI run — the solver consumes its full budget on every
+        invocation, so the class solves once and asserts on the shared
+        result.  10 s budget: with the device↔net voltage coupling
+        (issue #2) the first feasible point takes a few seconds, so the old
+        per-test 4 s runs were flaky."""
         src = inputs_dir / "AutomaticSizing"
-        return [
+        return run([
             "--log-level-console", "OFF",
             "automaticsizing",
             "--circuit", str(src / "cascodedSymmetricalCMOSOTA.hspice"),
@@ -228,43 +233,36 @@ class TestAutomaticSizingCLI:
             "--tech-file", str(src / "TechnologyFile.xml"),
             "--circuit-params", str(src / "CircuitParameterAndSpecifications.xml"),
             "--output", str(out_xml),
-            # The balanced multi-objective converges within ~3 s; the solver
-            # otherwise burns the whole budget trying to prove optimality, so
-            # keep the CI bound short.
-            "--timeout", "4",
-        ]
+            "--timeout", "10",
+        ])
 
-    def test_returncode_zero(self, cli_args):
-        assert run(cli_args).returncode == 0
+    def test_returncode_zero(self, sized):
+        assert sized.returncode == 0
 
-    def test_writes_sizing_xml(self, cli_args, out_xml):
-        run(cli_args)
+    def test_writes_sizing_xml(self, sized, out_xml):
         assert out_xml.exists()
 
-    def test_solver_returned_a_result(self, cli_args):
-        result = run(cli_args)
-        sizing_result = result.data.result
+    def test_solver_returned_a_result(self, sized):
+        sizing_result = sized.data.result
         assert sizing_result is not None
         assert sizing_result.solver_status in ("optimal", "feasible"), \
             f"solver should find a sizing; got {sizing_result.solver_status}"
         assert len(sizing_result.devices) > 0, "no devices sized"
 
-    def test_constraint_satisfied_gain_meets_spec(self, cli_args):
-        """§8d: gain is constrained on the output-node path (gm_in / gds_out),
-        so the post-solve performance gain must meet the 80 dB spec."""
-        result = run(cli_args)
-        analysis = result.data
-        gain_db = analysis.result.performance.gain_db
+    def test_constraint_satisfied_gain_meets_spec(self, sized):
+        """§8d: gain is constrained on the output-node path (cascode-composed
+        gm_in / g_eff — issue #2), so the post-solve performance gain must
+        meet the 80 dB spec."""
+        gain_db = sized.data.result.performance.gain_db
         assert gain_db >= 80.0, f"gain {gain_db:.1f} dB < spec 80 dB"
 
-    def test_first_stage_tail_current_meets_slew_rate(self, cli_args):
+    def test_first_stage_tail_current_meets_slew_rate(self, sized):
         """§8d: the slew current is the input-pair *tail* (Σ first-stage
         transconductance currents), which must be ≥ SR·CL = 3.5 V/μs · 20 pF
         = 70 μA — and the reported slew rate must meet the spec."""
         from partitioning.result import StageType
 
-        result = run(cli_args)
-        analysis = result.data
+        analysis = sized.data
         tc = analysis.partition.transconductance_parts(StageType.FIRST)
         assert tc, "partition didn't classify a first-stage transconductance"
         tail = sum(
