@@ -72,17 +72,28 @@ The model bugs this required fixing (each ~50–200% off before):
 
 ## Solver outcome (300 s CP-SAT, spec: gain≥80, Ft≥2.75, SR≥3.5, PM≥60)
 
-| metric | acst | pyckt before | Δ before | pyckt after | Δ after |
+Re-measured 2026-07-08 on `jrad` post #47–#50; the plateau is stable
+run-to-run (±few % on every metric).
+
+| metric | acst 2021 ref | pyckt before #2 | Δ before | pyckt now | Δ now |
 |---|---:|---:|---:|---:|---:|
-| Gain (dB) | 90.0 | 91.3 | +1.4% | 90.3 | +0.3% |
+| Gain (dB) | 90.0 | 91.3 | +1.4% | 90.4 | +0.4% |
 | Slew rate (V/µs) | 22.5 | 24.5 | +8.8% | 24.5 | +8.8% |
 | Power (mW) | 6.12 | 7.53 | +23% | 9.5 | +55% |
-| Min output V | 0.67 | 0.13 | −80% | 0.71 | +5.8% |
+| Min output V | 0.67 | 0.13 | −80% | 0.71 | +5.4% |
 | Max output V | 4.25 | — | — | 3.55 | −16% |
 | Transit freq (MHz) | 6.93 | 23.1 | +233% | 18.7 | +171% |
-| Phase margin (°) | 60.7 | 87.2 | +43.5% | 86.6 | +42.6% |
-| Area (µm²) | 10868 | 207 | −98% | 375 | −96.5% |
+| Phase margin (°) | 60.7 | 87.2 | +43.5% | 86.5 | +42.5% |
+| Area (µm²) | 10868 | 207 | −98% | 374 | −96.6% |
 | Devices at min width | — | 11/18 | | **0/18** | |
+
+Since #50 the estimator also computes the AC/range metrics (CMRR — which
+matches acst's fresh run to **0.0 %** — PSRR and the common-mode input
+range), and #49 exports the solved per-net DC operating point.  The
+CM-range numbers exposed one remaining constraint gap: pyckt *computes*
+vcmMin/vcmMax but does not *post* acst's CM-range constraint, and the
+solved design violates the fixture's vcmMin spec (2.29 V > 2.0 V) —
+tracked as [#56](https://github.com/Firas-Jrad/pyckt/issues/56).
 
 Every spec is met, the "valid but minimal" degenerate design is gone
 (no device sits at the 1 µm floor, currents are in acst's regime,
@@ -92,7 +103,15 @@ numbers to ~1% when given acst's design.
 ## Residual gap and its cause
 
 The remaining Ft/PM/area/power deltas are **not model error** — they are two
-optimizers parking in different corners of the same 90 dB feasible surface:
+optimizers parking in different corners of the same 90 dB feasible surface.
+This is now *measured*, not just argued: re-running **the same acst binary on
+the same inputs with the same `--runtime 5`** (2026-07-08) produced a design
+differing from its own 2021 reference by 6.7 % gain, **63 % power**, 34 %
+area, **58 % Ft**, 40 % slew, 28 % PM — with per-device ΔW mean 107 % / max
+841 %. Both acst runs meet every spec. pyckt's deltas vs any single acst run
+are comparable to acst's own run-to-run spread on most metrics.
+
+In detail:
 
 - acst's endpoint is a **search artifact**: Gecode branches on random W/L
   values, accepts the first spec-satisfying solution, then takes 1%-better
