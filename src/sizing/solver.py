@@ -586,7 +586,7 @@ class SizingSolver:
 		vout_max = vdd - (vov_p_mv / 1000.0 if vov_p_mv else 0.0)
 		vout_min = vov_n_mv / 1000.0 if vov_n_mv else 0.0
 
-		return ExpectedPerformance(
+		perf = ExpectedPerformance(
 			gain_db=gain_db,
 			transit_freq_mhz=ft_mhz,
 			slew_rate=slew_rate,
@@ -596,6 +596,122 @@ class SizingSolver:
 			vout_min_v=vout_min,
 			vout_max_v=vout_max,
 		)
+		self._ac_metrics(perf, result, circuit, info, partition, gain_db, gm_in)
+		return perf
+
+	# ── AC / common-mode metrics (issue #50) ──────────────────────────
+
+	def _ac_metrics(self, perf, result, circuit, info, partition,
+	                gain_db, gm_in) -> None:
+		"""CMRR, PSRR and common-mode input range (acst's models).
+
+		Ports the post-solve value side of acst's
+		``calculateCMRR`` / ``calculateNegPSRR`` / ``calculatePosPSRR`` /
+		``calculateCommonModeInputVoltage``
+		(CircuitSpecificationsConstraints.cpp), each validated against the
+		reference design's reported values (133 dB / 46 / 55 / 4.24 V /
+		1.15 V).  The formulas apply to the mirror-OTA shape acst derives
+		them for; when a piece cannot be resolved topologically the metric
+		stays ``None`` and the writer omits it — the same behaviour as
+		acst's ``hasCMRR()``-style guards.
+		"""
+		pieces = self._first_stage_pieces(result, circuit, info, partition)
+		if pieces is None or gain_db <= 0 or gm_in <= 0:
+			return
+		d_in, tail, load, casc, bias2 = pieces
+		vdd = self._supply_voltage(info)
+		vss = float(info.parameters.ground[1]) if info.parameters.ground[0] else 0.0
+
+		s_in, s_tail, s_load = (result.devices[d.name] for d in (d_in, tail, load))
+		gain_lin = 10.0 ** (gain_db / 20.0)
+
+		# CMRR = opAmpGain · 2·gm(load diode) / gds(tail)     [dB]
+		if s_load.gm > 0 and s_tail.gds > 0:
+			perf.cmrr_db = 20.0 * math.log10(
+				gain_lin * 2.0 * s_load.gm / s_tail.gds)
+
+		# PSRR needs the (opposite-tech) mirrored output branch and its
+		# cascode-gate bias diode
+		if casc is not None:
+			s_casc = result.devices[casc.name]
+			a1 = gm_in / s_load.gm if s_load.gm > 0 else 0.0  # diode-loaded A1
+			if a1 > 0 and s_casc.gm > 0 and s_casc.gds > 0:
+				perf.pos_psrr_deg = 20.0 * math.log10(
+					a1 * s_casc.gm / s_casc.gds)
+			if (a1 > 0 and bias2 is not None
+					and s_load.gm > 0 and s_casc.gm > 0):
+				s_b2 = result.devices[bias2.name]
+				denom = abs(2.0 * s_load.gm * s_b2.gds
+				            - s_casc.gm * s_tail.gds)
+				if denom > 0:
+					perf.neg_psrr_deg = 20.0 * math.log10(
+						2.0 * a1 * s_load.gm * s_casc.gm / denom)
+
+		# common-mode input range: the Vgs stack from the input gate down
+		# the bias path (tail) and up the load path (mirror diode)
+		from core.device import TechType
+		tech = info.technology
+		if d_in.tech_type == TechType.N:
+			vth_in = abs(tech.nmos.threshold_voltage)
+			perf.min_cm_input_v = (vss + s_in.vov / 1e3 + s_tail.vgs / 1e3)
+			perf.max_cm_input_v = (vdd + vth_in - s_load.vgs / 1e3)
+		else:
+			vth_in = abs(tech.pmos.threshold_voltage)
+			perf.max_cm_input_v = (vdd - s_in.vov / 1e3 - s_tail.vgs / 1e3)
+			perf.min_cm_input_v = (vss - vth_in + s_load.vgs / 1e3)
+
+	def _first_stage_pieces(self, result, circuit, info, partition):
+		"""Resolve (input, tail, load diode, output cascode, its bias diode).
+
+		All topological: the tail's drain sits on the pair's common-source
+		net; the load mirror diode is gate-and-drain-connected on an
+		input-pair drain; the primary output branch is the opposite-tech
+		cascode from :func:`output_branches`; its bias diode drives the
+		cascode gate.  Returns ``None`` when the shape doesn't match.
+		"""
+		from core.device import DeviceType, PinType
+
+		from .topology import input_pair_devices, output_branches
+
+		def net(dev, pin):
+			try:
+				return dev.get_net(pin).name
+			except Exception:
+				return None
+
+		ins = [d for d in input_pair_devices(partition)
+		       if d.name in result.devices]
+		if not ins:
+			return None
+		d_in = ins[0]
+		mosfets = [d for d in circuit.devices
+		           if d.device_type == DeviceType.MOSFET
+		           and d.name in result.devices]
+
+		src_net = net(d_in, PinType.SOURCE)
+		tail = next((d for d in mosfets
+		             if d is not d_in and net(d, PinType.DRAIN) == src_net),
+		            None)
+
+		pair_drains = {net(d, PinType.DRAIN) for d in ins}
+		load = next((d for d in mosfets
+		             if net(d, PinType.DRAIN) in pair_drains
+		             and net(d, PinType.GATE) == net(d, PinType.DRAIN)),
+		            None)
+		if tail is None or load is None:
+			return None
+
+		casc = next((c for c, _bottom in output_branches(
+			circuit, info.parameters.output_net, result.devices)
+			if c.tech_type != d_in.tech_type), None)
+		bias2 = None
+		if casc is not None:
+			casc_gate = net(casc, PinType.GATE)
+			bias2 = next((d for d in mosfets
+			              if net(d, PinType.DRAIN) == casc_gate
+			              and net(d, PinType.GATE) == casc_gate),
+			             None)
+		return d_in, tail, load, casc, bias2
 
 	# ── performance helpers ───────────────────────────────────────────
 
