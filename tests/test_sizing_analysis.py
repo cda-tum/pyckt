@@ -48,7 +48,8 @@ def test_resolve_structrec_library_dir(tmp_path: Path):
     f.write_text("<x/>")
 
     assert AutomaticSizingAnalysis._resolve_structrec_library_dir(str(d)) == d
-    assert AutomaticSizingAnalysis._resolve_structrec_library_dir(str(f)) == d
+    # issue #47: wrapper files pass through unchanged
+    assert AutomaticSizingAnalysis._resolve_structrec_library_dir(str(f)) == f
 
 
 def test_initialize_populates_pipeline(monkeypatch, tmp_path: Path):
@@ -98,7 +99,7 @@ def test_initialize_populates_pipeline(monkeypatch, tmp_path: Path):
     class FakeLibrary:
         @staticmethod
         def from_directory(path):
-            assert Path(path) == tmp_path
+            assert Path(path) == tmp_path / "Library.xml"
             return library
 
     class FakeStructureRecognizer:

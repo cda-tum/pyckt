@@ -152,11 +152,13 @@ class TestResolveLibDir:
         from recognition.analysis import _resolve_lib_dir
         assert _resolve_lib_dir(str(tmp_path)) == tmp_path
 
-    def test_returns_parent_when_given_file(self, tmp_path):
+    def test_passes_file_through(self, tmp_path):
+        # issue #47: Library.from_directory accepts wrapper files directly,
+        # so the helper no longer strips the filename
         from recognition.analysis import _resolve_lib_dir
-        f = tmp_path / "AnalogLibrary.xml"
+        f = tmp_path / "Library.xml"
         f.write_text("<root/>")
-        assert _resolve_lib_dir(str(f)) == tmp_path
+        assert _resolve_lib_dir(str(f)) == f
 
     def test_returns_none_when_given_none(self):
         from recognition.analysis import _resolve_lib_dir

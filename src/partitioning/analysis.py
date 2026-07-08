@@ -156,7 +156,6 @@ class PartitioningAnalysis(AbstractAnalysis):
 
     @staticmethod
     def _resolve_lib_dir(path_str: str | None) -> Path | None:
-        if path_str is None:
-            return None
-        path = Path(path_str)
-        return path if path.is_dir() else path.parent
+        # Library.from_directory accepts a directory or a wrapper-file path
+        # (issue #47), so pass the argument through unchanged.
+        return Path(path_str) if path_str is not None else None

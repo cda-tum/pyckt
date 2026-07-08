@@ -1,9 +1,12 @@
- 
+<!-- acst wrapper-library form (--xml-structrec-library-file).  The original
+     acst file references ../../StructRec/xml/... (acst's tree layout); here
+     the references resolve to the bundled pyckt library so the fixture is
+     loadable in-repo (issue #47). -->
 <library>
 	<arrayLibraries>
-		<arrayLibraryFile>../../StructRec/xml/Array/ArrayLibrary.xml</arrayLibraryFile>
+		<arrayLibraryFile>../../../../src/data/structrec/Array/ArrayLibrary.xml</arrayLibraryFile>
 	</arrayLibraries>
 	<pairLibraries>
-		<pairLibraryFile>../../StructRec/xml/Analog/AnalogLibrary.xml</pairLibraryFile>
+		<pairLibraryFile>../../../../src/data/structrec/Analog/AnalogLibrary.xml</pairLibraryFile>
 	</pairLibraries>
 </library>

@@ -133,7 +133,6 @@ class AutomaticSizingAnalysis(AbstractAnalysis):
 
     @staticmethod
     def _resolve_structrec_library_dir(path_str: str) -> Path:
-        path = Path(path_str)
-        if path.is_dir():
-            return path
-        return path.parent
+        # Library.from_directory accepts a directory or a wrapper-file path
+        # (issue #47), so pass the argument through unchanged.
+        return Path(path_str)
