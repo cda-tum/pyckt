@@ -8,6 +8,7 @@ Provides:
 from __future__ import annotations
 
 import json
+import shutil
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -316,6 +317,12 @@ class TopologyLibrary:
         root = Path(dir_path)
         root.mkdir(parents=True, exist_ok=True)
 
+        # the category directories are wholly owned by this writer — clear
+        # stale files from earlier runs (whose counts/ids may differ) so the
+        # directory always reflects exactly this library (issue #48)
+        for cat in {spec.category() for spec in self.topologies.values()}:
+            shutil.rmtree(root / cat, ignore_errors=True)
+
         for spec in self.topologies.values():
             cat_dir = root / spec.category()
             cat_dir.mkdir(parents=True, exist_ok=True)
@@ -374,19 +381,35 @@ class TopologyLibrary:
         root.mkdir(parents=True, exist_ok=True)
         writer = AcstNetlistWriter()
 
+        # the category directories are wholly owned by this writer — clear
+        # stale files from earlier runs (whose counts may differ) so the
+        # directory always reflects exactly this library (issue #48)
+        for cat in {spec.acst_category() for spec in self.topologies.values()}:
+            shutil.rmtree(root / cat, ignore_errors=True)
+
         per_prefix: Counter[str] = Counter()
         per_category: Counter[str] = Counter()
+        seen: set[tuple] = set()
 
         for spec in sorted(self.topologies.values(), key=lambda s: s.id):
             circuit = self.circuits.get(spec.id)
             if circuit is None:
                 continue  # unconverted topology — nothing to serialise
 
+            cat = spec.acst_category()
+            # acst emits exactly one file per distinct topology; the generated
+            # library carries structural duplicates (30 one-stage + 360
+            # two-stage single-output variants), so de-duplicate on the
+            # name-independent netlist content (issue #48)
+            key = (cat, writer.content_key(circuit))
+            if key in seen:
+                continue
+            seen.add(key)
+
             prefix = spec.acst_name_prefix()
             per_prefix[prefix] += 1
             name = f"{prefix}{per_prefix[prefix]}"
 
-            cat = spec.acst_category()
             cat_dir = root / cat
             cat_dir.mkdir(parents=True, exist_ok=True)
             writer.write(circuit, cat_dir / f"{name}.ckt", name=name)

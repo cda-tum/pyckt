@@ -310,12 +310,31 @@ class AcstNetlistWriter:
             :attr:`DEFAULT_PORTS`.
         """
         macro_name = name or circuit.name
-        port_list = list(ports) if ports is not None else list(self.DEFAULT_PORTS)
+        key = self.content_key(circuit, ports=ports)
 
-        lines: list[str] = [f".suckt  {macro_name} " + " ".join(port_list)]
-        lines.extend(self._format_device_line(d) for d in circuit.devices)
+        lines: list[str] = [f".suckt  {macro_name} {key[0]}"]
+        lines.extend(key[1:])
         lines.append(f".end {macro_name}")
         Path(filepath).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def content_key(
+        self,
+        circuit: Circuit,
+        *,
+        ports: tuple[str, ...] | list[str] | None = None,
+    ) -> tuple[str, ...]:
+        """Name-independent serialisation of *circuit*.
+
+        The first element is the joined port list, the rest are the device
+        lines — exactly the netlist :meth:`write` emits minus the
+        ``.suckt``/``.end`` name lines.  Two topologies with equal keys
+        serialise to identical netlists up to the macro name, which is how
+        :meth:`~synthesis.library.TopologyLibrary.to_acst_directory`
+        de-duplicates structural duplicates at emission (issue #48).
+        """
+        port_list = list(ports) if ports is not None else list(self.DEFAULT_PORTS)
+        return (" ".join(port_list),
+                *(self._format_device_line(d) for d in circuit.devices))
 
     def _format_device_line(self, device: Device) -> str:
         """Format one device line.
