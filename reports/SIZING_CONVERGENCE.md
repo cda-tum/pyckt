@@ -90,10 +90,14 @@ run-to-run (±few % on every metric).
 Since #50 the estimator also computes the AC/range metrics (CMRR — which
 matches acst's fresh run to **0.0 %** — PSRR and the common-mode input
 range), and #49 exports the solved per-net DC operating point.  The
-CM-range numbers exposed one remaining constraint gap: pyckt *computes*
-vcmMin/vcmMax but does not *post* acst's CM-range constraint, and the
-solved design violates the fixture's vcmMin spec (2.29 V > 2.0 V) —
-tracked as [#56](https://github.com/Firas-Jrad/pyckt/issues/56).
+CM-range numbers initially exposed a constraint gap — pyckt computed
+vcmMin/vcmMax but did not *post* acst's CM-range constraint, and the
+solved design violated the fixture's vcmMin spec (2.29 V > 2.0 V).
+Fixed in [#56](https://github.com/Firas-Jrad/pyckt/issues/56): the
+Vgs-stack bounds are now posted as spec constraints, and the solved
+design reports vcmMin **1.45 V** (≤ 2.0 ✓, near acst's 1.27) and
+vcmMax **3.84 V** (≥ 3.0 ✓) — satisfied by construction at every
+feasible point.
 
 Every spec is met, the "valid but minimal" degenerate design is gone
 (no device sits at the 1 µm floor, currents are in acst's regime,
