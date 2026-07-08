@@ -661,57 +661,13 @@ class SizingSolver:
 			perf.min_cm_input_v = (vss - vth_in + s_load.vgs / 1e3)
 
 	def _first_stage_pieces(self, result, circuit, info, partition):
-		"""Resolve (input, tail, load diode, output cascode, its bias diode).
-
-		All topological: the tail's drain sits on the pair's common-source
-		net; the load mirror diode is gate-and-drain-connected on an
-		input-pair drain; the primary output branch is the opposite-tech
-		cascode from :func:`output_branches`; its bias diode drives the
-		cascode gate.  Returns ``None`` when the shape doesn't match.
-		"""
-		from core.device import DeviceType, PinType
-
-		from .topology import input_pair_devices, output_branches
-
-		def net(dev, pin):
-			try:
-				return dev.get_net(pin).name
-			except Exception:
-				return None
-
-		ins = [d for d in input_pair_devices(partition)
-		       if d.name in result.devices]
-		if not ins:
-			return None
-		d_in = ins[0]
-		mosfets = [d for d in circuit.devices
-		           if d.device_type == DeviceType.MOSFET
-		           and d.name in result.devices]
-
-		src_net = net(d_in, PinType.SOURCE)
-		tail = next((d for d in mosfets
-		             if d is not d_in and net(d, PinType.DRAIN) == src_net),
-		            None)
-
-		pair_drains = {net(d, PinType.DRAIN) for d in ins}
-		load = next((d for d in mosfets
-		             if net(d, PinType.DRAIN) in pair_drains
-		             and net(d, PinType.GATE) == net(d, PinType.DRAIN)),
-		            None)
-		if tail is None or load is None:
-			return None
-
-		casc = next((c for c, _bottom in output_branches(
-			circuit, info.parameters.output_net, result.devices)
-			if c.tech_type != d_in.tech_type), None)
-		bias2 = None
-		if casc is not None:
-			casc_gate = net(casc, PinType.GATE)
-			bias2 = next((d for d in mosfets
-			              if net(d, PinType.DRAIN) == casc_gate
-			              and net(d, PinType.GATE) == casc_gate),
-			             None)
-		return d_in, tail, load, casc, bias2
+		"""Resolve (input, tail, load diode, output cascode, its bias diode)
+		among the *solved* devices — see :func:`topology.first_stage_pieces`."""
+		from .topology import first_stage_pieces
+		return first_stage_pieces(
+			circuit, partition, result.devices,
+			output_net=info.parameters.output_net,
+		)
 
 	# ── performance helpers ───────────────────────────────────────────
 
