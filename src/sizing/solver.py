@@ -458,7 +458,42 @@ class SizingSolver:
 			objective_value=objective_value,
 		)
 		result.performance = self._estimate_performance(result)
+		result.net_voltages = self._extract_net_voltages(solver, adapter)
+		result.capacitors = self._extract_capacitors()
 		return result
+
+	def _extract_net_voltages(self, solver: Any, adapter: CPSATAdapter) -> dict[str, float]:
+		"""Solved DC operating point per net [V], including the fixed rails.
+
+		The solver carries one voltage variable per non-supply net (coupled to
+		every device's Vgs/Vds); the rails come from the circuit parameters so
+		the emitted ``<Voltages>`` section lists every net, as acst's does
+		(issue #49).
+		"""
+		voltages = {
+			name: solver.Value(adapter.var(vv.var)) / 1000.0
+			for name, vv in self.problem.variables.voltages.items()
+		}
+		info = getattr(self.problem, "circuit_info", None)
+		if info is not None:
+			for net, volts in (info.parameters.supply_voltage,
+			                   info.parameters.ground):
+				if net:
+					voltages[net] = float(volts)
+		return voltages
+
+	def _extract_capacitors(self) -> dict[str, float]:
+		"""Capacitor values [pF] for the acst ``<Capacitors>`` section.
+
+		pyckt has no capacitor-sizing variables yet: the load capacitors are
+		fixed circuit parameters, which is also the value acst reports for
+		them (issue #49).
+		"""
+		info = getattr(self.problem, "circuit_info", None)
+		if info is None:
+			return {}
+		return {name: float(value)
+		        for name, value in info.parameters.load_capacities}
 
 	@staticmethod
 	def _safe_solver_stat(solver: Any, name: str, default: Any) -> Any:
