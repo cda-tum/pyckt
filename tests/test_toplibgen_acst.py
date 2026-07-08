@@ -167,9 +167,11 @@ class TestToAcstDirectory:
 
     def test_running_index_per_prefix(self, tmp_path):
         lib = TopologyLibrary()
-        for i in (1, 2, 3):
+        # distinct circuits (different gate nets) — identical ones would be
+        # de-duplicated at emission (issue #48)
+        for i, net in ((1, "in1"), (2, "in2"), (3, "ibias")):
             lib.add(_spec(i, stages=1), _one_device_circuit(
-                _mosfet("M1", TechType.N, {PinType.GATE: "in1"})))
+                _mosfet("M1", TechType.N, {PinType.GATE: net})))
         lib.to_acst_directory(str(tmp_path))
         names = sorted(p.name for p in
                        (tmp_path / "SingleOutputOpAmps").glob("*.ckt"))
@@ -178,6 +180,36 @@ class TestToAcstDirectory:
             "one_stage_single_output_op_amp2.ckt",
             "one_stage_single_output_op_amp3.ckt",
         ]
+
+    def test_structural_duplicates_deduplicated(self, tmp_path):
+        """acst emits one file per distinct topology: entries serialising to
+        the same name-independent netlist are written once (issue #48)."""
+        lib = TopologyLibrary()
+        for i in (1, 2, 3):  # three identical circuits
+            lib.add(_spec(i, stages=1), _one_device_circuit(
+                _mosfet("M1", TechType.N, {PinType.GATE: "in1"})))
+        lib.add(_spec(4, stages=1), _one_device_circuit(
+            _mosfet("M1", TechType.N, {PinType.GATE: "in2"})))  # distinct
+        counts = lib.to_acst_directory(str(tmp_path))
+        assert counts == {"SingleOutputOpAmps": 2}
+        names = sorted(p.name for p in
+                       (tmp_path / "SingleOutputOpAmps").glob("*.ckt"))
+        assert names == [
+            "one_stage_single_output_op_amp1.ckt",
+            "one_stage_single_output_op_amp2.ckt",
+        ]
+
+    def test_stale_files_cleared_before_write(self, tmp_path):
+        """Re-running into the same directory replaces the category dirs
+        instead of mixing stale files from earlier runs (issue #48 — the
+        2026-07-08 comparison found 1 795 + 1 134 June leftovers)."""
+        stale = tmp_path / "SingleOutputOpAmps" / "one_stage_single_output_op_amp99.ckt"
+        stale.parent.mkdir(parents=True)
+        stale.write_text("stale")
+        self._lib().to_acst_directory(str(tmp_path))
+        assert not stale.exists()
+        assert (tmp_path / "SingleOutputOpAmps"
+                / "one_stage_single_output_op_amp1.ckt").exists()
 
     def test_unconverted_circuits_are_skipped(self, tmp_path):
         lib = TopologyLibrary()
@@ -259,8 +291,13 @@ class TestAcstEndToEnd:
         analysis.compute()
         analysis.write()
 
+        # one file per *distinct* topology (issue #48): the generated library
+        # carries 390 structural duplicates (30 one-stage + 360 two-stage
+        # single-output), so the emission matches acst's 3912-file reference
+        # set rather than library.size() == 4302
         ckt = list(tmp_path.rglob("*.ckt"))
-        assert len(ckt) == analysis.library.size()
+        assert len(ckt) == 3912
+        assert len(ckt) == analysis.library.size() - 390
         for cat in ("SingleOutputOpAmps", "FullyDifferentialOpAmps",
                     "ComplementaryOpAmps"):
             assert (tmp_path / cat).is_dir()
