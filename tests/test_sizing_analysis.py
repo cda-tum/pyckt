@@ -487,3 +487,16 @@ class TestModelValidationAgainstAcstReference:
     def test_output_swing_matches_reference(self, estimated):
         assert estimated.vout_min_v == pytest.approx(0.670, abs=0.05)
         assert estimated.vout_max_v == pytest.approx(4.25, abs=0.05)
+
+    # ── issue #50: AC / common-mode metrics ───────────────────────────
+
+    def test_cmrr_matches_reference(self, estimated):
+        assert estimated.cmrr_db == pytest.approx(133.0, abs=1.5)
+
+    def test_psrr_matches_reference(self, estimated):
+        assert estimated.pos_psrr_deg == pytest.approx(55.0, abs=1.5)
+        assert estimated.neg_psrr_deg == pytest.approx(46.0, abs=1.5)
+
+    def test_cm_input_range_matches_reference(self, estimated):
+        assert estimated.max_cm_input_v == pytest.approx(4.24, abs=0.05)
+        assert estimated.min_cm_input_v == pytest.approx(1.15, abs=0.05)
