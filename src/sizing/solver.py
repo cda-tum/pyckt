@@ -117,7 +117,7 @@ class CPSATAdapter:
 		"""Build the maximised normalized objective; return False if not possible."""
 		import math as _math
 
-		from .topology import input_pair_devices, output_node_devices
+		from .topology import input_pair_devices, output_branches, output_node_devices
 
 		partition = getattr(self.problem, "partition", None)
 		circuit = getattr(self.problem, "circuit", None)
@@ -145,28 +145,63 @@ class CPSATAdapter:
 			max(1, int(specs.max_power / vdd * 1e6))
 			if specs.max_power > 0 else 100_000_000
 		)
+		# power = Vdd · supply current: count each branch once via the
+		# devices hanging off the supply rail (acst calculatePowerConsumption).
+		# Summing *every* device double-counts series stacks and, capped at
+		# the spec, silently excludes acst's whole operating region.
+		supply_devs = self._supply_rail_device_names(circuit, info)
+		power_terms = [self.var(tx[d].current) for d in supply_devs if d in tx]
+		if not power_terms:
+			power_terms = [self.var(tx[d].current) for d in tx]
 		current_total = self.tmp_var(0, power_max_na, "obj_power")
-		self.model.Add(
-			current_total == sum(self.var(tx[d].current) for d in tx)
-		)
+		self.model.Add(current_total == sum(power_terms))
 
 		gm_in = self.var(tx[in_devs[0].name].gm)
 
+		# output conductance with the same cascode composition as the gain
+		# constraint (g_eff·gm_casc >= gds_casc·gds_bottom per branch) — an
+		# aggregate over *raw* gds overstates the conductance of a cascoded
+		# output by orders of magnitude and, combined with the gain reward,
+		# demands an impossible gm_in (spurious infeasibility).
 		gds_out = self.tmp_var(1, 100_000_000, "obj_gds_out")
+		branch_terms = []
+		for casc, bottom in output_branches(
+				circuit, info.parameters.output_net, tx):
+			casc_tv = tx[casc.name]
+			if bottom is None:
+				branch_terms.append(self.var(casc_tv.gds))
+				continue
+			bot_tv = tx[bottom.name]
+			g_eff = self.tmp_var(0, casc_tv.gds.upper, "obj_geff")
+			prod = self.tmp_var(
+				0, casc_tv.gds.upper * bot_tv.gds.upper, "obj_gds2")
+			lhs = self.tmp_var(
+				0, casc_tv.gds.upper * casc_tv.gm.upper, "obj_geff_gm")
+			self.add_multiplication(
+				prod, self.var(casc_tv.gds), self.var(bot_tv.gds))
+			self.add_multiplication(lhs, g_eff, self.var(casc_tv.gm))
+			self.model.Add(lhs >= prod)
+			branch_terms.append(g_eff)
+		self.model.Add(gds_out == sum(branch_terms))
+
+		# the load cap slews with the *output branch* current (acst's
+		# calculateSlewRate); rewarding the input tail lets the mirror
+		# ratio starve the output branch
+		i_slew = self.tmp_var(0, 1_000_000_000, "obj_i_slew")
 		self.model.Add(
-			gds_out == sum(self.var(tx[d.name].gds) for d in out_devs)
+			i_slew == sum(self.var(tx[d.name].current) for d in out_devs)
 		)
 
-		i_tail = self.tmp_var(0, 1_000_000_000, "obj_i_tail")
-		self.model.Add(
-			i_tail == sum(self.var(tx[d.name].current) for d in in_devs)
-		)
-
-		# faithful gain ratio:  gm_in == gain_var * gds_out  ⇒  gain_var = gm_in/gds_out
+		# gain ratio as an *inequality*: gain_var·gds_out <= gm_in, so
+		# gain_var rides at floor(gm_in/gds_out).  An equality would force
+		# gm_in to be an exact integer multiple of gds_out — a divisibility
+		# trap that cripples CP-SAT's search on an otherwise-feasible model.
 		gain_min_lin = max(1, round(10 ** (specs.min_gain / 20.0))) if specs.min_gain > 0 else 1
 		gain_max_lin = max(gain_min_lin + 1, round(10 ** ((specs.min_gain + 10) / 20.0)))
 		gain_var = self.tmp_var(0, gain_max_lin, "obj_gain")
-		self.add_multiplication(gm_in, gain_var, gds_out)
+		gain_prod = self.tmp_var(0, gain_max_lin * 100_000_000, "obj_gain_prod")
+		self.add_multiplication(gain_prod, gain_var, gds_out)
+		self.model.Add(gain_prod <= gm_in)
 
 		# Normalisation caps set near acst's operating point (gain +10 dB,
 		# Ft ×3, slew ×7 of spec).  Each objective term is a *clamped* reward in
@@ -176,21 +211,41 @@ class CPSATAdapter:
 		# performance.
 		gm_ft_min = max(1, _math.ceil(2 * _math.pi * specs.min_transit_freq * cl_pf * 1e3)) \
 			if specs.min_transit_freq > 0 else 1
-		i_sr_min = max(1, _math.ceil(specs.max_slew_rate * cl_pf * 1e3)) \
-			if specs.max_slew_rate > 0 else 1
 		gm_ft_max = gm_ft_min * 3
-		i_tail_max = i_sr_min * 7
+		# both output branches drive C_L: SR = 2·I_branch/C_L
+		i_slew_min = max(1, _math.ceil(specs.max_slew_rate * cl_pf * 1e3)) \
+			if specs.max_slew_rate > 0 else 1
+		i_slew_max = i_slew_min * 7
 
 		SCALE = 1000
 		rewards = [
 			self._reward_term("gain", gain_var, gain_min_lin, gain_max_lin, SCALE, up=True),
 			self._reward_term("ft", gm_in, gm_ft_min, gm_ft_max, SCALE, up=True),
-			self._reward_term("slew", i_tail, i_sr_min, i_tail_max, SCALE, up=True),
+			self._reward_term("slew", i_slew, i_slew_min, i_slew_max, SCALE, up=True),
 			self._reward_term("area", area_total, 0, area_max, SCALE, up=False),
 			self._reward_term("power", current_total, 0, power_max_na, SCALE, up=False),
 		]
 		self.model.Maximize(sum(rewards))
 		return True
+
+	@staticmethod
+	def _supply_rail_device_names(circuit, info) -> list[str]:
+		"""Names of MOSFETs with a source/drain pin on the supply rail."""
+		from core.device import DeviceType, PinType
+		supply_net = info.parameters.supply_voltage[0]
+		names: list[str] = []
+		for dev in circuit.devices:
+			if dev.device_type != DeviceType.MOSFET:
+				continue
+			for pin in (PinType.SOURCE, PinType.DRAIN):
+				try:
+					net = dev.get_net(pin)
+				except Exception:
+					continue
+				if net.name == supply_net:
+					names.append(dev.name)
+					break
+		return names
 
 	def _reward_term(self, label, value_var, lo, hi, scale, up):
 		"""A clamped reward in ``[0, scale]`` (acst-style normalisation).
@@ -342,8 +397,14 @@ class SizingSolver:
 			self.build_model()
 		assert self._adapter is not None
 
-		strategy = SizingSearchStrategy(self._adapter, self.problem)
-		strategy.apply()
+		# The fixed min-value-first decision strategy biases every incumbent
+		# toward minimum device sizes and starves the optimisation phase;
+		# CP-SAT's default portfolio search climbs the objective far faster.
+		# Keep the deterministic ordering only for pure feasibility runs
+		# (no objective context).
+		if getattr(self.problem, "partition", None) is None:
+			strategy = SizingSearchStrategy(self._adapter, self.problem)
+			strategy.apply()
 
 		cp_model = self._adapter.cp_model
 		solver = cp_model.CpSolver()
@@ -446,28 +507,43 @@ class SizingSolver:
 
 		vdd = self._supply_voltage(info)
 		cl_pf = self._load_cap_pf(info)
-		power_mw = result.total_current_na / 1e6 * vdd
 
 		if partition is None or circuit is None or info is None:
+			power_mw = result.total_current_na / 1e6 * vdd
 			return self._coarse_performance(result, power_mw, total_area)
+
+		# supply current counts each branch once (the devices hanging off the
+		# supply rail, plus the external bias) — summing every device's Id
+		# double-counts stacked branches (acst calculatePowerConsumption)
+		power_mw = self._supply_current_na(result, circuit, info) / 1e6 * vdd
 
 		# input-pair transconductance and tail current (first stage)
 		gm_in = self._input_gm(result, partition)
 		i_tail_na = self._tail_current_na(result, partition)
-		# output-node small-signal conductance
+		# output-node small-signal conductance (cascode-composed) and swing
 		gds_out, vov_p_mv, vov_n_mv = self._output_node(result, circuit, info)
+		# mirror scaling factor B of the symmetrical OTA: the ratio of the
+		# output-branch current to one input-branch current (acst's
+		# computeScalingFactorForSymmetricalOTA); 1.0 when unresolvable.
+		i_out_na = self._output_branch_current_na(result, circuit, info)
+		b_factor = 1.0
+		if i_tail_na > 0 and i_out_na > 0:
+			b_factor = i_out_na / (i_tail_na / 2.0)
 
 		gain_db = 0.0
 		if gm_in > 0 and gds_out > 0:
-			gain_db = 20.0 * math.log10(max(gm_in / gds_out, 1e-9))
+			gain_db = 20.0 * math.log10(max(b_factor * gm_in / gds_out, 1e-9))
 
 		ft_mhz = 0.0
 		if gm_in > 0 and cl_pf > 0:
-			ft_mhz = gm_in / (2.0 * math.pi * cl_pf) * 1e-3
+			ft_mhz = b_factor * gm_in / (2.0 * math.pi * cl_pf) * 1e-3
 
+		# the load cap slews with the *output branch* current (acst's
+		# calculateSlewRate uses the currents that reach the output)
 		slew_rate = 0.0
-		if i_tail_na > 0 and cl_pf > 0:
-			slew_rate = i_tail_na / cl_pf * 1e-3  # V/µs
+		i_slew_na = 2.0 * i_out_na if i_out_na > 0 else i_tail_na
+		if i_slew_na > 0 and cl_pf > 0:
+			slew_rate = i_slew_na / cl_pf * 1e-3  # V/µs
 
 		phase_margin = self._phase_margin_deg(result, partition, gm_in, cl_pf)
 
@@ -531,27 +607,66 @@ class SizingSolver:
 		return float(sum(currents)) if currents else 0.0
 
 	def _output_node(self, result, circuit, info):
-		"""(sum gds at output net [nA/V], pmos Vov [mV], nmos Vov [mV])."""
-		from core.device import DeviceType, PinType, TechType
+		"""(effective conductance at output net [nA/V], pmos/nmos Vov [mV]).
+
+		A cascoded output branch contributes gds_casc·gds_bottom/gm_casc
+		(acst's composition), a plain branch its raw gds.
+		"""
+		from core.device import TechType
+
+		from .topology import output_branches
 		out_net = info.parameters.output_net
 		gds_sum = 0.0
 		vov_p = vov_n = 0
-		for dev in circuit.devices:
-			if dev.device_type != DeviceType.MOSFET:
-				continue
-			try:
-				drain = dev.get_net(PinType.DRAIN)
-			except Exception:
-				continue
-			if drain.name != out_net or dev.name not in result.devices:
-				continue
-			sized = result.devices[dev.name]
-			gds_sum += sized.gds
-			if dev.tech_type == TechType.P:
-				vov_p = max(vov_p, sized.vov)
-			elif dev.tech_type == TechType.N:
-				vov_n = max(vov_n, sized.vov)
+		for casc, bottom in output_branches(circuit, out_net, result.devices):
+			sized = result.devices[casc.name]
+			if bottom is not None and sized.gm > 0:
+				bot = result.devices[bottom.name]
+				gds_sum += sized.gds * bot.gds / sized.gm
+			else:
+				gds_sum += sized.gds
+			# the branch limits the swing with its *stacked* overdrives
+			# (Vov_casc + Vov_bottom), acst's Min/MaximumOutputVoltage
+			stack_vov = sized.vov + (
+				result.devices[bottom.name].vov if bottom is not None else 0
+			)
+			if casc.tech_type == TechType.P:
+				vov_p = max(vov_p, stack_vov)
+			elif casc.tech_type == TechType.N:
+				vov_n = max(vov_n, stack_vov)
 		return gds_sum, vov_p, vov_n
+
+	def _output_branch_current_na(self, result, circuit, info) -> float:
+		"""One output branch's drain current [nA] (max over output devices)."""
+		from .topology import output_node_devices
+		out_net = info.parameters.output_net
+		currents = [result.devices[d.name].current
+		            for d in output_node_devices(circuit, out_net, result.devices)]
+		return float(max(currents)) if currents else 0.0
+
+	def _supply_current_na(self, result, circuit, info) -> float:
+		"""Current drawn from the supply rail [nA]: branch currents of devices
+		with a source/drain pin on the supply net, plus the external bias."""
+		from core.device import DeviceType, PinType
+		supply_net = info.parameters.supply_voltage[0]
+		total = 0.0
+		seen = False
+		for dev in circuit.devices:
+			if dev.device_type != DeviceType.MOSFET or dev.name not in result.devices:
+				continue
+			for pin in (PinType.SOURCE, PinType.DRAIN):
+				try:
+					net = dev.get_net(pin)
+				except Exception:
+					continue
+				if net.name == supply_net:
+					total += result.devices[dev.name].current
+					seen = True
+					break
+		if not seen:
+			return float(result.total_current_na)
+		bias_ua = info.parameters.bias_current[1] if info.parameters.bias_current else 0.0
+		return total + bias_ua * 1e3
 
 	def _phase_margin_deg(self, result, partition, gm_in, cl_pf) -> float:
 		"""First-order two-pole PM: dominant output pole + mirror pole.

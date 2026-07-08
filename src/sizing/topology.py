@@ -56,3 +56,46 @@ def output_node_devices(
         except Exception:
             continue
     return devices
+
+
+def output_branches(
+    circuit: "Circuit | None",
+    output_net: str | None,
+    known_names: Iterable[str] | None = None,
+) -> list[tuple["Device", "Device | None"]]:
+    """Output branches as ``(output_device, bottom_device_or_None)`` pairs.
+
+    A branch is *cascoded* when the output device's source is an internal net
+    carrying the drain of a same-tech transistor (the bottom device): its
+    small-signal conductance is then ``gds_casc·gds_bottom/gm_casc`` instead
+    of the raw ``gds`` — the composition acst's gain constraint uses, and the
+    difference between ~38 dB and ~90 dB on a cascoded OTA.
+    """
+    from core.device import DeviceType, PinType
+
+    branches: list[tuple[Device, Device | None]] = []
+    if circuit is None:
+        return branches
+    names = set(known_names) if known_names is not None else None
+    for casc in output_node_devices(circuit, output_net, known_names):
+        bottom = None
+        try:
+            src_net = casc.get_net(PinType.SOURCE)
+        except Exception:
+            src_net = None
+        if src_net is not None and not src_net.is_power():
+            for dev in circuit.devices:
+                if dev is casc or dev.device_type != DeviceType.MOSFET:
+                    continue
+                if names is not None and dev.name not in names:
+                    continue
+                if dev.tech_type != casc.tech_type:
+                    continue
+                try:
+                    if dev.get_net(PinType.DRAIN).name == src_net.name:
+                        bottom = dev
+                        break
+                except Exception:
+                    continue
+        branches.append((casc, bottom))
+    return branches
