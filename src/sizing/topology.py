@@ -99,3 +99,67 @@ def output_branches(
                     continue
         branches.append((casc, bottom))
     return branches
+
+
+def first_stage_pieces(
+    circuit: "Circuit | None",
+    partition,
+    known_names: Iterable[str] | None = None,
+    output_net: str | None = None,
+) -> tuple | None:
+    """Resolve ``(input, tail, load diode, output cascode, its bias diode)``.
+
+    All topological: the tail's drain sits on the input pair's common-source
+    net; the load mirror diode is gate-and-drain-connected on an input-pair
+    drain; the primary output branch is the opposite-tech cascode from
+    :func:`output_branches`; its bias diode drives the cascode gate.  The
+    last two require *output_net* and come back ``None`` without it.
+    Returns ``None`` when the first-stage shape doesn't match.  Shared by the
+    performance estimator (#50) and the CM-range spec constraints (#56).
+    """
+    from core.device import DeviceType, PinType
+
+    if circuit is None:
+        return None
+    names = set(known_names) if known_names is not None else None
+
+    def net(dev, pin):
+        try:
+            return dev.get_net(pin).name
+        except Exception:
+            return None
+
+    ins = [d for d in input_pair_devices(partition)
+           if names is None or d.name in names]
+    if not ins:
+        return None
+    d_in = ins[0]
+    mosfets = [d for d in circuit.devices
+               if d.device_type == DeviceType.MOSFET
+               and (names is None or d.name in names)]
+
+    src_net = net(d_in, PinType.SOURCE)
+    tail = next((d for d in mosfets
+                 if d is not d_in and net(d, PinType.DRAIN) == src_net),
+                None)
+
+    pair_drains = {net(d, PinType.DRAIN) for d in ins}
+    load = next((d for d in mosfets
+                 if net(d, PinType.DRAIN) in pair_drains
+                 and net(d, PinType.GATE) == net(d, PinType.DRAIN)),
+                None)
+    if tail is None or load is None:
+        return None
+
+    casc = bias2 = None
+    if output_net:
+        casc = next((c for c, _bottom in output_branches(
+            circuit, output_net, known_names)
+            if c.tech_type != d_in.tech_type), None)
+        if casc is not None:
+            casc_gate = net(casc, PinType.GATE)
+            bias2 = next((d for d in mosfets
+                          if net(d, PinType.DRAIN) == casc_gate
+                          and net(d, PinType.GATE) == casc_gate),
+                         None)
+    return d_in, tail, load, casc, bias2

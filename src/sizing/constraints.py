@@ -800,6 +800,7 @@ class SpecConstraints:
         constraints.extend(self._area_constraints())
         constraints.extend(self._swing_constraints())
         constraints.extend(self._overdrive_constraints())
+        constraints.extend(self._cm_range_constraints())
         return constraints
 
     # ── Minimum gate overdrive ───────────────────────────────────────
@@ -1049,6 +1050,70 @@ class SpecConstraints:
                         tv.vov, tv.vov.lower, vout_min_mv,
                         f"swing: {dev.name} Vov <= {vout_min_mv} mV",
                     ))
+        return constraints
+
+    # ── Common-mode input range ──────────────────────────────────────
+
+    def _cm_range_constraints(self) -> list[Constraint]:
+        r"""Constrain the common-mode input range to the spec (issue #56).
+
+        acst posts these via ``createCommonModeInputVoltageConstraint``: the
+        range endpoints are Vgs stacks over existing solver variables
+        (the same model the #50 estimator reports), required to reach
+        ``vin + Vcmmin`` / ``vin + Vcmmax``.  For an NMOS input pair:
+
+        * $V_{ov}(in) + V_{gs}(tail) \le v_{in} + V_{cmmin} - v_{ss}$
+        * $V_{gs}(load) \le v_{dd} + V_{th,in} - v_{in} - V_{cmmax}$
+
+        mirrored for a PMOS pair.  Skipped when the spec is absent or the
+        first-stage pieces don't resolve (same guards as the estimator).
+        """
+        from core.device import TechType
+
+        from .topology import first_stage_pieces
+
+        constraints: list[Constraint] = []
+        specs = self.specs
+        if specs.vcm_min == 0.0 and specs.vcm_max == 0.0:
+            return constraints
+        vin_net, vin = self.params.input_minus
+        if not vin_net:
+            return constraints
+        pieces = first_stage_pieces(
+            self.circuit, self.partition, self.variables.transistors)
+        if pieces is None:
+            return constraints
+        d_in, tail, load = pieces[0], pieces[1], pieces[2]
+
+        vdd_mv = int(self.params.supply_voltage[1] * 1000)
+        vss_mv = int(self.params.ground[1] * 1000)
+        vin_mv = int(vin * 1000)
+        vcmmin_mv = int(specs.vcm_min * 1000)
+        vcmmax_mv = int(specs.vcm_max * 1000)
+
+        tail_tv = self.variables.get_transistor(tail.name)
+        load_tv = self.variables.get_transistor(load.name)
+
+        if d_in.tech_type == TechType.N:
+            vth_in_mv = int(abs(self.tech.nmos.threshold_voltage) * 1000)
+            stack_bound = vin_mv + vcmmin_mv - vss_mv
+            load_bound = vdd_mv + vth_in_mv - vin_mv - vcmmax_mv
+        else:
+            vth_in_mv = int(abs(self.tech.pmos.threshold_voltage) * 1000)
+            stack_bound = vdd_mv - vin_mv - vcmmax_mv
+            load_bound = vin_mv + vcmmin_mv - vss_mv + vth_in_mv
+
+        from .topology import input_pair_devices
+        for dev in input_pair_devices(self.partition):
+            if dev.name not in self.variables.transistors:
+                continue
+            in_tv = self.variables.get_transistor(dev.name)
+            constraints.append(LinearConstraint(
+                [(1, in_tv.vov), (1, tail_tv.vgs)], "<=", stack_bound,
+            ))
+        constraints.append(LinearConstraint(
+            [(1, load_tv.vgs)], "<=", load_bound,
+        ))
         return constraints
 
     # ── Helpers ──────────────────────────────────────────────────────

@@ -347,6 +347,25 @@ class TestPerformanceModels:
                 if d.name in analysis.result.devices:
                     assert analysis.result.devices[d.name].vov >= 100  # mV
 
+    # ── issue #56: CM input range is constrained, not just reported ──
+
+    def test_cm_input_range_meets_spec(self, perf):
+        """The CM-range spec (±0.5 V around the 2.5 V input DC) is posted as
+        a constraint, so any feasible design satisfies it — previously the
+        metric was computed (#50) but unconstrained, and the solver violated
+        vcmMin (2.29 V > 2.0 V)."""
+        analysis, p, _ = perf
+        vin = analysis.circuit_info.parameters.input_minus[1]
+        specs = analysis.circuit_info.specifications
+        assert p.min_cm_input_v <= vin + specs.vcm_min + 1e-9
+        assert p.max_cm_input_v >= vin + specs.vcm_max - 1e-9
+
+    def test_cm_range_constraints_in_problem(self, perf):
+        analysis, _, _ = perf
+        descs = [c.description() for c in analysis.problem.constraints]
+        # the input-Vov + tail-Vgs stack bound (one per input device)
+        assert sum("_Vov" in d and "_Vgs" in d and "<=" in d for d in descs) >= 2
+
     # ── issue #49: solved DC operating point + capacitor values ──────
 
     def test_net_voltages_exported(self, perf):
