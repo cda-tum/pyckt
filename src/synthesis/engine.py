@@ -73,10 +73,22 @@ class SynthesisEngine:
         library: TopologyLibrary,
         specifications: Any,
         technology: Any = None,
+        circuit_parameter: Any = None,
+        sizing_timeout: float = 2.0,
+        max_candidates: int | None = None,
     ) -> None:
         self.library = library
         self.specifications = specifications
         self.technology = technology
+        #: Operating conditions for the *generated* topologies (rails, input
+        #: DC, bias current, load cap) — required for real sizing (#51).
+        self.circuit_parameter = circuit_parameter
+        #: Per-candidate CP-SAT budget [s] for the real sizing path.
+        self.sizing_timeout = sizing_timeout
+        #: Cap on how many filtered candidates are sized (None = all) — the
+        #: full single-output set is ~3.3k candidates, ~2 s each.
+        self.max_candidates = max_candidates
+        self._recognition_library = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -101,6 +113,8 @@ class SynthesisEngine:
             passes the filter or every sizing attempt returns ``None``.
         """
         candidates = self._filter_candidates()
+        if self.max_candidates is not None:
+            candidates = candidates[: self.max_candidates]
         if not candidates:
             _log.warning(
                 "SynthesisEngine.synthesize(): no candidates after filtering — "
@@ -156,20 +170,19 @@ class SynthesisEngine:
     def _size_topology(self, topo: TopologySpec) -> SizingResult | None:
         """Size one topology candidate and return a :class:`SizingResult`.
 
-        **Phase 3 implementation** — returns a stub result derived from
-        the topology metadata without invoking the full CP-SAT sizing
-        pipeline.  The stub estimates are intentionally simple so that
-        the ranking logic can be verified end-to-end in tests.
+        When the engine has the full context — the candidate's structural
+        circuit, technology parameters and operating conditions
+        (``circuit_parameter``) — this runs the **real sizing pipeline**
+        (recognise → partition → rules → CP-SAT, issue #51) with a
+        per-candidate budget of :attr:`sizing_timeout` seconds and ranks on
+        the solved performance.  Candidates whose solve finds no feasible
+        point within the budget return ``None`` and are excluded, exactly
+        as acst drops unsizable candidates (its reference run sized
+        868/2260).
 
-        Expected values (stub):
-
-        * ``gain_db``      = 60 dB + 10 dB × num_stages
-        * ``transit_freq_mhz`` = 1.0 MHz
-        * ``power_mw``     = 0.5 mW × num_stages
-        * ``total_area_um2`` = 800 μm² × num_stages + 200 μm² per cascoded block
-
-        Override this method (or subclass ``SynthesisEngine``) to plug in
-        the real sizing solver.
+        Without that context (bare engines in unit tests, metadata-only
+        libraries loaded from a pre-built directory) it falls back to the
+        Phase-3 stub estimate so the ranking machinery stays exercisable.
 
         Parameters
         ----------
@@ -182,6 +195,15 @@ class SynthesisEngine:
             A sizing result, or ``None`` if sizing is infeasible (the
             topology will be excluded from the ranked output).
         """
+        circuit = self.library.get_circuit(topo.id)
+        if (circuit is None or self.technology is None
+                or self.circuit_parameter is None):
+            return self._stub_sizing(topo)
+        return self._solve_topology(topo, circuit)
+
+    @staticmethod
+    def _stub_sizing(topo: TopologySpec) -> SizingResult:
+        """Phase-3 metadata-derived estimate (fallback path)."""
         num_cascoded = sum(1 for v in topo.has_cascode.values() if v)
         perf = ExpectedPerformance(
             gain_db=60.0 + 10.0 * topo.num_stages,
@@ -190,6 +212,62 @@ class SynthesisEngine:
             total_area_um2=800.0 * topo.num_stages + 200.0 * num_cascoded,
         )
         return SizingResult(solver_status="stub", performance=perf)
+
+    def _params_for(self, topo: TopologySpec):
+        """Operating conditions adjusted to the candidate's port shape."""
+        from dataclasses import replace
+
+        params = self.circuit_parameter
+        if topo.is_fully_differential:
+            params = replace(params, output_net="out1")
+        return params
+
+    def _solve_topology(
+        self, topo: TopologySpec, circuit: Any
+    ) -> SizingResult | None:
+        """Run recognise → partition → rules → CP-SAT on one candidate."""
+        from ckt_io.circuit_info_parser import CircuitInformation
+        from core.net import Supply
+        from partitioning.partitioner import Partitioner
+        from recognition.recognizer import StructureRecognizer
+        from recognition.rulegen import RuleGenerator
+        from sizing.problem import SizingProblem
+        from sizing.solver import SizingSolver
+
+        params = self._params_for(topo)
+        # generated circuits carry no supply flags — mark the rails so
+        # recognition and the device↔net voltage coupling see them
+        for net in circuit.nets:
+            if net.name == params.supply_voltage[0]:
+                net.supply = Supply.vdd()
+            elif net.name == params.ground[0]:
+                net.supply = Supply.gnd()
+
+        if self._recognition_library is None:
+            from recognition.library import Library
+            self._recognition_library = Library.from_directory(None)
+
+        try:
+            sc = StructureRecognizer(self._recognition_library).recognize(circuit)
+            partition = Partitioner(params).partition(sc)
+            rules = RuleGenerator().generate(sc)
+            info = CircuitInformation(
+                parameters=params,
+                specifications=self.specifications,
+                technology=self.technology,
+            )
+            problem = SizingProblem.build(circuit, partition, rules, info)
+            solver = SizingSolver(problem)
+            solver.timeout_seconds = self.sizing_timeout
+            result = solver.solve()
+        except Exception as exc:  # unsizable shape — drop the candidate
+            _log.debug("topology %d: sizing failed (%s)", topo.id, exc)
+            return None
+        if not result.devices:
+            _log.debug("topology %d: no feasible point within %.1f s",
+                       topo.id, self.sizing_timeout)
+            return None
+        return result
 
     def _compute_scores(
         self, pairs: list[tuple["TopologySpec", SizingResult]]
@@ -243,7 +321,9 @@ class SynthesisEngine:
         powers = _norm([p.power_mw for p in perfs],          invert=False)
         areas  = _norm([p.total_area_um2 for p in perfs],    invert=False)
         freqs  = _norm([p.transit_freq_mhz for p in perfs],  invert=True)
-        slews  = [0.5] * len(pairs)  # Phase 3: slew-rate not yet modelled
+        # real solved slew rates when the sizing pipeline produced them;
+        # the stub path leaves them at 0.0 → constant 0.5 contribution
+        slews  = _norm([p.slew_rate for p in perfs],         invert=True)
 
         return [
             gains[i] + powers[i] + areas[i] + freqs[i] + slews[i]

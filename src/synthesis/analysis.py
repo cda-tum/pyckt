@@ -55,9 +55,50 @@ class SynthesisAnalysis(AbstractAnalysis):
         super().__init__(args)
         self.specifications = None
         self.technology = None
+        self.circuit_parameter = None
         self.library: TopologyLibrary | None = None
         self.engine: SynthesisEngine | None = None
         self.results: list[tuple[TopologySpec, object]] = []
+
+    @staticmethod
+    def _parse_operating_parameters(spec_path):
+        """Build a :class:`CircuitParameter` for the *generated* topologies.
+
+        The synthesis ``CircuitSpecifications.xml`` carries the operating
+        conditions inline (``SupplyVoltage``/``GroundVoltage``/
+        ``InputVoltage``/``LoadCapacity``/``BiasCurrent``); the generated
+        circuits use the canonical port names (``ibias in1 in2 out
+        source_nmos source_pmos`` and ``Cap_load_1``).  Returns ``None``
+        when the tags are absent (non-synthesis spec files) — the engine
+        then falls back to stub sizing.
+        """
+        from ckt_io.circuit_info_parser import CircuitParameter, _read_xml
+
+        root = _read_xml(spec_path)
+        spec = root.find("Specifications")
+        if spec is None:
+            return None
+
+        def attr(tag, name):
+            el = spec.find(tag)
+            return float(el.get(name)) if el is not None and el.get(name) else None
+
+        vdd = attr("SupplyVoltage", "Vdd")
+        gnd = attr("GroundVoltage", "Gnd")
+        vin = attr("InputVoltage", "Vin")
+        cl = attr("LoadCapacity", "Cl")
+        ibias = attr("BiasCurrent", "Ibias")
+        if vdd is None or vin is None or cl is None:
+            return None
+        return CircuitParameter(
+            load_capacities=[("Cap_load_1", cl)],
+            supply_voltage=("source_pmos", vdd),
+            ground=("source_nmos", gnd if gnd is not None else 0.0),
+            bias_current=("ibias", ibias if ibias is not None else 0.0),
+            input_plus=("in1", vin),
+            input_minus=("in2", vin),
+            output_net="out",
+        )
 
     # ------------------------------------------------------------------
     # Phase 1 — initialize
@@ -97,6 +138,7 @@ class SynthesisAnalysis(AbstractAnalysis):
         from ckt_io.circuit_info_parser import parse_specifications
 
         self.specifications = parse_specifications(spec_path)
+        self.circuit_parameter = self._parse_operating_parameters(spec_path)
         _log.debug("Loaded specifications from %s", spec_path)
 
         # -- Technology (optional) ------------------------------------------
@@ -148,6 +190,9 @@ class SynthesisAnalysis(AbstractAnalysis):
             library=library,
             specifications=specs,
             technology=self.technology,
+            circuit_parameter=self.circuit_parameter,
+            sizing_timeout=float(getattr(self.args, "sizing_timeout", 2.0)),
+            max_candidates=getattr(self.args, "max_candidates", None),
         )
         self.results = self.engine.synthesize()
 
@@ -243,10 +288,13 @@ class SynthesisAnalysis(AbstractAnalysis):
                     "id": spec.id,
                     "name": spec.name,
                     "score": round(score, 6),
-                    "gain_db": p.gain_db,
-                    "power_mw": p.power_mw,
-                    "area_um2": p.total_area_um2,
-                    "transit_freq_mhz": p.transit_freq_mhz,
+                    "solver_status": sizing.solver_status,
+                    "gain_db": round(p.gain_db, 3),
+                    "power_mw": round(p.power_mw, 4),
+                    "area_um2": round(p.total_area_um2, 1),
+                    "transit_freq_mhz": round(p.transit_freq_mhz, 3),
+                    "slew_rate_v_us": round(p.slew_rate, 3),
+                    "phase_margin_deg": round(p.phase_margin_deg, 2),
                 }
             )
 
@@ -255,14 +303,19 @@ class SynthesisAnalysis(AbstractAnalysis):
         _log.info("Wrote synthesis summary → %s", json_path)
 
         # -- Per-topology CKT netlists ---------------------------------------
+        from sizing.writer import SizedCircuitWriter
+
         writer = AcstNetlistWriter()
         missing_circuits = 0
-        for rank, (spec, _sizing) in enumerate(results, start=1):
+        for rank, (spec, sizing) in enumerate(results, start=1):
             ckt_name = f"rank_{rank:03d}_topology_{spec.id:04d}.ckt"
             ckt_path = cand_dir / ckt_name
             circuit = library.get_circuit(spec.id)
             if circuit is not None:
                 writer.write(circuit, ckt_path, name=spec.name)
+                if getattr(sizing, "devices", None):
+                    # embed the solved W/L (acst's synthesis output is sized)
+                    SizedCircuitWriter(sizing).write(ckt_path, ckt_path)
             else:
                 missing_circuits += 1
                 ckt_path.write_text(

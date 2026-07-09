@@ -605,3 +605,76 @@ class TestSynthesisAnalysis:
         data = json.loads((out_dir / "synthesis_results.json").read_text())
         scores = [e["score"] for e in data]
         assert scores == sorted(scores)
+
+
+# ---------------------------------------------------------------------------
+# Real sizing path (issue #51)
+# ---------------------------------------------------------------------------
+
+class TestRealSizingPath:
+    """End-to-end candidate scoring through the real CP-SAT pipeline.
+
+    A small slice (4 candidates, 2 s budget each) keeps this CI-friendly;
+    the full single-output set is a multi-hour run like acst's reference
+    (2 260 candidates in 2 h 50 min → 868 sized).
+    """
+
+    @pytest.fixture(scope="class")
+    def synthesized(self, inputs_dir, tmp_path_factory):
+        from types import SimpleNamespace
+
+        from synthesis.analysis import SynthesisAnalysis
+
+        src = inputs_dir / "Synthesis"
+        out = tmp_path_factory.mktemp("synth51")
+        args = SimpleNamespace(
+            xml_spec_file=str(src / "CircuitSpecifications.xml"),
+            xml_tech_file=str(src / "TechnologieFile.xml"),
+            library_dir=None,
+            output_dir=str(out),
+            sizing_timeout=2.0,
+            max_candidates=4,
+        )
+        analysis = SynthesisAnalysis(args)
+        analysis.initialize()
+        analysis.compute()
+        analysis.write()
+        return analysis, out
+
+    def test_scores_derive_from_solved_performance(self, synthesized):
+        analysis, _ = synthesized
+        assert analysis.results, "no candidate survived sizing"
+        for _spec, sizing in analysis.results:
+            assert sizing.solver_status in ("optimal", "feasible")
+            assert sizing.devices, "real sizing must populate devices"
+            assert sizing.performance.gain_db > 0
+            assert sizing.performance.slew_rate > 0
+
+    def test_scores_vary_per_topology(self, synthesized):
+        analysis, out = synthesized
+        data = json.loads((out / "synthesis_results.json").read_text())
+        assert len({e["score"] for e in data}) > 1, "stub-uniform scores"
+        assert len({e["gain_db"] for e in data}) > 1
+
+    def test_summary_carries_solved_metrics(self, synthesized):
+        _, out = synthesized
+        data = json.loads((out / "synthesis_results.json").read_text())
+        top = data[0]
+        for key in ("solver_status", "slew_rate_v_us", "phase_margin_deg"):
+            assert key in top
+        assert top["solver_status"] in ("optimal", "feasible")
+
+    def test_candidate_netlists_are_sized(self, synthesized):
+        _, out = synthesized
+        first = sorted((out / "candidates").glob("rank_001_*.ckt"))[0]
+        text = first.read_text()
+        assert "W=" in text and "L=" in text, "netlist should embed solved W/L"
+
+    def test_operating_parameters_parsed_from_spec_file(self, synthesized):
+        analysis, _ = synthesized
+        params = analysis.circuit_parameter
+        assert params.supply_voltage == ("source_pmos", 5.0)
+        assert params.ground == ("source_nmos", 0.0)
+        assert params.load_capacities == [("Cap_load_1", 20.0)]
+        assert params.input_plus == ("in1", 2.5)
+        assert params.output_net == "out"

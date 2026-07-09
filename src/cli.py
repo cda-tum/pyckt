@@ -208,6 +208,16 @@ def _build_synthesis(sub) -> None:
                          "a fresh library is generated in memory")
     sp.add_argument("--output-dir", dest="output_dir", required=True,
                     help="Directory for ranked synthesis output")
+    sp.add_argument("--sizing-timeout", dest="sizing_timeout", type=float,
+                    default=2.0,
+                    help="Per-candidate CP-SAT budget in seconds (default: 2). "
+                         "Candidates without a feasible point in budget are "
+                         "dropped, as acst does.")
+    sp.add_argument("--max-candidates", dest="max_candidates", type=int,
+                    default=None,
+                    help="Size only the first N filtered candidates (default: "
+                         "all — the full single-output set is ~3.3k candidates "
+                         "at ~2s each, i.e. a multi-hour run like acst's)")
 
 
 def _build_toplibgen(sub) -> None:
