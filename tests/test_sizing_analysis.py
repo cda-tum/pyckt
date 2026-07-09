@@ -366,6 +366,17 @@ class TestPerformanceModels:
         # the input-Vov + tail-Vgs stack bound (one per input device)
         assert sum("_Vov" in d and "_Vgs" in d and "<=" in d for d in descs) >= 2
 
+    def test_single_stage_ota_has_no_second_stage(self, perf):
+        """The cascoded symmetrical OTA's mirror-driven output branch is a
+        current mirror, not a gain stage — the issue-#61 detector must not
+        fire on it (its gain/Ft would silently change otherwise)."""
+        from sizing.topology import second_stage_pieces
+
+        analysis, _, _ = perf
+        assert second_stage_pieces(
+            analysis.circuit, analysis.partition,
+            analysis.circuit_info.parameters.output_net) is None
+
     # ── issue #49: solved DC operating point + capacitor values ──────
 
     def test_net_voltages_exported(self, perf):

@@ -853,6 +853,28 @@ class SpecConstraints:
         gm_in = self.variables.get_transistor(tc_devs[0].name).gm
 
         if out_devs:
+            # A true second gain stage (issue #61): the total gain is the
+            # stage product A1·A2 — demanding the whole spec from
+            # gm_in/g_out(out) is physically impossible for two-stage
+            # candidates and made 69 acst-sized topologies provably
+            # infeasible.
+            from .topology import output_branches, second_stage_pieces
+            ss = second_stage_pieces(
+                self.circuit, self.partition, self.params.output_net,
+                self.variables.transistors,
+            )
+            if ss is not None:
+                gm2_dev, interstage = ss
+                constraints.append(TwoStageGainConstraint(
+                    gm_in,
+                    self.variables.get_transistor(gm2_dev.name).gm,
+                    self._branch_vars(interstage),
+                    self._branch_vars(self.params.output_net),
+                    gain_int,
+                    f"two-stage gain >= {self.specs.min_gain} dB",
+                ))
+                return constraints
+
             # A_v = gm_in / g_out, where g_out is the small-signal conductance
             # at the OUTPUT node.  For a cascoded output branch the effective
             # conductance is gds_casc·gds_bottom/gm_casc, NOT the raw gds —
@@ -860,7 +882,6 @@ class SpecConstraints:
             # on the reference OTA the flat Σgds understates the gain by
             # ~52 dB, which previously forced the solver to inflate gm_in
             # (and with it f_T) to absurd values to fake the gain spec.
-            from .topology import output_branches
             branches = output_branches(
                 self.circuit, self.params.output_net,
                 self.variables.transistors,
@@ -896,6 +917,18 @@ class SpecConstraints:
                     f"gain >= {self.specs.min_gain} dB",
                 ))
         return constraints
+
+    def _branch_vars(self, net: str):
+        """(casc_tv, bottom_tv|None) variable pairs for the branches at *net*."""
+        from .topology import output_branches
+
+        return [
+            (self.variables.get_transistor(casc.name),
+             self.variables.get_transistor(bottom.name)
+             if bottom is not None else None)
+            for casc, bottom in output_branches(
+                self.circuit, net, self.variables.transistors)
+        ]
 
     def _output_node_devices(self) -> list[Device]:
         """MOSFETs whose drain is on the output net (set the output resistance)."""
@@ -1237,6 +1270,87 @@ class CascodeGainConstraint(Constraint):
         for gds in linear_gds:
             expr = expr - self.gain_linear * var(gds)
         _solver_call(solver, "add_raw_constraint", expr >= 0)
+
+
+def _post_branch_conductance(solver, branches, label: str):
+    """Aux var ≥ the composed small-signal conductance of *branches* [nA/V].
+
+    Cascoded branches contribute ``gds_c·gds_b/gm_c`` (encoded without
+    division, as in :class:`CascodeGainConstraint`); plain branches their raw
+    ``gds``.  The sum is capped at 10⁷ nA/V (10 mA/V — physically generous)
+    to keep downstream conductance products inside int64.
+    """
+    var = getattr(solver, "var", None)
+    if var is None:
+        raise TypeError("Solver adapter must implement `var()`")
+    terms = []
+    for casc_tv, bottom_tv in branches:
+        if bottom_tv is None:
+            terms.append(var(casc_tv.gds))
+            continue
+        g_eff = _solver_call(solver, "tmp_var", 0, casc_tv.gds.upper,
+                             f"{label}_geff")
+        prod = _solver_call(solver, "tmp_var",
+                            0, casc_tv.gds.upper * bottom_tv.gds.upper,
+                            f"{label}_gds2")
+        lhs = _solver_call(solver, "tmp_var",
+                           0, casc_tv.gds.upper * casc_tv.gm.upper,
+                           f"{label}_geff_gm")
+        _solver_call(solver, "add_multiplication",
+                     prod, var(casc_tv.gds), var(bottom_tv.gds))
+        _solver_call(solver, "add_multiplication", lhs, g_eff, var(casc_tv.gm))
+        _solver_call(solver, "add_raw_constraint", lhs >= prod)
+        terms.append(g_eff)
+    total = _solver_call(solver, "tmp_var", 0, 10_000_000, f"{label}_gsum")
+    _solver_call(solver, "add_raw_constraint", total == sum(terms))
+    return total
+
+
+class TwoStageGainConstraint(Constraint):
+    r"""$g_{m,in}\,g_{m2} \ge 	ext{gain}\cdot g_1\,g_2$ (issue #61).
+
+    Two-stage total gain is the stage product $A_1 A_2 =
+    (g_{m,in}/g_1)(g_{m2}/g_2)$ — cross-multiplied to avoid division.
+    $g_1$/$g_2$ are the composed branch conductances at the interstage and
+    output nodes (cascode-aware, like :class:`CascodeGainConstraint`).
+    """
+
+    def __init__(
+        self,
+        gm_in: SizingVariable,
+        gm2: SizingVariable,
+        branches_1: list[tuple[TransistorVariables, TransistorVariables | None]],
+        branches_2: list[tuple[TransistorVariables, TransistorVariables | None]],
+        gain_linear: int,
+        label: str = "",
+    ) -> None:
+        self.gm_in = gm_in
+        self.gm2 = gm2
+        self.branches_1 = branches_1
+        self.branches_2 = branches_2
+        self.gain_linear = gain_linear
+        self.label = label
+
+    def description(self) -> str:
+        return self.label or (
+            f"{self.gm_in.name}·{self.gm2.name} >= {self.gain_linear}·g1·g2"
+        )
+
+    def post(self, solver: object) -> None:
+        var = getattr(solver, "var", None)
+        if var is None:
+            raise TypeError("Solver adapter must implement `var()`")
+        g1 = _post_branch_conductance(solver, self.branches_1, "ts_g1")
+        g2 = _post_branch_conductance(solver, self.branches_2, "ts_g2")
+        gm_prod = _solver_call(solver, "tmp_var",
+                               0, self.gm_in.upper * self.gm2.upper, "ts_gmgm")
+        g_prod = _solver_call(solver, "tmp_var",
+                              0, 10_000_000 ** 2, "ts_g1g2")
+        _solver_call(solver, "add_multiplication",
+                     gm_prod, var(self.gm_in), var(self.gm2))
+        _solver_call(solver, "add_multiplication", g_prod, g1, g2)
+        _solver_call(solver, "add_raw_constraint",
+                     gm_prod >= self.gain_linear * g_prod)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

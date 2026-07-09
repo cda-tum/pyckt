@@ -670,6 +670,45 @@ class TestRealSizingPath:
         text = first.read_text()
         assert "W=" in text and "L=" in text, "netlist should embed solved W/L"
 
+    # ── issue #61: two-stage candidates ───────────────────────────────
+
+    def test_two_stage_candidate_sizes_with_composed_gain(self, synthesized):
+        """Topology 67 (two-stage) was provably infeasible under the
+        single-stage gain model; with A1·A2 stage composition it sizes and
+        reports ≥ spec gain (issue #61)."""
+        from synthesis.engine import SynthesisEngine
+
+        analysis, _ = synthesized
+        spec = analysis.library.topologies[67]
+        assert spec.num_stages == 2
+        engine = SynthesisEngine(
+            analysis.library, analysis.specifications, analysis.technology,
+            circuit_parameter=analysis.circuit_parameter, sizing_timeout=5.0)
+        sizing = engine._solve_topology(spec, analysis.library.get_circuit(67))
+        assert sizing is not None, "two-stage candidate must size (was infeasible)"
+        assert sizing.performance.gain_db >= analysis.specifications.min_gain
+
+    def test_second_stage_detection(self, synthesized):
+        from core.net import Supply
+        from partitioning.partitioner import Partitioner
+        from recognition.library import Library
+        from recognition.recognizer import StructureRecognizer
+        from sizing.topology import second_stage_pieces
+
+        analysis, _ = synthesized
+        circuit = analysis.library.get_circuit(67)
+        for net in circuit.nets:
+            if net.name == "source_pmos":
+                net.supply = Supply.vdd()
+            elif net.name == "source_nmos":
+                net.supply = Supply.gnd()
+        sc = StructureRecognizer(Library.from_directory(None)).recognize(circuit)
+        partition = Partitioner(analysis.circuit_parameter).partition(sc)
+        ss = second_stage_pieces(circuit, partition, "out")
+        assert ss is not None
+        _, interstage = ss
+        assert interstage not in ("out", "source_nmos", "source_pmos")
+
     def test_operating_parameters_parsed_from_spec_file(self, synthesized):
         analysis, _ = synthesized
         params = analysis.circuit_parameter
