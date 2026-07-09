@@ -163,26 +163,45 @@ class CPSATAdapter:
 		# aggregate over *raw* gds overstates the conductance of a cascoded
 		# output by orders of magnitude and, combined with the gain reward,
 		# demands an impossible gm_in (spurious infeasibility).
-		gds_out = self.tmp_var(1, 100_000_000, "obj_gds_out")
-		branch_terms = []
-		for casc, bottom in output_branches(
-				circuit, info.parameters.output_net, tx):
-			casc_tv = tx[casc.name]
-			if bottom is None:
-				branch_terms.append(self.var(casc_tv.gds))
-				continue
-			bot_tv = tx[bottom.name]
-			g_eff = self.tmp_var(0, casc_tv.gds.upper, "obj_geff")
-			prod = self.tmp_var(
-				0, casc_tv.gds.upper * bot_tv.gds.upper, "obj_gds2")
-			lhs = self.tmp_var(
-				0, casc_tv.gds.upper * casc_tv.gm.upper, "obj_geff_gm")
+		def branch_sum(net, label):
+			terms = []
+			for casc, bottom in output_branches(circuit, net, tx):
+				casc_tv = tx[casc.name]
+				if bottom is None:
+					terms.append(self.var(casc_tv.gds))
+					continue
+				bot_tv = tx[bottom.name]
+				g_eff = self.tmp_var(0, casc_tv.gds.upper, f"{label}_geff")
+				prod = self.tmp_var(
+					0, casc_tv.gds.upper * bot_tv.gds.upper, f"{label}_gds2")
+				lhs = self.tmp_var(
+					0, casc_tv.gds.upper * casc_tv.gm.upper, f"{label}_geff_gm")
+				self.add_multiplication(
+					prod, self.var(casc_tv.gds), self.var(bot_tv.gds))
+				self.add_multiplication(lhs, g_eff, self.var(casc_tv.gm))
+				self.model.Add(lhs >= prod)
+				terms.append(g_eff)
+			total = self.tmp_var(0, 10_000_000, f"{label}_sum")
+			self.model.Add(total == sum(terms))
+			return total
+
+		# a true second gain stage makes the gain the stage product
+		# A1·A2 (issue #61): rate gain_var against gm_in·gm2 / (g1·g2)
+		from .topology import second_stage_pieces
+		ss = second_stage_pieces(circuit, partition,
+		                         info.parameters.output_net, tx)
+		if ss is not None:
+			gm2_dev, interstage = ss
+			g1 = branch_sum(interstage, "obj_g1")
+			g2 = branch_sum(info.parameters.output_net, "obj_g2")
+			gds_out = self.tmp_var(1, 10_000_000 ** 2, "obj_gds_out")
+			self.add_multiplication(gds_out, g1, g2)
+			gm_lhs = self.tmp_var(0, 10 ** 16, "obj_gmgm")
 			self.add_multiplication(
-				prod, self.var(casc_tv.gds), self.var(bot_tv.gds))
-			self.add_multiplication(lhs, g_eff, self.var(casc_tv.gm))
-			self.model.Add(lhs >= prod)
-			branch_terms.append(g_eff)
-		self.model.Add(gds_out == sum(branch_terms))
+				gm_lhs, gm_in, self.var(tx[gm2_dev.name].gm))
+		else:
+			gds_out = branch_sum(info.parameters.output_net, "obj_gout")
+			gm_lhs = gm_in
 
 		# the load cap slews with the *output branch* current (acst's
 		# calculateSlewRate); rewarding the input tail lets the mirror
@@ -199,9 +218,10 @@ class CPSATAdapter:
 		gain_min_lin = max(1, round(10 ** (specs.min_gain / 20.0))) if specs.min_gain > 0 else 1
 		gain_max_lin = max(gain_min_lin + 1, round(10 ** ((specs.min_gain + 10) / 20.0)))
 		gain_var = self.tmp_var(0, gain_max_lin, "obj_gain")
-		gain_prod = self.tmp_var(0, gain_max_lin * 100_000_000, "obj_gain_prod")
+		gain_prod = self.tmp_var(
+			0, min(gain_max_lin * (10 ** 14), 4 * 10 ** 18), "obj_gain_prod")
 		self.add_multiplication(gain_prod, gain_var, gds_out)
-		self.model.Add(gain_prod <= gm_in)
+		self.model.Add(gain_prod <= gm_lhs)
 
 		# Normalisation caps set near acst's operating point (gain +10 dB,
 		# Ft ×3, slew ×7 of spec).  Each objective term is a *clamped* reward in
@@ -557,17 +577,34 @@ class SizingSolver:
 		i_tail_na = self._tail_current_na(result, partition)
 		# output-node small-signal conductance (cascode-composed) and swing
 		gds_out, vov_p_mv, vov_n_mv = self._output_node(result, circuit, info)
-		# mirror scaling factor B of the symmetrical OTA: the ratio of the
-		# output-branch current to one input-branch current (acst's
-		# computeScalingFactorForSymmetricalOTA); 1.0 when unresolvable.
-		i_out_na = self._output_branch_current_na(result, circuit, info)
-		b_factor = 1.0
-		if i_tail_na > 0 and i_out_na > 0:
-			b_factor = i_out_na / (i_tail_na / 2.0)
 
-		gain_db = 0.0
-		if gm_in > 0 and gds_out > 0:
-			gain_db = 20.0 * math.log10(max(b_factor * gm_in / gds_out, 1e-9))
+		from .topology import second_stage_pieces
+		ss = second_stage_pieces(circuit, partition,
+		                         info.parameters.output_net, result.devices)
+		i_out_na = self._output_branch_current_na(result, circuit, info)
+
+		if ss is not None:
+			# true two-stage amplifier (issue #61): gain is the stage
+			# product A1·A2 and no mirror factor applies
+			gm2_dev, interstage = ss
+			g1 = self._composed_conductance(result, circuit, interstage)
+			gm2 = float(result.devices[gm2_dev.name].gm)
+			b_factor = 1.0
+			gain_db = 0.0
+			if gm_in > 0 and g1 > 0 and gm2 > 0 and gds_out > 0:
+				gain_db = 20.0 * math.log10(
+					max((gm_in / g1) * (gm2 / gds_out), 1e-9))
+		else:
+			# mirror scaling factor B of the symmetrical OTA: the ratio of
+			# the output-branch current to one input-branch current (acst's
+			# computeScalingFactorForSymmetricalOTA); 1.0 when unresolvable.
+			b_factor = 1.0
+			if i_tail_na > 0 and i_out_na > 0:
+				b_factor = i_out_na / (i_tail_na / 2.0)
+			gain_db = 0.0
+			if gm_in > 0 and gds_out > 0:
+				gain_db = 20.0 * math.log10(
+					max(b_factor * gm_in / gds_out, 1e-9))
 
 		ft_mhz = 0.0
 		if gm_in > 0 and cl_pf > 0:
@@ -713,25 +750,33 @@ class SizingSolver:
 		            for d in input_pair_devices(partition) if d.name in result.devices]
 		return float(sum(currents)) if currents else 0.0
 
-	def _output_node(self, result, circuit, info):
-		"""(effective conductance at output net [nA/V], pmos/nmos Vov [mV]).
+	def _composed_conductance(self, result, circuit, net: str) -> float:
+		"""Effective small-signal conductance at *net* [nA/V].
 
-		A cascoded output branch contributes gds_casc·gds_bottom/gm_casc
-		(acst's composition), a plain branch its raw gds.
+		A cascoded branch contributes gds_casc·gds_bottom/gm_casc (acst's
+		composition), a plain branch its raw gds.
 		"""
-		from core.device import TechType
-
 		from .topology import output_branches
-		out_net = info.parameters.output_net
 		gds_sum = 0.0
-		vov_p = vov_n = 0
-		for casc, bottom in output_branches(circuit, out_net, result.devices):
+		for casc, bottom in output_branches(circuit, net, result.devices):
 			sized = result.devices[casc.name]
 			if bottom is not None and sized.gm > 0:
 				bot = result.devices[bottom.name]
 				gds_sum += sized.gds * bot.gds / sized.gm
 			else:
 				gds_sum += sized.gds
+		return gds_sum
+
+	def _output_node(self, result, circuit, info):
+		"""(effective conductance at output net [nA/V], pmos/nmos Vov [mV])."""
+		from core.device import TechType
+
+		from .topology import output_branches
+		out_net = info.parameters.output_net
+		gds_sum = self._composed_conductance(result, circuit, out_net)
+		vov_p = vov_n = 0
+		for casc, bottom in output_branches(circuit, out_net, result.devices):
+			sized = result.devices[casc.name]
 			# the branch limits the swing with its *stacked* overdrives
 			# (Vov_casc + Vov_bottom), acst's Min/MaximumOutputVoltage
 			stack_vov = sized.vov + (

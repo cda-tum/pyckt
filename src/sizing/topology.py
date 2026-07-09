@@ -163,3 +163,71 @@ def first_stage_pieces(
                           and net(d, PinType.GATE) == casc_gate),
                          None)
     return d_in, tail, load, casc, bias2
+
+
+def second_stage_pieces(
+    circuit: "Circuit | None",
+    partition,
+    output_net: str | None,
+    known_names: Iterable[str] | None = None,
+) -> tuple | None:
+    """Detect a true second gain stage at *output_net* (issue #61).
+
+    Returns ``(gm2_device, interstage_net)`` when an output-branch device's
+    gate sits on a **first-stage output node**: a net in the closure of the
+    input-pair drains (climbing cascode stacks source→drain) that is *not*
+    diode-connected.  Mirror-driven output branches (symmetrical OTAs) have
+    their gates on diode-connected mirror references and return ``None`` —
+    they are a current mirror, not a gain stage.
+    """
+    from core.device import DeviceType, PinType
+
+    if circuit is None or not output_net:
+        return None
+    names = set(known_names) if known_names is not None else None
+
+    def net(dev, pin):
+        try:
+            return dev.get_net(pin).name
+        except Exception:
+            return None
+
+    def is_rail(dev, pin):
+        try:
+            return dev.get_net(pin).is_power()
+        except Exception:
+            return False
+
+    ins = [d for d in input_pair_devices(partition)
+           if names is None or d.name in names]
+    if not ins:
+        return None
+    mosfets = [d for d in circuit.devices
+               if d.device_type == DeviceType.MOSFET
+               and (names is None or d.name in names)]
+
+    # first-stage output closure: input-pair drains plus cascode climbs
+    first_outs = {net(d, PinType.DRAIN) for d in ins} - {None, output_net}
+    frontier = set(first_outs)
+    while frontier:
+        grown: set = set()
+        for d in mosfets:
+            if net(d, PinType.SOURCE) in frontier:
+                dn = net(d, PinType.DRAIN)
+                if (dn and dn not in first_outs and dn != output_net
+                        and not is_rail(d, PinType.DRAIN)):
+                    grown.add(dn)
+        first_outs |= grown
+        frontier = grown
+
+    diode_nets = {net(d, PinType.DRAIN) for d in mosfets
+                  if net(d, PinType.DRAIN) is not None
+                  and net(d, PinType.DRAIN) == net(d, PinType.GATE)}
+
+    for casc, bottom in output_branches(circuit, output_net, known_names):
+        for dev in (d for d in (bottom, casc) if d is not None):
+            g = net(dev, PinType.GATE)
+            if g is None or g not in first_outs or g in diode_nets:
+                continue
+            return dev, g
+    return None
