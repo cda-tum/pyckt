@@ -1,0 +1,140 @@
+<acst_results>
+	<date day="8" month="7" year="2026" hour="20" minute="19" second="29" />
+	<automatic_sizing-results>
+		<ExpectedPerformance>
+			<Gain unit="dB">90.3003</Gain>
+			<Power unit="m_W">9.44778</Power>
+			<Area unit="(mu_m)^2">359</Area>
+			<TransitFrequency unit="M_Hz">17.9743</TransitFrequency>
+			<TransitFrequencyWithErrorFactor unit="M_Hz">17.9743</TransitFrequencyWithErrorFactor>
+			<SlewRate unit="V/mum_s">24.416</SlewRate>
+			<PhaseMargin unit="degree">86.2188</PhaseMargin>
+			<CMRR unit="dB">128.945</CMRR>
+			<negPSRR unit="degree">84.4104</negPSRR>
+			<posPSRR unit="degree">57.6114</posPSRR>
+			<MaximumOutputVoltage unit="V">3.6</MaximumOutputVoltage>
+			<MinimumOutputVoltage unit="V">0.776</MinimumOutputVoltage>
+			<maxCommonModeInputVoltage unit="V">3.858</maxCommonModeInputVoltage>
+			<minCommonModeInputVoltage unit="V">2.287</minCommonModeInputVoltage>
+		</ExpectedPerformance>
+		<Voltages unit="V">
+			<Net name="/gnd!">0</Net>
+			<Net name="/ibias">2.071</Net>
+			<Net name="/inn">2.5</Net>
+			<Net name="/inp">2.5</Net>
+			<Net name="/net20">1.182</Net>
+			<Net name="/net26">0.793</Net>
+			<Net name="/net27">3.953</Net>
+			<Net name="/net29">3.462</Net>
+			<Net name="/net30">1.897</Net>
+			<Net name="/net36">1.879</Net>
+			<Net name="/net40">3.453</Net>
+			<Net name="/net42">0.389</Net>
+			<Net name="/net44">2.878</Net>
+			<Net name="/net48">0.392</Net>
+			<Net name="/out">0.794</Net>
+			<Net name="/vdd!">5</Net>
+		</Voltages>
+		<Currents unit="mu_A">
+			<Component name="/m0">474.296</Component>
+			<Component name="/m1">244.16</Component>
+			<Component name="/m10">244.16</Component>
+			<Component name="/m11">234.967</Component>
+			<Component name="/m12">239.707</Component>
+			<Component name="/m13">239.329</Component>
+			<Component name="/m14">239.707</Component>
+			<Component name="/m15">456.19</Component>
+			<Component name="/m16">465.203</Component>
+			<Component name="/m17">465.203</Component>
+			<Component name="/m2">244.16</Component>
+			<Component name="/m3">234.967</Component>
+			<Component name="/m4">239.329</Component>
+			<Component name="/m5">239.707</Component>
+			<Component name="/m6">239.707</Component>
+			<Component name="/m7">456.19</Component>
+			<Component name="/m8">465.203</Component>
+			<Component name="/m9">244.16</Component>
+		</Currents>
+		<Dimensions>
+			<Transistors>
+				<Transistor name="/m0">
+					<Width unit="mu_m">2</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m1">
+					<Width unit="mu_m">19</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m10">
+					<Width unit="mu_m">14</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m11">
+					<Width unit="mu_m">14</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m12">
+					<Width unit="mu_m">14</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m13">
+					<Width unit="mu_m">14</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m14">
+					<Width unit="mu_m">6</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m15">
+					<Width unit="mu_m">4</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m16">
+					<Width unit="mu_m">4</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m17">
+					<Width unit="mu_m">2</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m2">
+					<Width unit="mu_m">19</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m3">
+					<Width unit="mu_m">60</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m4">
+					<Width unit="mu_m">60</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m5">
+					<Width unit="mu_m">19</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m6">
+					<Width unit="mu_m">19</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m7">
+					<Width unit="mu_m">9</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m8">
+					<Width unit="mu_m">2</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+				<Transistor name="/m9">
+					<Width unit="mu_m">78</Width>
+					<Length unit="mu_m">1</Length>
+				</Transistor>
+			</Transistors>
+			<Capacitors>
+				<Capacitor name="/cl">
+					<Value unit="p_F">20</Value>
+				</Capacitor>
+			</Capacitors>
+		</Dimensions>
+	</automatic_sizing-results>
+</acst_results>
