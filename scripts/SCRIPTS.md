@@ -187,7 +187,7 @@ distinct topology):
 
 All three categories match exactly and the emitted netlists are structurally
 identical to acst's (verified by canonical device-level signature — see
-`comparison/topology_signature.py` and `reports/TOPOLOGY_COUNTS.md`). The
+`comparison/topology_signature.py` and `report/reports/TOPOLOGY_COUNTS.md`). The
 writer emits one file per *distinct* topology (the generator produces 4302
 raw candidates, 390 of which are structural duplicates that are de-duplicated
 at emission), and re-running into a populated directory clears the previous

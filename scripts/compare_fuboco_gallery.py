@@ -20,7 +20,7 @@ Usage
 -----
     .venv/bin/python scripts/compare_fuboco_gallery.py \
         --gallery /path/to/fuboco-gallery [--category s-1-2 fd-1-2] \
-        [--limit N] [--report reports/FUBOCO_GALLERY_REPORT.md]
+        [--limit N] [--report report/reports/FUBOCO_GALLERY_REPORT.md]
 """
 from __future__ import annotations
 

@@ -123,7 +123,7 @@ paradigm, different engine.
   branches on random W/L and stops at a wall-clock budget, so its numbers are a
   search artifact, not a fixed target. pyckt meets every spec, with no device
   stuck at the minimum-size floor. (Full analysis:
-  [`reports/SIZING_CONVERGENCE.md`](reports/SIZING_CONVERGENCE.md).)
+  [`report/reports/SIZING_CONVERGENCE.md`](report/reports/SIZING_CONVERGENCE.md).)
 - Samples: [`report/samples/sizing/`](report/samples/sizing/).
 
 ### 4.5 toplibgen — ✅ full parity
