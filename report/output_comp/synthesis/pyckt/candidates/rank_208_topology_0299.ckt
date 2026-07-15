@@ -1,0 +1,25 @@
+.suckt  2stage_pmos_input ibias in1 in2 out source_nmos source_pmos
+M1 net_0 in1 net_1 net_1 pmos W=71e-6 L=1e-6
+M2 outfirststage in2 net_1 net_1 pmos W=71e-6 L=1e-6
+M3 net_0 net_0 source_nmos source_nmos nmos W=1e-6 L=1e-6
+M4 net_2 net_0 source_nmos source_nmos nmos W=1e-6 L=1e-6
+M5 outfirststage bias_n_2 net_2 net_2 nmos W=1e-6 L=1e-6
+M6 net_4 ibias source_pmos source_pmos pmos W=1e-6 L=1e-6
+M7 net_1 bias_p_3 net_4 net_4 pmos W=1e-6 L=1e-6
+M8 net_7 outfirststage source_pmos source_pmos pmos W=1e-6 L=1e-6
+M9 out bias_p_3 net_7 net_7 pmos W=50e-6 L=1e-6
+M10 net_9 net_9 source_nmos source_nmos nmos W=2e-6 L=1e-6
+M11 out net_10 net_9 net_9 nmos W=2e-6 L=1e-6
+M12 net_10 net_10 bias_n_1m bias_n_1m nmos W=2e-6 L=1e-6
+M13 bias_n_1m net_9 source_nmos source_nmos nmos W=2e-6 L=1e-6
+M14 bias_n_2 bias_n_2 source_nmos source_nmos nmos W=1e-6 L=1e-6
+M15 bias_p_3 bias_p_3 source_pmos source_pmos pmos W=1e-6 L=12e-6
+M16 ibias ibias source_pmos source_pmos pmos W=1e-6 L=1e-6
+M17 bias_n_5 bias_n_5 source_nmos source_nmos nmos W=1e-6 L=1e-6
+M18 net_10 ibias source_pmos source_pmos pmos W=1e-6 L=1e-6
+M19 bias_n_2 ibias source_pmos source_pmos pmos W=1e-6 L=1e-6
+M20 bias_p_3 bias_n_5 source_nmos source_nmos nmos W=1e-6 L=1e-6
+M21 bias_n_5 ibias source_pmos source_pmos pmos W=1e-6 L=1e-6
+Cap_load_1 out source_nmos
+Cap_compensation_1 outfirststage out
+.end 2stage_pmos_input

@@ -1,0 +1,17 @@
+.suckt  symmetrical_op_amp106 ibias in1 in2 out source_nmos source_pmos
+M1 out2fs in1 net_0 net_0 nmos
+M2 inoutputtc in2 net_0 net_0 nmos
+M3 out1fs out1fs source_pmos source_pmos pmos
+M4 out2fs out2fs out1fs out1fs pmos
+M5 insourcetc insourcetc source_pmos source_pmos pmos
+M6 inoutputtc inoutputtc insourcetc insourcetc pmos
+M7 net_0 ibias source_nmos source_nmos nmos
+M8 net_2 out1fs source_pmos source_pmos pmos
+M9 out out2fs net_2 net_2 pmos
+M10 out instagebias source_nmos source_nmos nmos
+M11 net_3 insourcetc source_pmos source_pmos pmos
+M12 instagebias inoutputtc net_3 net_3 pmos
+M13 instagebias instagebias source_nmos source_nmos nmos
+M14 ibias ibias source_nmos source_nmos nmos
+Cap_load_1 out source_nmos
+.end symmetrical_op_amp106

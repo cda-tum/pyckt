@@ -1,20 +1,16 @@
-# from src.topogen.HL2 import *
-# from src.topogen.HL3 import *
-from src.topogen.HL3.l import LoadManager
-from src.topogen.HL3.sb import StageBiasManager
-from src.topogen.HL3.tc import TransconductanceManager
-
-from src.topogen.HL4.non_inv_connections import *
-from src.topogen.HL4.non_inv_netdef import *
-from src.topogen.common.circuit import *
-
-
-from pathlib import Path
-from typing import Callable, Iterator
-from itertools import chain
+# from topogen.HL2 import *
+# from topogen.HL3 import *
 from copy import deepcopy
+from pathlib import Path
+from typing import Iterator
 
-from src.utils.loguru_loader import setup_logger
+from topogen.common.circuit import *
+from topogen.HL3.l import LoadManager
+from topogen.HL3.sb import StageBiasManager
+from topogen.HL3.tc import TransconductanceManager
+from topogen.HL4.non_inv_connections import *
+from topogen.HL4.non_inv_netdef import *
+from utils.loguru_loader import setup_logger
 
 logger = setup_logger()
 
@@ -37,6 +33,8 @@ GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 def createSimpleTransconductanceNonInvertingStage(
     transconductance, load, stageBias
 ) -> NonInvertingStage:
+    """Assemble a non-inverting stage from one simple transconductance, one
+    load, and one stage bias."""
     stage = NonInvertingStage(id=1, techtype="?")
     stage.ports = [
         NonInvertingStage.OUT1,
@@ -67,6 +65,8 @@ def createComplementaryTransconductanceNonInvertingStage(
     stageBiasNmos: StageBias,
     stageBiasPmos: StageBias,
 ) -> NonInvertingStage:
+    """Assemble a non-inverting stage from a complementary transconductance,
+    a complementary load, and an NMOS+PMOS stage-bias pair."""
     stage = NonInvertingStage(id=1, techtype="?")
     stage.ports = [
         NonInvertingStage.OUT1,
@@ -103,6 +103,8 @@ def createFeedbackTransconductanceNonInvertingStage(
     stageBias1: StageBias,
     stageBias2: StageBias,
 ) -> NonInvertingStage:
+    """Assemble a non-inverting stage from a feedback transconductance, one
+    load, and two independent stage-bias copies (one per transconductance source)."""
     stage = NonInvertingStage(id=1, techtype=transconductance.tech)
     stage.ports = [
         NonInvertingStage.OUT1,
@@ -135,9 +137,12 @@ def createFeedbackTransconductanceNonInvertingStage(
 def createSimpleTransconductanceNonInvertingStages(
     transconductance: Transconductance, loads: list[Load], stageBiases: list[StageBias]
 ) -> Iterator[NonInvertingStage]:
+    """Yield one stage per (load, stage bias) pair sharing the same
+    *transconductance* (the full cross-product, as acst
+    ``createSimpleTransconductanceNonInvertingStages`` — asymmetric
+    odd-transistor loads included)."""
+    stageBiases = list(stageBiases)  # materialise to allow re-iteration per load
     for l in loads:
-        if l.component_count % 2 == 1:
-            continue
         for sb in stageBiases:
             yield createSimpleTransconductanceNonInvertingStage(transconductance, l, sb)
 
@@ -148,6 +153,8 @@ def createComplementaryTransconductanceNonInvertingStages(
     stageBiasesNmos: list[StageBias],
     stageBiasesPmos: list[StageBias],
 ) -> Iterator[NonInvertingStage]:
+    """Yield one stage per load, paired with the single complementary
+    transconductance and index-aligned NMOS/PMOS stage-bias pairs."""
 
     transconductance = list(transconductance)[0]
     stageBiasesPmos = list(stageBiasesPmos)
@@ -167,18 +174,41 @@ def createComplementaryTransconductanceNonInvertingStages(
 def createFeedbackTransconductanceNonInvertingStages(
     transconductance: Transconductance, loads: list[Load], stageBiases: list[StageBias]
 ) -> Iterator[NonInvertingStage]:
+    """Yield one stage per (load, stage bias) pair sharing the same feedback
+    *transconductance*, deep-copying the stage bias into independent
+    ``sb1``/``sb2`` instances for each stage.  Applies acst's gate-net
+    validity filter (``createFeedbackTransconductanceNonInvertingStages``)."""
     for load in loads:
         for stageBias in stageBiases:
             sb1 = deepcopy(stageBias)
             sb2 = deepcopy(stageBias)
-            yield createFeedbackTransconductanceNonInvertingStage(
+            stage = createFeedbackTransconductanceNonInvertingStage(
                 transconductance, load, sb1, sb2
             )
-            # TODO: add if(nonInvertingStage.everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType())
+            if everyGateNetIsNotConnectedToMoreThanOneDrainOfComponentWithSameTechType(
+                stage
+            ):
+                yield stage
 
 
 class NonInvertingStageManager:
+    """Top-level HL4 dispatcher for non-inverting (first/input) stages.
+
+    Each ``create*NonInvertingStages(caseNumber)`` method enumerates a fixed
+    list of ``case_N`` closures — one per (transconductance tech, load
+    variant, stage-bias transistor count) combination — and dispatches to the
+    one matching *caseNumber* (1-indexed; ``case_unknown`` covers anything
+    out of range). Every ``case_N`` builds its combination via the relevant
+    HL3 managers (:class:`~topogen.HL3.tc.TransconductanceManager`,
+    :class:`~topogen.HL3.l.LoadManager`,
+    :class:`~topogen.HL3.sb.StageBiasManager`) and the matching module-level
+    ``create*NonInvertingStages`` generator.
+    """
+
     def __init__(self):
+        """Defer feedback-stage construction until first requested (see
+        :meth:`getFeedbackNonInvertingStagesPmosTransconductance` /
+        :meth:`getFeedbackNonInvertingStagesNmosTransconductance`)."""
         self.feedbackNonInvertingStagesPmosTransconductance_ = None
         self.feedbackNonInvertingStagesNmosTransconductance_ = None
         pass
@@ -186,6 +216,9 @@ class NonInvertingStageManager:
     def createSimpleNonInvertingStages(
         self, caseNumber: int
     ) -> Iterator[NonInvertingStage]:
+        """Dispatch to one of 16 simple-transconductance non-inverting-stage
+        cases (PMOS/NMOS transconductance x mixed/folded-GCC/cascode-GCC load
+        x one-/two-transistor stage bias); see class docstring."""
         create_fn = createSimpleTransconductanceNonInvertingStages
         tc_mn, l_mn, sb_mn = (
             TransconductanceManager(),
@@ -194,6 +227,7 @@ class NonInvertingStageManager:
         )
 
         def case_1():
+            """PMOS transconductance + NMOS mixed load + one-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createSimpleMixedLoadNmos(),
@@ -201,6 +235,7 @@ class NonInvertingStageManager:
             )
 
         def case_2():
+            """NMOS/PMOS mirror of ``case_1``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createSimpleMixedLoadPmos(),
@@ -208,6 +243,7 @@ class NonInvertingStageManager:
             )
 
         def case_3():
+            """PMOS transconductance + NMOS mixed load + two-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createSimpleMixedLoadNmos(),
@@ -215,6 +251,7 @@ class NonInvertingStageManager:
             )
 
         def case_4():
+            """NMOS/PMOS mirror of ``case_3``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createSimpleMixedLoadPmos(),
@@ -222,6 +259,7 @@ class NonInvertingStageManager:
             )
 
         def case_5():
+            """PMOS transconductance + folded-GCC NMOS mixed load + one-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createSimpleTwoLoadPartsFoldedGCCMixedLoadNmos(),
@@ -229,6 +267,7 @@ class NonInvertingStageManager:
             )
 
         def case_6():
+            """NMOS/PMOS mirror of ``case_5``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createSimpleTwoLoadPartsFoldedGCCMixedLoadPmos(),
@@ -236,6 +275,7 @@ class NonInvertingStageManager:
             )
 
         def case_7():
+            """PMOS transconductance + folded-GCC NMOS mixed load + two-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createSimpleTwoLoadPartsFoldedGCCMixedLoadNmos(),
@@ -243,6 +283,7 @@ class NonInvertingStageManager:
             )
 
         def case_8():
+            """NMOS/PMOS mirror of ``case_7``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createSimpleTwoLoadPartsFoldedGCCMixedLoadPmos(),
@@ -250,6 +291,7 @@ class NonInvertingStageManager:
             )
 
         def case_9():
+            """PMOS transconductance + cascode-GCC PMOS mixed load + one-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsTwoLoadPartsCascodeGCCMixedPmos(),
@@ -257,6 +299,7 @@ class NonInvertingStageManager:
             )
 
         def case_10():
+            """NMOS/PMOS mirror of ``case_9``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsTwoLoadPartsCascodeGCCMixedNmos(),
@@ -264,6 +307,7 @@ class NonInvertingStageManager:
             )
 
         def case_11():
+            """PMOS transconductance + cascode-GCC PMOS mixed load + two-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsTwoLoadPartsCascodeGCCMixedPmos(),
@@ -271,6 +315,7 @@ class NonInvertingStageManager:
             )
 
         def case_12():
+            """NMOS/PMOS mirror of ``case_11``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsTwoLoadPartsCascodeGCCMixedNmos(),
@@ -278,6 +323,7 @@ class NonInvertingStageManager:
             )
 
         def case_13():
+            """PMOS transconductance + non-GCC PMOS mixed/current-bias load + one-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsTwoLoadPartsMixedCurrentBiasesPmos(),
@@ -285,6 +331,7 @@ class NonInvertingStageManager:
             )
 
         def case_14():
+            """NMOS/PMOS mirror of ``case_13``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsTwoLoadPartsMixedCurrentBiasesNmos(),
@@ -292,6 +339,7 @@ class NonInvertingStageManager:
             )
 
         def case_15():
+            """PMOS transconductance + non-GCC PMOS mixed/current-bias load + two-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsTwoLoadPartsMixedCurrentBiasesPmos(),
@@ -299,6 +347,7 @@ class NonInvertingStageManager:
             )
 
         def case_16():
+            """NMOS/PMOS mirror of ``case_15``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsTwoLoadPartsMixedCurrentBiasesNmos(),
@@ -306,6 +355,7 @@ class NonInvertingStageManager:
             )
 
         def case_unknown():
+            """Raise — *caseNumber* is outside the valid 1-16 range."""
             raise NotImplementedError("unknow case.")
 
         case_fn = [
@@ -333,12 +383,16 @@ class NonInvertingStageManager:
         self,
         caseNumber: int,
     ) -> Iterator[NonInvertingStage]:
+        """Dispatch to one of 4 fully-differential non-inverting-stage cases
+        (PMOS/NMOS transconductance x one-/two-transistor stage bias, paired
+        with the opposite-tech fully-differential load); see class docstring."""
         create_fn = createSimpleTransconductanceNonInvertingStages
         tc_mn = TransconductanceManager()
         l_mn = LoadManager()
         sb_mn = StageBiasManager()
 
         def case_1():
+            """PMOS transconductance + NMOS fully-differential load + one-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsNmosForFullyDifferentialNonInvertingStage(),
@@ -346,6 +400,7 @@ class NonInvertingStageManager:
             )
 
         def case_2():
+            """NMOS/PMOS mirror of ``case_1``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsPmosForFullyDifferentialNonInvertingStage(),
@@ -353,6 +408,7 @@ class NonInvertingStageManager:
             )
 
         def case_3():
+            """PMOS transconductance + NMOS fully-differential load + two-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsNmosForFullyDifferentialNonInvertingStage(),
@@ -360,6 +416,7 @@ class NonInvertingStageManager:
             )
 
         def case_4():
+            """NMOS/PMOS mirror of ``case_3``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsPmosForFullyDifferentialNonInvertingStage(),
@@ -367,6 +424,7 @@ class NonInvertingStageManager:
             )
 
         def case_unknown():
+            """Raise — *caseNumber* is outside the valid 1-4 range."""
             raise NotImplementedError("unknow case.")
 
         case_fn = [
@@ -382,6 +440,9 @@ class NonInvertingStageManager:
         self,
         caseNumber: int,
     ) -> Iterator[NonInvertingStage]:
+        """Dispatch to one of 2 complementary non-inverting-stage cases
+        (one-transistor vs. two-transistor NMOS+PMOS stage-bias pairs); see
+        class docstring."""
 
         create_fn = createComplementaryTransconductanceNonInvertingStages
         tc_mn = TransconductanceManager()
@@ -389,6 +450,7 @@ class NonInvertingStageManager:
         sb_mn = StageBiasManager()
 
         def case_1():
+            """Complementary transconductance + complementary load + one-transistor NMOS/PMOS stage biases."""
             return create_fn(
                 tc_mn.getComplementaryTransconductance(),
                 l_mn.createLoadsForComplementaryNonInvertingStage(),
@@ -397,6 +459,7 @@ class NonInvertingStageManager:
             )
 
         def case_2():
+            """Complementary transconductance + complementary load + two-transistor NMOS/PMOS stage biases."""
             return create_fn(
                 tc_mn.getComplementaryTransconductance(),
                 l_mn.createLoadsForComplementaryNonInvertingStage(),
@@ -405,6 +468,7 @@ class NonInvertingStageManager:
             )
 
         def case_unknown():
+            """Raise — *caseNumber* is outside the valid 1-2 range."""
             raise NotImplementedError("unknow case.")
 
         case_fn = [
@@ -417,12 +481,16 @@ class NonInvertingStageManager:
     def createSymmetricalNonInvertingStages(
         self, caseNumber: int
     ) -> Iterator[NonInvertingStage]:
+        """Dispatch to one of 8 symmetrical-op-amp non-inverting-stage cases
+        (PMOS/NMOS transconductance x two-/four-transistor voltage-bias load
+        x one-/two-transistor stage bias); see class docstring."""
         create_fn = createSimpleTransconductanceNonInvertingStages
         tc_mn = TransconductanceManager()
         l_mn = LoadManager()
         sb_mn = StageBiasManager()
 
         def case_1():
+            """PMOS transconductance + NMOS two-transistor symmetrical load + one-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsNmosTwoForSymmetricalOpAmpNonInvertingStage(),
@@ -430,6 +498,7 @@ class NonInvertingStageManager:
             )
 
         def case_2():
+            """NMOS/PMOS mirror of ``case_1``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsPmosTwoForSymmetricalOpAmpNonInvertingStage(),
@@ -437,6 +506,7 @@ class NonInvertingStageManager:
             )
 
         def case_3():
+            """PMOS transconductance + NMOS two-transistor symmetrical load + two-transistor PMOS stage bias."""
 
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
@@ -445,6 +515,7 @@ class NonInvertingStageManager:
             )
 
         def case_4():
+            """NMOS/PMOS mirror of ``case_3``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsPmosTwoForSymmetricalOpAmpNonInvertingStage(),
@@ -452,6 +523,7 @@ class NonInvertingStageManager:
             )
 
         def case_5():
+            """PMOS transconductance + NMOS four-transistor symmetrical load + one-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsNmosFourForSymmetricalOpAmpNonInvertingStage(),
@@ -459,6 +531,7 @@ class NonInvertingStageManager:
             )
 
         def case_6():
+            """NMOS/PMOS mirror of ``case_5``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsPmosFourForSymmetricalOpAmpNonInvertingStage(),
@@ -466,6 +539,7 @@ class NonInvertingStageManager:
             )
 
         def case_7():
+            """PMOS transconductance + NMOS four-transistor symmetrical load + two-transistor PMOS stage bias."""
             return create_fn(
                 tc_mn.getSimpleTransconductancePmos(),
                 l_mn.createLoadsNmosFourForSymmetricalOpAmpNonInvertingStage(),
@@ -473,6 +547,7 @@ class NonInvertingStageManager:
             )
 
         def case_8():
+            """NMOS/PMOS mirror of ``case_7``."""
             return create_fn(
                 tc_mn.getSimpleTransconductanceNmos(),
                 l_mn.createLoadsPmosFourForSymmetricalOpAmpNonInvertingStage(),
@@ -480,6 +555,7 @@ class NonInvertingStageManager:
             )
 
         def case_unknown():
+            """Raise — *caseNumber* is outside the valid 1-8 range."""
             raise NotImplementedError("unknow case.")
 
         case_fn = [
@@ -496,6 +572,8 @@ class NonInvertingStageManager:
         return case_fn[caseNumber]()
 
     def initializeFeedbackNonInvertingStages(self) -> None:
+        """Build the feedback-transconductance PMOS and NMOS non-inverting
+        stages and cache them on ``self`` (called lazily by the getters below)."""
         transconductanceNmos = (
             TransconductanceManager().getFeedbackTransconductanceNmos()
         )
@@ -521,12 +599,14 @@ class NonInvertingStageManager:
         )
 
     def getFeedbackNonInvertingStagesPmosTransconductance(self):
+        """Return the feedback PMOS-transconductance stages, building them on first call."""
         if self.feedbackNonInvertingStagesPmosTransconductance_ is None:
             self.initializeFeedbackNonInvertingStages()
 
         return self.feedbackNonInvertingStagesPmosTransconductance_
 
     def getFeedbackNonInvertingStagesNmosTransconductance(self):
+        """Return the feedback NMOS-transconductance stages, building them on first call."""
         if self.feedbackNonInvertingStagesNmosTransconductance_ is None:
             self.initializeFeedbackNonInvertingStages()
 

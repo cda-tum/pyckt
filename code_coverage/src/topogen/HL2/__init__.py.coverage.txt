@@ -1,0 +1,15 @@
+File: src/topogen/HL2/__init__.py
+Covered lines: 5
+Total statements: 5
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+1-5
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

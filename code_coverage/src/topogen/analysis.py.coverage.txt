@@ -1,0 +1,15 @@
+File: src/topogen/analysis.py
+Covered lines: 35
+Total statements: 35
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+23, 25-26, 28-29, 31, 34, 47-51, 57, 65-67, 70, 75-77, 83, 91-93, 102, 121-122, 124-126, 132-133, 135-136, 140
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

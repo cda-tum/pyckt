@@ -1,0 +1,15 @@
+File: src/pyckt/io/circuit_info_parser.py
+Covered lines: 148
+Total statements: 148
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+19, 21-24, 26, 31-32, 55-61, 67-68, 116-129, 131-135, 141-142, 155-157, 163, 170-177, 180, 187-198, 201, 207, 222, 231, 250-253, 256-266, 271-275, 278-283, 285, 296, 319-322, 324, 327-334, 337-345, 348-351, 353-356, 358-364, 366-375, 377, 387, 409-412
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

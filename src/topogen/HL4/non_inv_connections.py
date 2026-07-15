@@ -1,12 +1,15 @@
-# from src.topogen.HL2 import *
-# from src.topogen.HL3 import *
+# from topogen.HL2 import *
+# from topogen.HL3 import *
 
-from src.topogen.common.circuit import *
+from topogen.common.circuit import *
 
 
 def connectInstanceTerminalsOfSimpleTransconductance(
     nonInvertingStage: NonInvertingStage, tc
 ) -> NonInvertingStage:
+    """Wire a simple :class:`~topogen.HL3.tc.Transconductance` into
+    *nonInvertingStage*'s inputs/source, and its outputs into either
+    ``OUT{1,2}`` directly or ``SOURCEGCC{1,2}`` if the stage's load has GCC."""
     # num_review: 2
     stage = nonInvertingStage
     connect((stage, NonInvertingStage.IN1), (tc, Transconductance.INPUT1))
@@ -33,6 +36,10 @@ def connectInstanceTerminalsOfSimpleTransconductance(
 def connectInstanceTerminalsOfStageBiases(
     nonInvertingStage: NonInvertingStage, stageBias1: StageBias, stageBias2: StageBias
 ) -> NonInvertingStage:
+    """Wire two :class:`~topogen.HL3.sb.StageBias` instances (sharing one
+    tech-specific source rail) into *nonInvertingStage*, with the
+    one-/two-transistor port split mirrored from
+    :func:`~topogen.HL4.non_inv_netdef.addStageBiasNets`."""
     # fmt: off
     stage = nonInvertingStage
     connect((stage, NonInvertingStage.SOURCETRANSCONDUCTANCE1), (stageBias1, StageBias.OUT))
@@ -62,6 +69,8 @@ def connectInstanceTerminalsOfStageBiases(
 def connectInstanceTerminalsOfFeedbackTransconductanceXXX(
     nonInvertingStage: NonInvertingStage, tc: Transconductance
 ) -> NonInvertingStage:
+    """Wire a feedback :class:`~topogen.HL3.tc.Transconductance` (two sources,
+    one shared ``INNER`` node) straight through to *nonInvertingStage*."""
 
     stage = nonInvertingStage
     # fmt: off
@@ -78,6 +87,9 @@ def connectInstanceTerminalsOfFeedbackTransconductanceXXX(
 def connectInstanceTerminalsOfLoadPart1(
     nonInvertingStage: NonInvertingStage, load: Load
 ) -> NonInvertingStage:
+    """Wire *load*'s "load 1" branch into *nonInvertingStage*, mirroring the
+    branch-type/``component_count`` cases handled by
+    :func:`~topogen.HL4.non_inv_netdef.addLoadPart1Nets`."""
     # fmt: off
     stage = nonInvertingStage
     loadPart1: LoadPart = load.instances[0]
@@ -92,8 +104,8 @@ def connectInstanceTerminalsOfLoadPart1(
         if loadPart1.component_count > 2:
             connect((stage, NonInvertingStage.OUTOUTPUT1LOAD1), (load, "out_output1_load1"))
             connect((stage, NonInvertingStage.OUTOUTPUT2LOAD1), (load, "out_output2_load1"))
-            connect((stage, NonInvertingStage.OUTSOURCE1LOAD1), (load, "out_outsource1_load1"))
-            connect((stage, NonInvertingStage.OUTSOURCE2LOAD1), (load, "out_outsource2_load1"))
+            connect((stage, NonInvertingStage.OUTSOURCE1LOAD1), (load, "out_source_load1"))
+            connect((stage, NonInvertingStage.OUTSOURCE2LOAD1), (load, "out_source_load2"))
     elif hasGCC(load):
             connect((stage, NonInvertingStage.SOURCEGCC1), (load, "source_gcc1"))
             connect((stage, NonInvertingStage.SOURCEGCC2), (load, "source_gcc2"))
@@ -106,7 +118,10 @@ def connectInstanceTerminalsOfLoadPart1(
             connect((stage, NonInvertingStage.INNERLOAD1), (load, "inner_load1"))
         if loadPart1.component_count > 2:
             connect((stage, NonInvertingStage.INNERSOURCELOAD1), (load, "inner_source_load1"))
-            if loadPart1.ts1.instances[0].component_count == 1 and loadPart1.ts1.instances[0].name == "dt":
+            # the diode check must inspect the transistor inside the stack's
+            # bias wrapper (acst isSingleDiodeTransistor), not the wrapper
+            ts1_bias = loadPart1.ts1.instances[0]
+            if ts1_bias.component_count == 1 and ts1_bias.instances[0].name == "dt":
                 connect((stage, NonInvertingStage.INNEROUTPUTLOAD1), (load, "inner_output_load1"))
         
             if loadPart1.component_count > 3:
@@ -124,6 +139,9 @@ def connectInstanceTerminalsOfLoadPart1(
 def connectInstanceTerminalsOfLoadPart2XXX(
     nonInvertingStage: NonInvertingStage, load: Load
 ) -> NonInvertingStage:
+    """Wire *load*'s "load 2" branch into *nonInvertingStage*, mirroring
+    :func:`~topogen.HL4.non_inv_netdef.addLoadPart2Nets`'s
+    ``component_count``-based port cases."""
     # fmt: off
     stage = nonInvertingStage
     loadPart2 = load.instances[1]
@@ -140,17 +158,18 @@ def connectInstanceTerminalsOfLoadPart2XXX(
             (stage, NonInvertingStage.INNERTRANSISTORSTACK2LOAD2),
             (load, "inner_transistorstack2_load2"),
         )
-        if loadPart2.instances[0].component_count == 1 and loadPart2.instances[
-            0
-        ].instances[0].name.startswith("dt"):
+        # drill through stack → bias wrapper → transistor (acst
+        # isSingleDiodeTransistor inspects the bias's transistor)
+        ts1_bias = loadPart2.instances[0].instances[0]
+        if ts1_bias.component_count == 1 and ts1_bias.instances[0].name.startswith("dt"):
             connect(
                 (stage, NonInvertingStage.INNEROUTPUTLOAD2), (load, "inner_output_load2")
             )
 
     if loadPart2.component_count > 3:
-        connect((stage,  NonInvertingStage.INNEROUTPUTLOAD2), (load, "inner_output_load2")) 
+        connect((stage,  NonInvertingStage.INNEROUTPUTLOAD2), (load, "inner_output_load2"))
         connect(
-            (stage, NonInvertingStage.INNERTRANSISTORSTACK1LOAD2), 
+            (stage, NonInvertingStage.INNERTRANSISTORSTACK1LOAD2),
             (load, "inner_transistorstack1_load2"),
         )
 
@@ -160,6 +179,10 @@ def connectInstanceTerminalsOfLoadPart2XXX(
 def connectInstanceTerminalsOfLoad(
     nonInvertingStage: NonInvertingStage, load
 ) -> NonInvertingStage:
+    """Wire *load*'s ``out1``/``out2`` and "load 1" branch (plus "load 2" if
+    present) into *nonInvertingStage*, via
+    :func:`connectInstanceTerminalsOfLoadPart1` /
+    :func:`connectInstanceTerminalsOfLoadPart2XXX`."""
     connect((nonInvertingStage, NonInvertingStage.OUT1), (load, "out1"))
     connect((nonInvertingStage, NonInvertingStage.OUT2), (load, "out2"))
 
@@ -175,6 +198,9 @@ def connectInstanceTerminalsOfLoad(
 def connectInstanceTerminalsOfStageBias(
     nonInvertingStage: NonInvertingStage, stageBias: StageBias
 ) -> NonInvertingStage:
+    """Wire a single :class:`~topogen.HL3.sb.StageBias` (one tech-specific
+    source rail) into *nonInvertingStage*, with the one-/two-transistor port
+    split mirrored from :func:`~topogen.HL4.non_inv_netdef.addStageBiasNets`."""
     stage = nonInvertingStage
     # fmt: off
     connect((stage, NonInvertingStage.SOURCETRANSCONDUCTANCE), (stageBias, StageBias.OUT))
@@ -195,6 +221,8 @@ def connectInstanceTerminalsOfStageBias(
 def connectInstanceTerminalsOfComplementaryTransconductanceNonInv(
     stage: NonInvertingStage, tc: Transconductance
 ) -> NonInvertingStage:
+    """Wire a complementary (NMOS+PMOS) :class:`~topogen.HL3.tc.Transconductance`
+    into *stage*'s shared inputs and per-tech sources/outputs."""
     # fmt: off
     connect((stage, NonInvertingStage.IN1), (tc, "input1"))
     connect((stage, NonInvertingStage.IN2), (tc, "input2"))
@@ -214,6 +242,10 @@ def connectInstanceTerminalsOfComplementaryTransconductanceNonInv(
 def connectInstanceTerminalsOfComplementaryLoad(
     nonInvertingStage: NonInvertingStage, load: Load
 ) -> NonInvertingStage:
+    """Wire a complementary :class:`Load` (one NMOS branch, one PMOS branch)
+    into *nonInvertingStage*, swapping which branch maps to
+    ``*LOADNMOS``/``*LOADPMOS`` ports based on ``loadPart1.tech``, and
+    handling the GCC vs. plain inner-node case per branch."""
     # fmt: off
     loadPart1 = load.instances[0]
     loadPart2 = load.instances[1]
@@ -248,7 +280,7 @@ def connectInstanceTerminalsOfComplementaryLoad(
         connect((nonInvertingStage, NonInvertingStage.SOURCENMOS), (load, "source_load2"))
 
         if hasGCC(load):
-            connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK1LOADPMOS), (load, "source_gcc1")) 
+            connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK1LOADPMOS), (load, "source_gcc1"))
             connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK2LOADPMOS), (load, "source_gcc2"))
             connect((nonInvertingStage, NonInvertingStage.INNEROUTPUTLOADPMOS), (load, "inner_gcc"))
             connect((nonInvertingStage, NonInvertingStage.INNERSOURCELOADPMOS), (load, "inner_bias_gcc"))
@@ -258,8 +290,8 @@ def connectInstanceTerminalsOfComplementaryLoad(
             connect((nonInvertingStage, NonInvertingStage.INNEROUTPUTLOADPMOS), (load, "inner_output_load1"))
             connect((nonInvertingStage, NonInvertingStage.INNERSOURCELOADPMOS), (load, "inner_source_load1"))
 
-        connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK1LOADPMOS), (load, "inner_transistorstack1_load2"))
-        connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK2LOADPMOS), (load, "inner_transistorstack2_load2"))
+        connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK1LOADNMOS), (load, "inner_transistorstack1_load2"))
+        connect((nonInvertingStage, NonInvertingStage.INNERTRANSISTORSTACK2LOADNMOS), (load, "inner_transistorstack2_load2"))
         connect((nonInvertingStage, NonInvertingStage.INNEROUTPUTLOADNMOS), (load, "inner_output_load2"))
         connect((nonInvertingStage, NonInvertingStage.INNERSOURCELOADNMOS), (load, "inner_source_load2"))
         return nonInvertingStage
@@ -271,6 +303,9 @@ def connectInstanceTerminalsOfComplementaryStageBiases(
     stageBiasNmos: StageBias,
     stageBiasPmos: StageBias,
 ) -> NonInvertingStage:
+    """Wire a complementary pair of :class:`~topogen.HL3.sb.StageBias`
+    instances (one NMOS, one PMOS) into *nonInvertingStage*, mirroring
+    :func:`~topogen.HL4.non_inv_netdef.addStageBiasesNets`'s port cases per side."""
     # fmt: off
     stage = nonInvertingStage
     connect((stage, NonInvertingStage.SOURCETRANSCONDUCTANCENMOS), (stageBiasNmos, StageBias.OUT))

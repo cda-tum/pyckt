@@ -1,0 +1,15 @@
+File: src/pyckt/synthesis/engine.py
+Covered lines: 58
+Total statements: 58
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+28, 30-31, 33-34, 36, 39, 71, 77-79, 85, 103-105, 109, 111-115, 117, 123-125, 131, 143-144, 146-148, 150-152, 154, 156, 185-186, 192, 194, 226-227, 229, 231, 233-240, 242-246, 248
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

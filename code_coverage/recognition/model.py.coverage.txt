@@ -1,0 +1,5 @@
+File: src/recognition/model.py
+Statements: 458
+Covered: 458
+Missing: []
+Coverage: 100%

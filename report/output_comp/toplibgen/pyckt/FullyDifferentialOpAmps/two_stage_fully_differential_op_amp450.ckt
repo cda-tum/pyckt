@@ -1,0 +1,48 @@
+.suckt  two_stage_fully_differential_op_amp450 ibias in1 in2 out source_nmos source_pmos
+M1 net_0 in1 net_1 net_1 pmos
+M2 net_2 in2 net_1 net_1 pmos
+M3 net_0 outfeedback source_nmos source_nmos nmos
+M4 out1firststage bias_n_1 net_0 net_0 nmos
+M5 net_2 outfeedback source_nmos source_nmos nmos
+M6 out2firststage bias_n_1 net_2 net_2 nmos
+M7 net_4 bias_p_4b source_pmos source_pmos pmos
+M8 out1firststage ibias net_4 net_4 pmos
+M9 net_7 bias_p_4b source_pmos source_pmos pmos
+M10 out2firststage ibias net_7 net_7 pmos
+M11 net_8 bias_p_4b source_pmos source_pmos pmos
+M12 net_1 ibias net_8 net_8 pmos
+M13 net_11 out2 net_12 net_12 pmos
+M14 outfeedback vref net_12 net_12 pmos
+M15 net_11 out1 net_13 net_13 pmos
+M16 outfeedback vref net_13 net_13 pmos
+M17 net_11 net_11 source_nmos source_nmos nmos
+M18 outfeedback outfeedback source_nmos source_nmos nmos
+M19 net_14 bias_p_4b source_pmos source_pmos pmos
+M20 net_12 ibias net_14 net_14 pmos
+M21 net_17 bias_p_4b source_pmos source_pmos pmos
+M22 net_13 ibias net_17 net_17 pmos
+M23 net_18 net_18 source_pmos source_pmos pmos
+M24 out1 net_19 net_18 net_18 pmos
+M25 net_20 out1firststage source_nmos source_nmos nmos
+M26 out1 bias_n_1 net_20 net_20 nmos
+M27 net_22 net_22 source_pmos source_pmos pmos
+M28 out2 net_23 net_22 net_22 pmos
+M29 net_24 out2firststage source_nmos source_nmos nmos
+M30 out2 bias_n_1 net_24 net_24 nmos
+M31 bias_n_1 bias_n_1 source_nmos source_nmos nmos
+M32 net_19 net_19 bias_p_2m bias_p_2m pmos
+M33 bias_p_2m net_18 source_pmos source_pmos pmos
+M34 net_23 net_23 bias_p_3m bias_p_3m pmos
+M35 bias_p_3m net_22 source_pmos source_pmos pmos
+M36 bias_p_4b bias_p_4b source_pmos source_pmos pmos
+M37 ibias ibias bias_p_4b bias_p_4b pmos
+M38 bias_n_5 bias_n_5 source_nmos source_nmos nmos
+M39 bias_n_1 bias_p_4b source_pmos source_pmos pmos
+M40 net_19 bias_n_5 source_nmos source_nmos nmos
+M41 net_23 bias_n_5 source_nmos source_nmos nmos
+M42 bias_n_5 bias_p_4b source_pmos source_pmos pmos
+Cap_load_1 out1 source_nmos
+Cap_load_2 out2 source_nmos
+Cap_compensation_1 out1firststage out1
+Cap_compensation_2 out2firststage out2
+.end two_stage_fully_differential_op_amp450

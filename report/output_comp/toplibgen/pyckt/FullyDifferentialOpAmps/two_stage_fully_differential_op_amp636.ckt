@@ -1,0 +1,43 @@
+.suckt  two_stage_fully_differential_op_amp636 ibias in1 in2 out source_nmos source_pmos
+M1 out1firststage in1 net_0 net_0 nmos
+M2 out2firststage in2 net_0 net_0 nmos
+M3 net_1 outfeedback source_pmos source_pmos pmos
+M4 out1firststage bias_p_5 net_1 net_1 pmos
+M5 net_3 outfeedback source_pmos source_pmos pmos
+M6 out2firststage bias_p_5 net_3 net_3 pmos
+M7 net_4 ibias source_nmos source_nmos nmos
+M8 net_0 bias_n_3 net_4 net_4 nmos
+M9 net_7 out2 net_8 net_8 nmos
+M10 outfeedback vref net_8 net_8 nmos
+M11 net_7 out1 net_9 net_9 nmos
+M12 outfeedback vref net_9 net_9 nmos
+M13 net_7 net_7 source_pmos source_pmos pmos
+M14 outfeedback outfeedback source_pmos source_pmos pmos
+M15 net_8 ibias source_nmos source_nmos nmos
+M16 net_9 ibias source_nmos source_nmos nmos
+M17 net_11 out1firststage source_pmos source_pmos pmos
+M18 out1 bias_p_5 net_11 net_11 pmos
+M19 net_13 net_13 source_nmos source_nmos nmos
+M20 out1 net_14 net_13 net_13 nmos
+M21 net_15 out2firststage source_pmos source_pmos pmos
+M22 out2 bias_p_5 net_15 net_15 pmos
+M23 net_17 net_17 source_nmos source_nmos nmos
+M24 out2 net_18 net_17 net_17 nmos
+M25 net_14 net_14 bias_n_1m bias_n_1m nmos
+M26 bias_n_1m net_13 source_nmos source_nmos nmos
+M27 net_18 net_18 bias_n_2m bias_n_2m nmos
+M28 bias_n_2m net_17 source_nmos source_nmos nmos
+M29 bias_n_3 bias_n_3 source_nmos source_nmos nmos
+M30 ibias ibias source_nmos source_nmos nmos
+M31 bias_p_5 bias_p_5 source_pmos source_pmos pmos
+M32 bias_p_6 bias_p_6 source_pmos source_pmos pmos
+M33 bias_n_3 bias_p_6 source_pmos source_pmos pmos
+M34 bias_p_5 ibias source_nmos source_nmos nmos
+M35 net_14 bias_p_6 source_pmos source_pmos pmos
+M36 net_18 bias_p_6 source_pmos source_pmos pmos
+M37 bias_p_6 ibias source_nmos source_nmos nmos
+Cap_load_1 out1 source_nmos
+Cap_load_2 out2 source_nmos
+Cap_compensation_1 out1firststage out1
+Cap_compensation_2 out2firststage out2
+.end two_stage_fully_differential_op_amp636

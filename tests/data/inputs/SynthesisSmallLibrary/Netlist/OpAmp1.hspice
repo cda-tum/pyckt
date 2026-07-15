@@ -1,0 +1,61 @@
+** Name: OpAmp1
+
+.MACRO OpAmp1 gnd vdd in1 in2 outFirstStage1 vbBias vbLoad2
+mMainBias1 vbBias vbBias gnd! gnd! nmos4 L=4e-6 W=6e-6
+mTelescopicFirstStageLoad2 innerLoad2 innerLoad2 vdd! vdd! pmos4 L=1e-6 W=87e-6
+mTelescopicFirstStageLoad3 outFirstStage2 outFirstStage2 innerLoad2 innerLoad2 pmos4 L=1e-6 W=261e-6
+mTelescopicFirstStageTransconductor4 dpDrain1 in1 dpSource dpSource nmos4 L=1e-6 W=61e-6
+mTelescopicFirstStageTransconductor5 dpDrain2 in2 dpSource dpSource nmos4 L=1e-6 W=61e-6
+mTelescopicFirstStageStageBias6 dpSource vbBias gnd! gnd! nmos4 L=4e-6 W=139e-6
+mTelescopicFirstStageLoad7 outFirstStage1 vbLoad2 dpDrain1 dpDrain1 nmos4 L=1e-6 W=55e-6
+mTelescopicFirstStageLoad8 outFirstStage2 vbLoad2 dpDrain2 dpDrain2 nmos4 L=1e-6 W=55e-6
+mTelescopicFirstStageLoad9 innerLoad1 innerLoad2 vdd! vdd! pmos4 L=1e-6 W=87e-6
+mTelescopicFirstStageLoad10 outFirstStage1 outFirstStage2 innerLoad1 innerLoad1 pmos4 L=1e-6 W=261e-6
+mLoadCapacitor1 outFirstStage1 gnd! 20e-12
+.EOM OpAmp1
+
+** Expected Performance Values: 
+** Gain: 102 dB
+** Power consumption: 1.21201 mW
+** Area: 1508 (mu_m)^2
+** Transit frequency: 12.2781 MHz
+** Transit frequency with error factor: 12.2785 MHz
+** Slew rate: 11.5722 V/mu_s
+** Phase margin: 88.8085°
+** CMRR: 156 dB
+** VoutMax: 4 V
+** VoutMin: 0.590001 V
+** VcmMax: 3.69001 V
+** VcmMin: 0.830001 V
+
+
+** Expected Currents: 
+** mB11: 2.32366e+08 muA
+** mBOBias: 9.99901e+06 muA
+** mL11: 1.16183e+08 muA
+** mL12: 1.16185e+08 muA
+** mL21: -1.16182e+08 muA
+** mL22: -1.16184e+08 muA
+** mL23: -1.16183e+08 muA
+** mL24: -1.16183e+08 muA
+** mT11: 1.16184e+08 muA
+** mT12: 1.16184e+08 muA
+
+
+** Expected Voltages: 
+** dpDrain1: 2.09501  V
+** dpDrain2: 2.09501  V
+** dpSource: 1.94501  V
+** gnd!: 0  V
+** in1: 2.5  V
+** in2: 2.5  V
+** innerLoad1: 4.16201  V
+** innerLoad2: 4.16201  V
+** outFirstStage1: 2.5  V
+** outFirstStage2: 3.44001  V
+** vbBias: 0.685001  V
+** vbLoad2: 2.65801  V
+** vdd!: 5  V
+
+
+.END

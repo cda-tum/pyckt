@@ -1,13 +1,134 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyckt"
 version = "0.1.0"
-description = "Python analog circuit synthesis tool (ACST) for topology generation, structural recognition, and partitioning."
-authors = [
-    { name="Your Name", email="your.email@example.com" }
-]
+description = "Python analog circuit synthesis tool (ACST) for topology generation, structural recognition, partitioning, and sizing."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "pyckt contributors" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "loguru>=0.7",
+    "ortools>=9.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.1",
+    "mypy>=1.7",
+    "build>=1.0",
+]
+docs = [
+    "sphinx>=7.0",
+    "furo>=2024.1",
+    "myst-parser>=2.0",
+]
+
+[project.scripts]
+pyckt = "cli:main"
+
+# ─────────────────────────────────────────────────────────────────────
+# Packaging
+# ─────────────────────────────────────────────────────────────────────
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ``cli`` is a top-level module (src/cli.py), not a package, so packages.find
+# does not pick it up — declare it explicitly for wheel builds.
+[tool.setuptools]
+py-modules = ["cli"]
+
+[tool.setuptools.package-data]
+data = ["**/*.xml"]
+
+# ─────────────────────────────────────────────────────────────────────
+# pytest
+# ─────────────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+# `--cov-fail-under=80` is the Phase 6 release gate (current coverage 96%).
+# The CI workflow appends `--cov=src --cov-report=term` (see ci.yml).
+addopts = "--tb=short --cov-fail-under=80"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+# ─────────────────────────────────────────────────────────────────────
+# ruff (lint + format)
+# ─────────────────────────────────────────────────────────────────────
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# Conservative lint set — flags real bugs without forcing a stylistic
+# rewrite of the existing codebase.  See `planning/week9_phase6_changes/
+# pyproject_ruff.md` for the rationale on each ignored rule.
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",  # line-too-long — handled by formatter, not the linter
+    "E741",  # ambiguous-variable-name — `l`, `I`, `O` appear as physics
+             # symbols (length, current, output) throughout the codebase
+    "F403",  # `from foo import *` — used pervasively in topogen factories
+             # to expose Circuit/connection helpers from common.circuit
+    "F405",  # undefined-local-with-import-star-usage — same root cause
+    "W191",  # tab-indentation — `pyckt.sizing` uses tabs by historical choice
+    "W293",  # blank-line-with-whitespace — pre-existing in many files
+    "E101",  # mixed-spaces-and-tabs — same as W191
+    "E402",  # module-import-not-at-top — analysis modules import lazily
+             # inside functions to avoid circular imports + speed up CLI startup
+    "E701",  # multiple-statements-on-one-line-colon — used in `if x: return ...`
+             # one-liners in recognition/recognizer.py rule-table dispatch
+    "E702",  # multiple-statements-on-one-line-semicolon — same root cause
+    "E711",  # `== None` vs `is None` — pre-existing in a handful of pyckt.sizing
+             # constraint checks; functionally equivalent on the variables involved
+    "E712",  # `== True / False` — same root cause
+    "F841",  # unused-variable — 2 instances in pyckt.sizing/constraints.py for
+             # bound calculations that document the constraint range
+]
+
+# ─────────────────────────────────────────────────────────────────────
+# mypy
+# ─────────────────────────────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+
+# ─────────────────────────────────────────────────────────────────────
+# coverage.py
+# ─────────────────────────────────────────────────────────────────────
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "tests/*",
+    "**/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",        # type-only imports — unreachable at runtime
+    "^\\s*\\.\\.\\.\\s*$",      # ellipsis-body abstract methods (`def x(): ...`)
+    "@(abc\\.)?abstractmethod", # decorated abstract methods
+]

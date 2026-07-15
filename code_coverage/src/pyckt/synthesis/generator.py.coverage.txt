@@ -1,0 +1,15 @@
+File: src/pyckt/synthesis/generator.py
+Covered lines: 72
+Total statements: 72
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+17, 19-21, 23-25, 28, 59, 63-65, 71, 83, 85-86, 88, 90, 94, 97, 106-111, 114-115, 119, 128-133, 136-139, 141-142, 148, 152, 154, 158-161, 164-167, 170-172, 175-178, 181-182, 185-186, 188-189, 196-202
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

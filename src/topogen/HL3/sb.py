@@ -1,12 +1,10 @@
-from src.topogen.HL3.lp import *
-from src.topogen.HL2.vb import *
-from src.topogen.common.circuit import *
-
-
+from itertools import chain
 from pathlib import Path
 from typing import Callable, Iterator
-from itertools import chain
 
+from topogen.common.circuit import *
+from topogen.HL2.vb import *
+from topogen.HL3.lp import *
 
 # fmt: off
 
@@ -17,12 +15,17 @@ GALLERY_IMAGE_DIR = Path(__file__).parent.parent.parent.parent / "gallery" / "HL
 GALLERY_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 def connectInstanceTerminalsOfOneTransistorStageBias(stageBias:Circuit, currentBias:Circuit) -> Circuit:
+    """Wire a one-transistor :class:`~topogen.HL2.cb.CurrentBias`'s
+    ``IN``/``OUT``/``SOURCE`` straight through to *stageBias*'s matching ports."""
     connect((stageBias, StageBias.IN), (currentBias, CurrentBias.IN))
     connect((stageBias, StageBias.OUT), (currentBias, CurrentBias.OUT))
     connect((stageBias, StageBias.SOURCE), (currentBias, CurrentBias.SOURCE))
     return stageBias
 
 def connectInstanceTerminalsOfTwoTransistorStageBias(stageBias:Circuit, currentBias:Circuit) -> Circuit:
+    """Wire a two-transistor :class:`~topogen.HL2.cb.CurrentBias`'s
+    ``INOUTPUT``/``INSOURCE``/``INNER``/``OUT``/``SOURCE`` straight through to
+    *stageBias*'s matching ports."""
     connect((stageBias, StageBias.INOUTPUT), (currentBias, CurrentBias.INOUTPUT))
     connect((stageBias, StageBias.INSOURCE), (currentBias, CurrentBias.INSOURCE ))
     connect((stageBias, StageBias.INNER), (currentBias, CurrentBias.INNER ))
@@ -31,6 +34,7 @@ def connectInstanceTerminalsOfTwoTransistorStageBias(stageBias:Circuit, currentB
     return stageBias
 
 def createOneTransistorStageBias(currentBias) -> Circuit:
+    """Wrap a one-transistor :class:`~topogen.HL2.cb.CurrentBias` in a :class:`StageBias`."""
     sb = StageBias(id=1, techtype="?")
     sb.ports = [
         StageBias.OUT,
@@ -42,6 +46,7 @@ def createOneTransistorStageBias(currentBias) -> Circuit:
     return sb
 
 def createTwoTransistorStageBias(currentBias) -> Circuit:
+    """Wrap a two-transistor :class:`~topogen.HL2.cb.CurrentBias` in a :class:`StageBias`."""
     sb = StageBias(id=1, techtype="?")
     sb.ports = [
         StageBias.OUT,
@@ -55,50 +60,74 @@ def createTwoTransistorStageBias(currentBias) -> Circuit:
     return sb
 
 def createOneTransistorStageBiases(oneTransistorCurrentBiases: list[Circuit])->Iterator[Circuit]:
+    """Wrap each one-transistor current bias in *oneTransistorCurrentBiases* as a :class:`StageBias`."""
     for currentBias in oneTransistorCurrentBiases:
         yield createOneTransistorStageBias(currentBias)
 
 def createTwoTransistorStageBiases(twoTransistorCurrentBiases) ->Iterator[Circuit]:
+    """Wrap each two-transistor current bias in *twoTransistorCurrentBiases* as a :class:`StageBias`."""
     for currentBias in twoTransistorCurrentBiases:
         yield createTwoTransistorStageBias(currentBias)
 
 def initializeStageBiasesPmos():
+    """Return a fresh chained iterator over every PMOS stage bias (one- and two-transistor)."""
     oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
     twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
     return chain(createOneTransistorStageBiases(oneTransistorCurrentBiases), createTwoTransistorStageBiases(twoTransistorCurrentBiases))
 
 def initializeStageBiasesNmos():
+    """Return a fresh chained iterator over every NMOS stage bias (one- and two-transistor)."""
     oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesNmos()
     twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesNmos()
     return chain(createOneTransistorStageBiases(oneTransistorCurrentBiases), createTwoTransistorStageBiases(twoTransistorCurrentBiases))
 
 
 class StageBiasManager:
+    """Factory/cache for per-stage bias networks, built from HL2 current biases.
+
+    .. note::
+       This class defines methods named ``initializeStageBiasesPmos`` /
+       ``initializeStageBiasesNmos`` that intentionally shadow the
+       module-level functions of the same name — the methods *cache* the
+       result on ``self`` (consumed by :meth:`getAllStageBiasesPmos` /
+       :meth:`getAllStageBiasesNmos`), while
+       :meth:`createStageBiasesPmos` / :meth:`createStageBiasesNmos` call the
+       *module-level* functions directly to return a fresh, uncached iterator.
+    """
+
     def __init__(self):
+        """Build and cache every PMOS and NMOS stage bias."""
         self.initializeStageBiasesPmos()
         self.initializeStageBiasesNmos()
         pass
     def createStageBiasesPmos(self) ->Iterator[Circuit]:
+        """Return a fresh (uncached) iterator over every PMOS stage bias."""
         return initializeStageBiasesPmos()
     def createStageBiasesNmos(self) ->Iterator[Circuit]:
+        """Return a fresh (uncached) iterator over every NMOS stage bias."""
         return initializeStageBiasesNmos()
-    
+
     def getOneTransistorStageBiasesNmos(self) ->Iterator[Circuit]:
+        """Return a fresh iterator over the one-transistor NMOS stage biases."""
         oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesNmos()
         return createOneTransistorStageBiases(oneTransistorCurrentBiases)
     def getTwoTransistorStageBiasesNmos(self) ->Iterator[Circuit]:
+        """Return a fresh iterator over the two-transistor NMOS stage biases."""
         twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesNmos()
         return createTwoTransistorStageBiases(twoTransistorCurrentBiases)
-    
+
 
     def getOneTransistorStageBiasesPmos(self) ->Iterator[Circuit]:
+        """Return a fresh iterator over the one-transistor PMOS stage biases."""
         oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
         return createOneTransistorStageBiases(oneTransistorCurrentBiases)
     def getTwoTransistorStageBiasesPmos(self) ->Iterator[Circuit]:
+        """Return a fresh iterator over the two-transistor PMOS stage biases."""
         twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
         return createTwoTransistorStageBiases(twoTransistorCurrentBiases)
 
     def initializeStageBiasesNmos(self)-> None:
+        """Build the one- and two-transistor NMOS stage biases and cache them on ``self``."""
         oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesNmos()
         twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesNmos()
 
@@ -106,6 +135,7 @@ class StageBiasManager:
         self.twoTransistorBiasesNmos_ = createTwoTransistorStageBiases(twoTransistorCurrentBiases)
 
     def initializeStageBiasesPmos(self)-> None:
+        """Build the one- and two-transistor PMOS stage biases and cache them on ``self``."""
 
         oneTransistorCurrentBiases = CurrentBiasManager().getOneTransistorCurrentBiasesPmos()
         twoTransistorCurrentBiases = CurrentBiasManager().getTwoTransistorCurrentBiasesPmos()
@@ -115,11 +145,13 @@ class StageBiasManager:
 
 
     def getAllStageBiasesNmos(self):
+        """Return every cached NMOS stage bias (one- and two-transistor) as a list."""
         assert self.oneTransistorBiasesNmos_ is not None
         assert self.twoTransistorBiasesNmos_ is not None
         return  list(self.oneTransistorBiasesNmos_) + list(self.twoTransistorBiasesNmos_)
-    
+
     def getAllStageBiasesPmos(self):
+        """Return every cached PMOS stage bias (one- and two-transistor) as a list."""
         assert self.oneTransistorBiasesPmos_ is not None
         assert self.twoTransistorBiasesPmos_ is not None
         return  list(self.oneTransistorBiasesPmos_) + list(self.twoTransistorBiasesPmos_)

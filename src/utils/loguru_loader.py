@@ -1,4 +1,5 @@
 import sys
+
 from loguru import logger
 
 
@@ -39,6 +40,8 @@ class Logger(metaclass=Singleton):
 # Logger setup
 def setup_logger(log_level="DEBUG", log_format=None, log_file=None):
     logger.remove()
+    if log_level == "OFF":
+        return logger          # silence all output — no handler added
     if log_format is None:
         log_format = (
             "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
@@ -56,3 +59,6 @@ def setup_logger(log_level="DEBUG", log_format=None, log_file=None):
             retention="7 days",
         )
     return logger
+
+
+__all__ = ["Logger", "setup_logger"]

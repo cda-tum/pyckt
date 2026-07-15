@@ -1,0 +1,15 @@
+File: src/partitioning/__init__.py
+Covered lines: 4
+Total statements: 4
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+30-32, 34
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

@@ -1,0 +1,15 @@
+File: src/recognition/writer.py
+Covered lines: 35
+Total statements: 35
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+6, 8-9, 11, 15, 18, 21-26, 28-40, 43, 46-54
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None
