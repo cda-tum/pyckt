@@ -1,0 +1,19 @@
+.suckt  two_stage_single_output_op_amp1514 ibias in1 in2 out source_nmos source_pmos
+M1 net_0 in1 net_1 net_1 pmos
+M2 outfirststage in2 net_1 net_1 pmos
+M3 net_0 net_0 source_pmos source_pmos pmos
+M4 outfirststage net_0 source_pmos source_pmos pmos
+M5 net_0 bias_n_2 source_nmos source_nmos nmos
+M6 outfirststage bias_n_2 source_nmos source_nmos nmos
+M7 net_1 ibias source_pmos source_pmos pmos
+M8 out ibias source_pmos source_pmos pmos
+M9 net_5 outfirststage source_nmos source_nmos nmos
+M10 out bias_n_1 net_5 net_5 nmos
+M11 bias_n_1 bias_n_1 source_nmos source_nmos nmos
+M12 bias_n_2 bias_n_2 source_nmos source_nmos nmos
+M13 ibias ibias source_pmos source_pmos pmos
+M14 bias_n_2 ibias source_pmos source_pmos pmos
+M15 bias_n_1 ibias source_pmos source_pmos pmos
+Cap_load_1 out source_nmos
+Cap_compensation_1 outfirststage out
+.end two_stage_single_output_op_amp1514

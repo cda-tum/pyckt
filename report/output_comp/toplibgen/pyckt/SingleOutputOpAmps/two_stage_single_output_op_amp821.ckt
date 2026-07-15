@@ -1,0 +1,27 @@
+.suckt  two_stage_single_output_op_amp821 ibias in1 in2 out source_nmos source_pmos
+M1 net_0 in1 net_1 net_1 pmos
+M2 net_2 in2 net_1 net_1 pmos
+M3 net_0 bias_n_1b source_nmos source_nmos nmos
+M4 net_4 ibias net_0 net_0 nmos
+M5 net_2 bias_n_1b source_nmos source_nmos nmos
+M6 outfirststage ibias net_2 net_2 nmos
+M7 net_6 net_4 source_pmos source_pmos pmos
+M8 net_4 net_4 net_6 net_6 pmos
+M9 net_7 net_4 source_pmos source_pmos pmos
+M10 outfirststage net_4 net_7 net_7 pmos
+M11 net_8 bias_p_3b source_pmos source_pmos pmos
+M12 net_1 bias_p_3t net_8 net_8 pmos
+M13 net_11 net_11 source_pmos source_pmos pmos
+M14 out net_12 net_11 net_11 pmos
+M15 out outfirststage source_nmos source_nmos nmos
+M16 bias_n_1b bias_n_1b source_nmos source_nmos nmos
+M17 ibias ibias bias_n_1b bias_n_1b nmos
+M18 net_12 net_12 bias_p_2m bias_p_2m pmos
+M19 bias_p_2m net_11 source_pmos source_pmos pmos
+M20 bias_p_3b bias_p_3b source_pmos source_pmos pmos
+M21 bias_p_3t bias_p_3t bias_p_3b bias_p_3b pmos
+M22 bias_p_3t bias_n_1b source_nmos source_nmos nmos
+M23 net_12 bias_n_1b source_nmos source_nmos nmos
+Cap_load_1 out source_nmos
+Cap_compensation_1 outfirststage out
+.end two_stage_single_output_op_amp821

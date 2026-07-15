@@ -1,0 +1,22 @@
+.suckt  symmetrical_op_amp_4178 ibias in1 in2 out source_nmos source_pmos
+M1 out2fs in1 net_0 net_0 pmos W=21e-6 L=1e-6
+M2 inoutputtc in2 net_0 net_0 pmos W=21e-6 L=1e-6
+M3 out1fs out1fs source_nmos source_nmos nmos W=1e-6 L=1e-6
+M4 out2fs out2fs out1fs out1fs nmos W=1e-6 L=1e-6
+M5 insourcetc insourcetc source_nmos source_nmos nmos W=1e-6 L=1e-6
+M6 inoutputtc inoutputtc insourcetc insourcetc nmos W=1e-6 L=1e-6
+M7 net_0 ibias source_pmos source_pmos pmos W=1e-6 L=2e-6
+M8 net_2 instagebias source_pmos source_pmos pmos W=1e-6 L=1e-6
+M9 out bias_p_1 net_2 net_2 pmos W=14e-6 L=1e-6
+M10 net_4 out1fs source_nmos source_nmos nmos W=1e-6 L=1e-6
+M11 out out2fs net_4 net_4 nmos W=1e-6 L=1e-6
+M12 net_5 insourcetc source_nmos source_nmos nmos W=1e-6 L=1e-6
+M13 instagebias inoutputtc net_5 net_5 nmos W=1e-6 L=1e-6
+M14 instagebias instagebias source_pmos source_pmos pmos W=1e-6 L=1e-6
+M15 bias_p_1 bias_p_1 source_pmos source_pmos pmos W=1e-6 L=16e-6
+M16 ibias ibias source_pmos source_pmos pmos W=1e-6 L=2e-6
+M17 bias_n_3 bias_n_3 source_nmos source_nmos nmos W=1e-6 L=1e-6
+M18 bias_p_1 bias_n_3 source_nmos source_nmos nmos W=1e-6 L=1e-6
+M19 bias_n_3 ibias source_pmos source_pmos pmos W=1e-6 L=2e-6
+Cap_load_1 out source_nmos
+.end symmetrical_op_amp_4178

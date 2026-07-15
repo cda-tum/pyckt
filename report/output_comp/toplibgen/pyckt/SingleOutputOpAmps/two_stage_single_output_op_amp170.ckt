@@ -1,0 +1,20 @@
+.suckt  two_stage_single_output_op_amp170 ibias in1 in2 out source_nmos source_pmos
+M1 net_0 in1 net_1 net_1 pmos
+M2 outfirststage in2 net_1 net_1 pmos
+M3 net_0 net_0 source_nmos source_nmos nmos
+M4 outfirststage net_0 source_nmos source_nmos nmos
+M5 net_2 ibias source_pmos source_pmos pmos
+M6 net_1 bias_p_2 net_2 net_2 pmos
+M7 out ibias source_pmos source_pmos pmos
+M8 net_6 outfirststage source_nmos source_nmos nmos
+M9 out bias_n_1 net_6 net_6 nmos
+M10 bias_n_1 bias_n_1 source_nmos source_nmos nmos
+M11 bias_p_2 bias_p_2 source_pmos source_pmos pmos
+M12 ibias ibias source_pmos source_pmos pmos
+M13 bias_n_4 bias_n_4 source_nmos source_nmos nmos
+M14 bias_n_1 ibias source_pmos source_pmos pmos
+M15 bias_p_2 bias_n_4 source_nmos source_nmos nmos
+M16 bias_n_4 ibias source_pmos source_pmos pmos
+Cap_load_1 out source_nmos
+Cap_compensation_1 outfirststage out
+.end two_stage_single_output_op_amp170

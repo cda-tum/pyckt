@@ -1,0 +1,46 @@
+.suckt  two_stage_fully_differential_op_amp833 ibias in1 in2 out source_nmos source_pmos
+M1 net_0 in1 net_1 net_1 nmos
+M2 net_2 in2 net_1 net_1 nmos
+M3 out1firststage net_3 net_0 net_0 nmos
+M4 out2firststage net_3 net_2 net_2 nmos
+M5 net_4 outfeedback source_pmos source_pmos pmos
+M6 out1firststage bias_p_4 net_4 net_4 pmos
+M7 net_6 outfeedback source_pmos source_pmos pmos
+M8 out2firststage bias_p_4 net_6 net_6 pmos
+M9 net_7 bias_n_1b source_nmos source_nmos nmos
+M10 net_1 ibias net_7 net_7 nmos
+M11 net_10 out2 net_11 net_11 nmos
+M12 outfeedback vref net_11 net_11 nmos
+M13 net_10 out1 net_12 net_12 nmos
+M14 outfeedback vref net_12 net_12 nmos
+M15 net_10 net_10 source_pmos source_pmos pmos
+M16 outfeedback outfeedback source_pmos source_pmos pmos
+M17 net_13 bias_n_1b source_nmos source_nmos nmos
+M18 net_11 ibias net_13 net_13 nmos
+M19 net_16 bias_n_1b source_nmos source_nmos nmos
+M20 net_12 ibias net_16 net_16 nmos
+M21 net_17 net_17 source_pmos source_pmos pmos
+M22 out1 net_18 net_17 net_17 pmos
+M23 out1 out1firststage source_nmos source_nmos nmos
+M24 net_19 net_19 source_pmos source_pmos pmos
+M25 out2 net_20 net_19 net_19 pmos
+M26 out2 out2firststage source_nmos source_nmos nmos
+M27 net_3 net_3 net_1 net_1 nmos
+M28 bias_n_1b bias_n_1b source_nmos source_nmos nmos
+M29 ibias ibias bias_n_1b bias_n_1b nmos
+M30 net_18 net_18 bias_p_2m bias_p_2m pmos
+M31 bias_p_2m net_17 source_pmos source_pmos pmos
+M32 net_20 net_20 bias_p_3m bias_p_3m pmos
+M33 bias_p_3m net_19 source_pmos source_pmos pmos
+M34 bias_p_4 bias_p_4 source_pmos source_pmos pmos
+M35 bias_p_5 bias_p_5 source_pmos source_pmos pmos
+M36 net_20 bias_n_1b source_nmos source_nmos nmos
+M37 net_3 bias_p_5 source_pmos source_pmos pmos
+M38 bias_p_4 bias_n_1b source_nmos source_nmos nmos
+M39 net_18 bias_n_1b source_nmos source_nmos nmos
+M40 bias_p_5 bias_n_1b source_nmos source_nmos nmos
+Cap_load_1 out1 source_nmos
+Cap_load_2 out2 source_nmos
+Cap_compensation_1 out1firststage out1
+Cap_compensation_2 out2firststage out2
+.end two_stage_fully_differential_op_amp833

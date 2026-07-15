@@ -1,0 +1,15 @@
+.suckt  symmetrical_op_amp_4096 ibias in1 in2 out source_nmos source_pmos
+M1 out1fs in1 net_0 net_0 pmos W=999e-6 L=1e-6
+M2 out2fs in2 net_0 net_0 pmos W=999e-6 L=1e-6
+M3 out1fs out1fs source_nmos source_nmos nmos W=1e-6 L=1e-6
+M4 out2fs out2fs source_nmos source_nmos nmos W=1e-6 L=1e-6
+M5 net_0 ibias source_pmos source_pmos pmos W=1e-6 L=3e-6
+M6 net_2 insourcestagebias source_pmos source_pmos pmos W=7e-6 L=1e-6
+M7 out inoutputstagebias net_2 net_2 pmos W=7e-6 L=1e-6
+M8 out out1fs source_nmos source_nmos nmos W=1e-6 L=1e-6
+M9 inoutputstagebias out2fs source_nmos source_nmos nmos W=1e-6 L=1e-6
+M10 insourcestagebias insourcestagebias source_pmos source_pmos pmos W=7e-6 L=1e-6
+M11 inoutputstagebias inoutputstagebias insourcestagebias insourcestagebias pmos W=7e-6 L=1e-6
+M12 ibias ibias source_pmos source_pmos pmos W=1e-6 L=3e-6
+Cap_load_1 out source_nmos
+.end symmetrical_op_amp_4096

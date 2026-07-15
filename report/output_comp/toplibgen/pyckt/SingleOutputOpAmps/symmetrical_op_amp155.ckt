@@ -1,0 +1,19 @@
+.suckt  symmetrical_op_amp155 ibias in1 in2 out source_nmos source_pmos
+M1 out2fs in1 net_0 net_0 pmos
+M2 inoutputtc in2 net_0 net_0 pmos
+M3 net_1 out2fs source_nmos source_nmos nmos
+M4 out2fs out2fs net_1 net_1 nmos
+M5 net_2 inoutputtc source_nmos source_nmos nmos
+M6 inoutputtc inoutputtc net_2 net_2 nmos
+M7 net_3 bias_p_1b source_pmos source_pmos pmos
+M8 net_0 ibias net_3 net_3 pmos
+M9 out instagebias source_pmos source_pmos pmos
+M10 net_6 out2fs source_nmos source_nmos nmos
+M11 out out2fs net_6 net_6 nmos
+M12 net_7 inoutputtc source_nmos source_nmos nmos
+M13 instagebias inoutputtc net_7 net_7 nmos
+M14 instagebias instagebias source_pmos source_pmos pmos
+M15 bias_p_1b bias_p_1b source_pmos source_pmos pmos
+M16 ibias ibias bias_p_1b bias_p_1b pmos
+Cap_load_1 out source_nmos
+.end symmetrical_op_amp155

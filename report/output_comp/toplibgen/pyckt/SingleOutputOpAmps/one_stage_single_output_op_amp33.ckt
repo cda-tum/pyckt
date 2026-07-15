@@ -1,0 +1,14 @@
+.suckt  one_stage_single_output_op_amp33 ibias in1 in2 out source_nmos source_pmos
+M1 net_0 in1 net_1 net_1 nmos
+M2 out in2 net_1 net_1 nmos
+M3 net_0 net_0 source_pmos source_pmos pmos
+M4 net_2 net_0 source_pmos source_pmos pmos
+M5 out bias_p_2 net_2 net_2 pmos
+M6 net_4 bias_n_1b source_nmos source_nmos nmos
+M7 net_1 ibias net_4 net_4 nmos
+M8 bias_n_1b bias_n_1b source_nmos source_nmos nmos
+M9 ibias ibias bias_n_1b bias_n_1b nmos
+M10 bias_p_2 bias_p_2 source_pmos source_pmos pmos
+M11 bias_p_2 bias_n_1b source_nmos source_nmos nmos
+Cap_load_1 out source_nmos
+.end one_stage_single_output_op_amp33

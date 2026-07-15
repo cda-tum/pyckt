@@ -7,7 +7,7 @@ stage count × output family, writing a markdown table.
 Usage
 -----
     .venv/bin/python scripts/report_topology_counts.py \
-        [--report reports/TOPOLOGY_COUNTS.md]
+        [--report report/reports/TOPOLOGY_COUNTS.md]
 """
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ def render(counts: Counter, total: int) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--report", type=Path,
-                    default=REPO / "reports" / "TOPOLOGY_COUNTS.md")
+                    default=REPO / "report" / "reports" / "TOPOLOGY_COUNTS.md")
     args = ap.parse_args()
 
     counts, total = crosstab()

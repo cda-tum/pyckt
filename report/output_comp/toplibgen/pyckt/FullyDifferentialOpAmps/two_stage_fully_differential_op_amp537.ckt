@@ -1,0 +1,45 @@
+.suckt  two_stage_fully_differential_op_amp537 ibias in1 in2 out source_nmos source_pmos
+M1 net_0 in1 net_1 net_1 pmos
+M2 net_2 in2 net_1 net_1 pmos
+M3 out1firststage net_3 net_0 net_0 pmos
+M4 out2firststage net_3 net_2 net_2 pmos
+M5 net_4 outfeedback source_nmos source_nmos nmos
+M6 out1firststage bias_n_3 net_4 net_4 nmos
+M7 net_6 outfeedback source_nmos source_nmos nmos
+M8 out2firststage bias_n_3 net_6 net_6 nmos
+M9 net_7 ibias source_pmos source_pmos pmos
+M10 net_1 bias_p_4 net_7 net_7 pmos
+M11 net_10 out2 net_11 net_11 pmos
+M12 outfeedback vref net_11 net_11 pmos
+M13 net_10 out1 net_12 net_12 pmos
+M14 outfeedback vref net_12 net_12 pmos
+M15 net_10 net_10 source_nmos source_nmos nmos
+M16 outfeedback outfeedback source_nmos source_nmos nmos
+M17 net_11 ibias source_pmos source_pmos pmos
+M18 net_12 ibias source_pmos source_pmos pmos
+M19 out1 out1firststage source_pmos source_pmos pmos
+M20 net_14 net_14 source_nmos source_nmos nmos
+M21 out1 net_15 net_14 net_14 nmos
+M22 out2 out2firststage source_pmos source_pmos pmos
+M23 net_16 net_16 source_nmos source_nmos nmos
+M24 out2 net_17 net_16 net_16 nmos
+M25 net_15 net_15 bias_n_1m bias_n_1m nmos
+M26 bias_n_1m net_14 source_nmos source_nmos nmos
+M27 net_17 net_17 bias_n_2m bias_n_2m nmos
+M28 bias_n_2m net_16 source_nmos source_nmos nmos
+M29 bias_n_3 bias_n_3 source_nmos source_nmos nmos
+M30 net_3 net_3 net_1 net_1 pmos
+M31 bias_p_4 bias_p_4 source_pmos source_pmos pmos
+M32 ibias ibias source_pmos source_pmos pmos
+M33 bias_n_6 bias_n_6 source_nmos source_nmos nmos
+M34 net_17 ibias source_pmos source_pmos pmos
+M35 bias_n_3 ibias source_pmos source_pmos pmos
+M36 net_3 bias_n_6 source_nmos source_nmos nmos
+M37 bias_p_4 bias_n_6 source_nmos source_nmos nmos
+M38 net_15 ibias source_pmos source_pmos pmos
+M39 bias_n_6 ibias source_pmos source_pmos pmos
+Cap_load_1 out1 source_nmos
+Cap_load_2 out2 source_nmos
+Cap_compensation_1 out1firststage out1
+Cap_compensation_2 out2firststage out2
+.end two_stage_fully_differential_op_amp537
