@@ -1,6 +1,4 @@
-import jsbeautifier
-from src.topogen.common.circuit import *
-
+from topogen.common.circuit import *
 
 dp1 = DiffPair(techtype="p", id=1)
 dp1.ports = [
@@ -38,11 +36,21 @@ dp2.add_connection_xxx(port=DiffPair.SOURCE, instance_id=1, instance_port="sourc
 
 
 class DiffPairManager:
+    """Factory for the two pre-built HL2 differential-pair cells.
+
+    Each pair is a two-transistor :class:`~topogen.common.circuit.DiffPair`
+    with a shared source and two independent gate/drain branches
+    (``INPUT1``/``OUTPUT1`` and ``INPUT2``/``OUTPUT2``).
+    """
+
     def getAllDiffPairs(self):
+        """Return both pre-built pairs, ``[pmos, nmos]``."""
         return [dp1, dp2]
 
     def getDifferentialPairPmos(self):
+        """Return the PMOS differential pair (``dp1``)."""
         return dp1
 
     def getDifferentialPairNmos(self):
+        """Return the NMOS differential pair (``dp2``)."""
         return dp2

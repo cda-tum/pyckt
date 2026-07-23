@@ -1,0 +1,3 @@
+File: src/recognition/analysis.py
+Coverage: 16/16 (100.00%)
+Missing lines: []

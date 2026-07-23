@@ -1,0 +1,126 @@
+"""Tests for `partitioning.analysis` (Week 9 Phase 4 wiring).
+
+Previously asserted the stubs raised `NotImplementedError`; now exercises
+the wired pipeline end-to-end against the bundled `AutomaticSizing`
+fixture (which ships the `CircuitParameterAndSpecifications.xml` the
+partitioner needs).
+"""
+from __future__ import annotations
+
+import argparse
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+import pytest
+
+from partitioning.analysis import PartitioningAnalysis
+from partitioning.result import PartitionResult
+
+
+def _make_args(inputs_dir: Path, **overrides) -> argparse.Namespace:
+    src = inputs_dir / "AutomaticSizing"
+    defaults = dict(
+        circuit_netlist=str(src / "cascodedSymmetricalCMOSOTA.hspice"),
+        device_types_file=str(src / "deviceTypes.xcat"),
+        hspice_mapping_file=str(src / "HSpiceMapping.xcat"),
+        hspice_supplynet_file=str(src / "supplyNets.xcat"),
+        xml_circuit_information_file=str(src / "CircuitParameterAndSpecifications.xml"),
+        xml_structrec_library_file=None,
+        output_file=None,
+    )
+    defaults.update(overrides)
+    return argparse.Namespace(**defaults)
+
+
+class TestPartitioningAnalysisLifecycle:
+    def test_initialize_no_longer_raises_not_implemented(self, inputs_dir, tmp_path):
+        args = _make_args(inputs_dir, output_file=str(tmp_path / "p.xml"))
+        try:
+            PartitioningAnalysis(args).initialize()
+        except NotImplementedError:
+            pytest.fail("PartitioningAnalysis.initialize() still raises NotImplementedError")
+
+    def test_initialize_populates_inputs(self, inputs_dir, tmp_path):
+        args = _make_args(inputs_dir, output_file=str(tmp_path / "p.xml"))
+        a = PartitioningAnalysis(args)
+        a.initialize()
+        assert a.circuit is not None
+        assert a.structure_circuits is not None
+        assert a.circuit_params is not None
+
+    def test_initialize_without_circuit_params_infers_roles(
+        self, inputs_dir, tmp_path
+    ):
+        """--circuit-params is optional: net roles are inferred structurally
+        (issue #6), matching the fixture's params file."""
+        args = _make_args(inputs_dir,
+                          xml_circuit_information_file=None,
+                          output_file=str(tmp_path / "p.xml"))
+        a = PartitioningAnalysis(args)
+        a.initialize()
+        assert a.circuit_params is not None
+        assert a.circuit_params.output_net == "out"
+        assert a.circuit_params.bias_current[0] == "ibias"
+        assert {a.circuit_params.input_plus[0],
+                a.circuit_params.input_minus[0]} == {"inp", "inn"}
+
+    def test_partition_identical_with_and_without_circuit_params(
+        self, inputs_dir, tmp_path
+    ):
+        """The inferred roles reproduce the params-file partition exactly."""
+        with_params = PartitioningAnalysis(
+            _make_args(inputs_dir, output_file=str(tmp_path / "a.xml"))
+        )
+        with_params.initialize(); with_params.compute()
+        inferred = PartitioningAnalysis(
+            _make_args(inputs_dir,
+                       xml_circuit_information_file=None,
+                       output_file=str(tmp_path / "b.xml"))
+        )
+        inferred.initialize(); inferred.compute()
+        assert inferred.partition.summary() == with_params.partition.summary()
+
+    def test_compute_before_initialize_raises_runtime(self, inputs_dir, tmp_path):
+        args = _make_args(inputs_dir, output_file=str(tmp_path / "p.xml"))
+        with pytest.raises(RuntimeError, match="not initialised"):
+            PartitioningAnalysis(args).compute()
+
+    def test_compute_produces_partition_result(self, inputs_dir, tmp_path):
+        args = _make_args(inputs_dir, output_file=str(tmp_path / "p.xml"))
+        a = PartitioningAnalysis(args)
+        a.initialize(); a.compute()
+        assert isinstance(a.partition, PartitionResult)
+        assert a.partition.total > 0
+
+    def test_write_produces_valid_xml(self, inputs_dir, tmp_path):
+        out = tmp_path / "partition.xml"
+        args = _make_args(inputs_dir, output_file=str(out))
+        a = PartitioningAnalysis(args)
+        a.initialize(); a.compute(); a.write()
+        assert out.exists()
+        root = ET.parse(out).getroot()
+        # PartitionXMLWriter root tag should be Partitioning-something
+        assert root.tag  # at minimum, the tree parses
+
+
+# ---------------------------------------------------------------------------
+# PartitioningAnalysis._resolve_lib_dir helper
+# ---------------------------------------------------------------------------
+
+class TestResolveLibDir:
+    """Static helper that accepts either a directory or an
+    `AnalogLibrary.xml` file path; `None` falls through to the
+    bundled-XML default."""
+
+    def test_returns_dir_when_given_directory(self, tmp_path):
+        assert PartitioningAnalysis._resolve_lib_dir(str(tmp_path)) == tmp_path
+
+    def test_passes_file_through(self, tmp_path):
+        # issue #47: Library.from_directory accepts wrapper files directly,
+        # so the helper no longer strips the filename
+        f = tmp_path / "Library.xml"
+        f.write_text("<root/>")
+        assert PartitioningAnalysis._resolve_lib_dir(str(f)) == f
+
+    def test_returns_none_when_given_none(self):
+        assert PartitioningAnalysis._resolve_lib_dir(None) is None

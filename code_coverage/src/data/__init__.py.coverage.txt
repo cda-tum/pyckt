@@ -1,0 +1,15 @@
+File: src/data/__init__.py
+Covered lines: 0
+Total statements: 0
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+None
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

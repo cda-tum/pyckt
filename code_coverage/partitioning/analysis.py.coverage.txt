@@ -1,0 +1,5 @@
+File: src/partitioning/analysis.py
+Coverage: 9/9 (100.00%)
+Missing lines: []
+Test files used:
+- tests/test_partitioning_analysis.py

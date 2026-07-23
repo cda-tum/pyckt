@@ -1,0 +1,15 @@
+File: src/pyckt/sizing/problem.py
+Covered lines: 62
+Total statements: 62
+Missing lines: 0
+Excluded lines: 5
+Coverage: 100.00%
+
+Executed line ranges:
+11, 13-14, 16, 24, 40-41, 59, 62-64, 68-69, 104, 106-108, 110-111, 114-116, 118, 121-124, 126, 129-131, 134-135, 138-139, 142-143, 146-147, 149, 153-154, 156, 158-159, 161, 163, 165, 177-180, 182-183, 185-189, 194, 196-197
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+26-29, 32

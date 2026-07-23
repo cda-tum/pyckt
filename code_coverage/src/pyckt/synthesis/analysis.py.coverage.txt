@@ -1,0 +1,15 @@
+File: src/pyckt/synthesis/analysis.py
+Covered lines: 75
+Total statements: 75
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+22, 24-26, 28-30, 32, 35, 51-57, 63, 84-86, 89-90, 94, 96-97, 100-102, 104-105, 108-111, 113, 117, 119-120, 122, 128, 141-142, 144, 149, 151-152, 158, 166, 196-198, 202-203, 205-208, 211-213, 216-217, 230-232, 235, 238-240, 248, 254-255, 257-258, 262
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

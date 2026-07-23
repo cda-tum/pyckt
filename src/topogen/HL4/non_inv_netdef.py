@@ -1,10 +1,17 @@
-# from src.topogen.HL2 import *
-# from src.topogen.HL3 import *
+# from topogen.HL2 import *
+# from topogen.HL3 import *
 
-from src.topogen.common.circuit import *
+from topogen.common.circuit import *
 
 
 def addLoadPart1Nets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:
+    """Add *stage*'s port names for *load*'s "load 1" branch.
+
+    Branch-dependent: voltage-bias pairs get ``out_output{1,2}_load1``/
+    ``out_source{1,2}_load1``; GCC loads get ``source_gcc{1,2}``/
+    ``inner_gcc``; everything else gets the ``inner*_load1`` family, scaled by
+    ``loadPart1.component_count``.
+    """
     loadPart1: LoadPart = load.get_instance_by_name("lp")[0]
     if loadPart1 is None:
         logger.error("Load part1 (lp) instance not found in load.")
@@ -49,6 +56,8 @@ def addLoadPart1Nets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:
 
 
 def addLoadPart2Nets(stage: NonInvertingStage, load: Circuit) -> NonInvertingStage:
+    """Add *stage*'s port names for *load*'s "load 2" branch (the
+    ``inner*_load2`` family, scaled by ``loadPart2.component_count``)."""
     loadPart2: LoadPart = load.get_instance_by_name("lp")[1]
     if loadPart2.component_count == 2:
         stage.ports += ["inner_load2"]
@@ -64,6 +73,8 @@ def addLoadPart2Nets(stage: NonInvertingStage, load: Circuit) -> NonInvertingSta
 
 
 def addLoadNets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:
+    """Add *stage*'s port names for *load*'s "load 1" branch, plus "load 2"
+    too when *load* has a second branch."""
     addLoadPart1Nets(stage, load)
     if len(load.instances) == 2:
         addLoadPart2Nets(stage, load)
@@ -71,6 +82,10 @@ def addLoadNets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:
 
 
 def addStageBiasNets(stage: Circuit, stageBias: Circuit):
+    """Add *stage*'s port names for a single :class:`StageBias`: one
+    ``input_stagebias`` for a one-transistor bias, or the
+    ``in_output``/``in_source``/``inner`` family (single or split
+    ``inner_stagebias{1,2}``, depending on ``instance_id``) for a two-transistor bias."""
     if stageBias.component_count == 1:
         stage.ports += ["input_stagebias"]
     else:
@@ -83,6 +98,8 @@ def addStageBiasNets(stage: Circuit, stageBias: Circuit):
 
 
 def addComplementaryLoadNets(stage: NonInvertingStage, load: Load) -> NonInvertingStage:
+    """Add *stage*'s fixed port set for a complementary (NMOS+PMOS) load —
+    the inner output/source/cascode nets for both load branches."""
     stage.ports += [
         "inner_output_load_nmos",
         "inner_source_load_nmos",
@@ -99,6 +116,8 @@ def addComplementaryLoadNets(stage: NonInvertingStage, load: Load) -> NonInverti
 def addStageBiasesNets(
     stage: NonInvertingStage, stageBiasNmos: StageBias, stageBiasPmos: StageBias
 ) -> NonInvertingStage:
+    """Add *stage*'s port names for a complementary pair of stage biases
+    (NMOS and PMOS), mirroring :func:`addStageBiasNets` per side."""
     if stageBiasPmos.component_count == 1:
         stage.ports += ["input_stagebias_nmos", "input_stagebias_pmos"]
     else:

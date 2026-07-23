@@ -1,0 +1,15 @@
+File: src/pyckt/io/device_types_parser.py
+Covered lines: 45
+Total statements: 45
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+16, 18-19, 21, 30, 63-65, 67-70, 72-75, 77-85, 89-93, 95-98, 102-109, 114, 122, 124
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

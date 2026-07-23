@@ -1,0 +1,5 @@
+File: src/partitioning/partitioner.py
+Coverage: 227/227 (100.00%)
+Missing lines: []
+Test files used:
+- tests/test_partitioning.py

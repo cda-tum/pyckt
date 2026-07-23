@@ -1,0 +1,15 @@
+File: src/pyckt/synthesis/converter.py
+Covered lines: 27
+Total statements: 27
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+19, 21-22, 24-26, 29, 63, 85, 88, 90-91, 96, 98-100, 102, 107-112, 114, 120, 136-137
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

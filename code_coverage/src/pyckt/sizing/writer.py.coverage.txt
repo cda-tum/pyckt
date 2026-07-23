@@ -1,0 +1,15 @@
+File: src/pyckt/sizing/writer.py
+Covered lines: 91
+Total statements: 91
+Missing lines: 0
+Excluded lines: 0
+Coverage: 100.00%
+
+Executed line ranges:
+8, 10-12, 14, 17, 20-21, 23, 25, 30-32, 34, 37, 42, 44-46, 48-49, 51, 53-56, 58, 60-62, 64-75, 77-81, 84, 87-88, 91, 94-95, 98, 101-102, 104, 106-109, 111, 113-116, 118-123, 125-128, 130-132, 135, 138, 140-146, 148-150
+
+Missing line ranges:
+None
+
+Excluded line ranges:
+None

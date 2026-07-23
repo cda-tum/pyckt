@@ -1,0 +1,5 @@
+File: src/recognition/recognizer.py
+Statements: 217
+Covered: 217
+Missing: []
+Coverage: 100%
